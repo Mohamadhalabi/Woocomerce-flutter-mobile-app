@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../components/skleton/others/offers_skelton.dart';
-import '../../../../constants.dart';
 import 'package:shop/components/dot_indicators.dart';
 
 class OffersCarousel extends StatefulWidget {

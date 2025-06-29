@@ -14,6 +14,8 @@ class ProductCard extends StatelessWidget {
     required this.rating,
     required this.sku,
     required this.isNew,
+    required this.isInStock,
+
     this.salePrice,
     this.dicountpercent,
     this.discount,
@@ -29,6 +31,7 @@ class ProductCard extends StatelessWidget {
   final bool? freeShipping;
   final VoidCallback press;
   final bool isNew;
+  final bool isInStock;
 
   @override
   Widget build(BuildContext context) {
@@ -62,8 +65,10 @@ class ProductCard extends StatelessWidget {
                     topLeft: Radius.circular(12),
                     topRight: Radius.circular(12),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8), // Adjust the value as needed
+                  child: ColorFiltered(
+                    colorFilter: isInStock
+                        ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply)
+                        : ColorFilter.mode(Colors.white.withOpacity(0.6), BlendMode.modulate),
                     child: Image.network(
                       image,
                       height: 120,
@@ -73,14 +78,36 @@ class ProductCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (isNew)
+
+                if (!isInStock)
+                  Positioned.fill(
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'STOKTA YOK',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                if (isNew && isInStock)
                   Positioned(
                     top: 8,
                     left: 8,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.red, // 🔴 Red badge
+                        color: Colors.red,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Text(
@@ -93,7 +120,8 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (dicountpercent != null)
+
+                if (dicountpercent != null && isInStock)
                   Positioned(
                     top: 8,
                     left: 8,
@@ -113,6 +141,7 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                   ),
+
                 // ❤️ Wishlist
                 Positioned(
                   top: 8,
@@ -128,7 +157,6 @@ class ProductCard extends StatelessWidget {
                 ),
               ],
             ),
-
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Column(
@@ -261,8 +289,8 @@ class ProductCard extends StatelessWidget {
                                 price: price,
                                 salePrice: salePrice,
                                 sku: sku,
-                                isInStock: true,
                                 image: image,
+                                isInStock: isInStock,
                               ),
                             );
                           },

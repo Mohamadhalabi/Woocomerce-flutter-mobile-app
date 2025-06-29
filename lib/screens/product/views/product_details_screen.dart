@@ -5,9 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shop/components/skleton/skelton.dart';
 import 'package:shop/constants.dart';
 import 'package:shop/screens/product/views/components/product_attributes.dart';
-import '../../../components/common/app_bar.dart';
 import '../../../components/product/related_products.dart';
-import '../../../models/product_model.dart';
 import '../../../services/api_service.dart';
 import '../../../services/cart_service.dart';
 import 'components/expandable_section.dart';
@@ -35,6 +33,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   double price = 0;
   double? salePrice;
   int quantity = 1;
+  bool isInStock = true;
 
   @override
   void didChangeDependencies() {
@@ -52,12 +51,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
     try {
       final result = await ApiService.fetchProductById(widget.productId, _currentLocale!);
+      final data = result.toJson();
       setState(() {
-        product = result.toJson();
-        price = (product!['price'] as num?)?.toDouble() ?? 0.0;
-        salePrice = product!['sale_price'] != null
-            ? (product!['sale_price'] as num).toDouble()
-            : null;
+        product = data;
+        price = (data['price'] as num?)?.toDouble() ?? 0.0;
+        salePrice = data['sale_price'] != null ? (data['sale_price'] as num).toDouble() : null;
+        isInStock = data['stock_status'] == 'instock';
         isLoading = false;
       });
     } catch (e) {
@@ -68,9 +67,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   void _handleAddToCart() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    final image = (product!['gallery'] as List).isNotEmpty
-        ? product!['gallery'][0]
-        : '';
+    final image = (product!['gallery'] as List).isNotEmpty ? product!['gallery'][0] : '';
 
     try {
       if (token != null) {
@@ -183,10 +180,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         ),
                       const SizedBox(height: 16),
 
-                      /// Quantity and Add to Cart on same row
                       Row(
                         children: [
-                          // Quantity input with border
                           Container(
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.grey.shade400),
@@ -220,17 +215,18 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             ),
                           ),
                           const SizedBox(width: 12),
-
-                          // Add to Cart
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: _handleAddToCart,
+                              onPressed: isInStock ? _handleAddToCart : null,
                               icon: const Icon(Icons.shopping_cart),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryColor,
+                                backgroundColor: isInStock ? primaryColor : Colors.grey,
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                               ),
-                              label: const Text("Sepete Ekle", style: TextStyle(fontSize: 16)),
+                              label: Text(
+                                isInStock ? "Sepete Ekle" : "Stokta Yok",
+                                style: const TextStyle(fontSize: 16),
+                              ),
                             ),
                           ),
                         ],

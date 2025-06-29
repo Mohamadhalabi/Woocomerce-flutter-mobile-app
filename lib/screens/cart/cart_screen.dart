@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../constants.dart';
 import '../../../services/cart_service.dart';
 import '../../../services/api_service.dart';
+import 'package:shop/components/skleton/skelton.dart'; // ✅ update if your path differs
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -24,32 +25,27 @@ class _CartScreenState extends State<CartScreen> {
     loadCart();
   }
 
-  Future<void> loadCart() async {
+  Future<List<Map<String, dynamic>>> loadCart([List<Map<String, dynamic>>? overrideItems]) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     isLoggedIn = token != null;
 
     try {
-      final items = isLoggedIn
-          ? await CartService.fetchWooCart(token!)
-          : await CartService.getGuestCart();
+      final items = overrideItems ??
+          (isLoggedIn
+              ? await CartService.fetchWooCart(token!)
+              : await CartService.getGuestCart());
 
       if (isLoggedIn) {
         for (var item in items) {
-          final rawProductId = item['id']?.toString();
-          final productId = int.tryParse(rawProductId ?? '');
+          final productId = int.tryParse(item['id'].toString());
           if (productId != null) {
-            try {
-              final product = await ApiService.fetchProductById(productId, 'tr');
-              item['image'] = product.image;
-              item['title'] = product.title;
-              item['price'] = product.salePrice ?? product.price;
-              item['product_id'] = product.id; // 👈 real WooCommerce product ID
-            } catch (e) {
-              print('❌ Failed to enrich product $productId: $e');
-            }
-          } else {
-            print('⚠️ Invalid product_id: $rawProductId');
+            final product = await ApiService.fetchProductById(productId, 'tr');
+            item['image'] = product.image;
+            item['title'] = product.title;
+            item['price'] = product.salePrice ?? product.price;
+            item['product_id'] = product.id;
+            item['key'] = item['key'];
           }
         }
       }
@@ -59,11 +55,14 @@ class _CartScreenState extends State<CartScreen> {
         total = _calculateTotal(items);
         isLoading = false;
       });
+
+      return items;
     } catch (e) {
       setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Hata: ${e.toString()}")),
       );
+      return [];
     }
   }
 
@@ -112,17 +111,19 @@ class _CartScreenState extends State<CartScreen> {
     }
 
     final cartItemKey = item['key']?.toString();
-    if (token != null && cartItemKey != null && cartItemKey.isNotEmpty) {
+
+    if (token != null && cartItemKey != null) {
       try {
         await CartService.setWooCartQuantity(
           token,
           cartItemKey,
           newQty,
-          productId: item['product_id'], // this is REQUIRED now
+          productId: item['product_id'] ?? item['id'],
         );
-        await loadCart();
+        final updated = await CartService.fetchWooCart(token);
+        await loadCart(updated);
       } catch (e) {
-        print('❌ Error updating quantity: $e');
+        print('❌ Error: $e');
       }
     } else {
       cartItems[index]['quantity'] = newQty;
@@ -138,18 +139,11 @@ class _CartScreenState extends State<CartScreen> {
     final token = prefs.getString('auth_token');
     final item = cartItems[index];
 
-    final productId = item['product_id'] ?? item['id'];
     final cartItemKey = item['key']?.toString();
 
-    if (token != null && productId != null && cartItemKey != null && cartItemKey.isNotEmpty) {
+    if (token != null && cartItemKey != null) {
       try {
-        await CartService.setWooCartQuantity(
-          token,
-          cartItemKey,
-          0, // 👈 set quantity to zero to remove
-          productId: productId,
-        );
-        print('🗑️ Item removed from WooCommerce');
+        await CartService.removeWooCartItem(token, cartItemKey);
       } catch (e) {
         print('❌ Error removing item: $e');
       }
@@ -158,12 +152,16 @@ class _CartScreenState extends State<CartScreen> {
       await CartService.saveGuestCartList(cartItems);
     }
 
-    await loadCart(); // Refresh the cart from server/local
+    await loadCart();
   }
 
   Future<void> clearCart() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
+
+    setState(() {
+      isLoading = true;
+    });
 
     if (token != null) {
       await CartService.clearWooCart(token);
@@ -171,10 +169,7 @@ class _CartScreenState extends State<CartScreen> {
       await CartService.clearGuestCart();
     }
 
-    setState(() {
-      cartItems.clear();
-      total = 0;
-    });
+    await loadCart(); // ⬅️ re-fetch to confirm it's empty
   }
 
   @override
@@ -192,7 +187,33 @@ class _CartScreenState extends State<CartScreen> {
         ],
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: 6,
+        itemBuilder: (context, index) {
+          return const Padding(
+            padding: EdgeInsets.only(bottom: 16),
+            child: Row(
+              children: [
+                Skeleton(width: 100, height: 100, radious: 8),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Skeleton(width: double.infinity, height: 14),
+                      SizedBox(height: 8),
+                      Skeleton(width: 120, height: 14),
+                      SizedBox(height: 8),
+                      Skeleton(width: 80, height: 14),
+                    ],
+                  ),
+                )
+              ],
+            ),
+          );
+        },
+      )
           : cartItems.isEmpty
           ? const Center(child: Text('Sepetiniz boş'))
           : ListView.separated(
@@ -254,8 +275,7 @@ class _CartScreenState extends State<CartScreen> {
                     Text(
                       '₺${price.toStringAsFixed(2)}',
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14),
+                          fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   const SizedBox(height: 6),
                   Row(
@@ -266,15 +286,12 @@ class _CartScreenState extends State<CartScreen> {
                               color: blueColor, width: 1.5),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: Row(
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.remove,
-                                  color: blueColor),
-                              onPressed: () =>
-                                  _changeQuantity(index, -1),
+                              icon: const Icon(Icons.remove, color: blueColor),
+                              onPressed: () => _changeQuantity(index, -1),
                             ),
                             Text(
                               quantity.toString(),
@@ -284,10 +301,8 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.add,
-                                  color: blueColor),
-                              onPressed: () =>
-                                  _changeQuantity(index, 1),
+                              icon: const Icon(Icons.add, color: blueColor),
+                              onPressed: () => _changeQuantity(index, 1),
                             ),
                           ],
                         ),
@@ -300,8 +315,7 @@ class _CartScreenState extends State<CartScreen> {
                   ? Text(
                 '₺${(price * quantity).toStringAsFixed(2)}',
                 style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold),
+                    fontSize: 16, fontWeight: FontWeight.bold),
               )
                   : null,
             ),
@@ -324,13 +338,9 @@ class _CartScreenState extends State<CartScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             Text(
-              isLoggedIn
-                  ? '₺${total.toStringAsFixed(2)}'
-                  : '-',
+              isLoggedIn ? '₺${total.toStringAsFixed(2)}' : '-',
               style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red),
+                  fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
             ),
           ],
         ),

@@ -6,7 +6,7 @@ import 'package:shop/route/screen_export.dart';
 import 'screens/profile/views/profile_screen.dart';
 import 'components/common/app_bar.dart';
 import 'components/common/drawer.dart';
-import 'screens/cart/cart_screen.dart'; // ✅ Add this line
+import 'screens/cart/cart_screen.dart';
 
 class EntryPoint extends StatefulWidget {
   final Function(String) onLocaleChange;
@@ -26,7 +26,7 @@ class _EntryPointState extends State<EntryPoint> {
       const HomeScreen(),
       const DiscoverScreen(),
       const BookmarkScreen(),
-      const CartScreen(),
+      CartScreen(),
       ProfileScreen(
         onLocaleChange: widget.onLocaleChange,
         onTabChange: (index) {
@@ -39,7 +39,7 @@ class _EntryPointState extends State<EntryPoint> {
 
     return Scaffold(
       appBar: const CustomAppBar(),
-      endDrawer: const CustomEndDrawer(),
+      drawer: const CustomDrawer(),
       body: PageTransitionSwitcher(
         duration: defaultDuration,
         transitionBuilder: (child, animation, secondaryAnimation) {
@@ -62,7 +62,7 @@ class _EntryPointState extends State<EntryPoint> {
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Mağaza"),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Anasyfa"),
           BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
           BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: "Kaydedilenler"),
           BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),

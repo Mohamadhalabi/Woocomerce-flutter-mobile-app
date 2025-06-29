@@ -17,25 +17,46 @@ class FlashSaleProducts extends StatefulWidget {
 }
 
 class _FlashSaleProductsState extends State<FlashSaleProducts> {
+  static final Map<String, List<ProductModel>> _cachedProductsByLocale = {};
+
   List<ProductModel> products = [];
   bool isLoading = true;
   String errorMessage = "";
+  String? _currentLocale;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    fetchProducts();
+
+    final locale = Localizations.localeOf(context).languageCode;
+
+    if (_currentLocale != locale) {
+      _currentLocale = locale;
+
+      if (_cachedProductsByLocale.containsKey(locale)) {
+        setState(() {
+          products = _cachedProductsByLocale[locale]!;
+          isLoading = false;
+        });
+      } else {
+        fetchProducts(locale);
+      }
+    }
   }
 
-
-  Future<void> fetchProducts() async {
-    final locale = Localizations.localeOf(context).languageCode;
+  Future<void> fetchProducts(String locale) async {
+    setState(() {
+      isLoading = true;
+      errorMessage = '';
+    });
 
     try {
       final response = await ApiService.fetchFlashSaleProducts(locale);
       if (!mounted) return;
+
       setState(() {
         products = response;
+        _cachedProductsByLocale[locale] = response;
         isLoading = false;
       });
     } catch (e) {
@@ -49,6 +70,8 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -59,15 +82,14 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                AppLocalizations.of(context)!.specialOffer, // Example localization key
+                t.specialOffer,
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               TextButton(
                 onPressed: () {
-                  // Navigate or perform desired action
-                  // Navigator.pushNamed(context, '/discount'); // Change to your route
+                  // Navigator.pushNamed(context, '/discount');
                 },
-                child: Text(AppLocalizations.of(context)!.viewAll),
+                child: Text(t.viewAll),
               ),
             ],
           ),
@@ -81,9 +103,9 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
           )
         else
           VisibilityDetector(
-            key: Key('flash-sale-products'), // Unique key for visibility detection
-            onVisibilityChanged: (VisibilityInfo visibilityInfo) {
-              double visiblePercentage = visibilityInfo.visibleFraction * 100;
+            key: const Key('flash-sale-products'),
+            onVisibilityChanged: (info) {
+              // Optional: log visibility
             },
             child: SizedBox(
               height: 290,
@@ -113,6 +135,7 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
                         discount: product.discount,
                         freeShipping: product.freeShipping,
                         isNew: product.isNew,
+                        isInStock: product.isInStock,
                         press: () {
                           Navigator.pushNamed(
                             context,
@@ -125,7 +148,7 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
                   },
                 ),
               ),
-            )
+            ),
           ),
       ],
     );

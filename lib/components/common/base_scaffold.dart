@@ -18,7 +18,7 @@ class BaseScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const CustomAppBar(),
-      endDrawer: CustomEndDrawer(),
+      drawer: const CustomDrawer(),
       body: body,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,

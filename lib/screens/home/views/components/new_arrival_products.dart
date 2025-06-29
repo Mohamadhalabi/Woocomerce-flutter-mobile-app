@@ -16,6 +16,7 @@ class NewArrivalProducts extends StatefulWidget {
 }
 
 class _NewArrivalProductsState extends State<NewArrivalProducts> {
+  static final Map<String, List<ProductModel>> _cachedProductsByLocale = {};
   List<ProductModel> products = [];
   bool isLoading = true;
   String errorMessage = "";
@@ -26,14 +27,23 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
     super.didChangeDependencies();
 
     final newLocale = Localizations.localeOf(context).languageCode;
+
     if (_currentLocale != newLocale) {
       _currentLocale = newLocale;
-      fetchProducts(_currentLocale!);
+
+      if (_cachedProductsByLocale.containsKey(newLocale)) {
+        setState(() {
+          products = _cachedProductsByLocale[newLocale]!;
+          isLoading = false;
+        });
+      } else {
+        fetchProducts(newLocale);
+      }
     }
   }
 
   Future<void> fetchProducts(String locale) async {
-    if (!mounted) return; // ✅ Prevents crash
+    if (!mounted) return;
     setState(() {
       isLoading = true;
       errorMessage = '';
@@ -41,9 +51,11 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
 
     try {
       final response = await ApiService.fetchLatestProducts(locale);
-      if (!mounted) return; // ✅ Check again after await
+      if (!mounted) return;
+
       setState(() {
         products = response;
+        _cachedProductsByLocale[locale] = response;
         isLoading = false;
       });
     } catch (e) {
@@ -57,24 +69,25 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // const SizedBox(height: defaultPadding / 2),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: defaultPadding),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                AppLocalizations.of(context)!.newArrival, // Example localization key
+                t.newArrival,
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               TextButton(
                 onPressed: () {
                   // Navigator.pushNamed(context, '/new-arrival');
                 },
-                child: Text(AppLocalizations.of(context)!.viewAll),
+                child: Text(t.viewAll),
               ),
             ],
           ),
@@ -115,6 +128,7 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
                       discount: product.discount,
                       freeShipping: product.freeShipping,
                       isNew: product.isNew,
+                      isInStock: product.isInStock,
                       press: () {
                         Navigator.pushNamed(
                           context,

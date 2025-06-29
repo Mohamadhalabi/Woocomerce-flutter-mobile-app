@@ -295,14 +295,14 @@ class _AddToCartModalState extends State<AddToCartModal> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _handleAddToCart,
+                    onPressed: widget.isInStock ? _handleAddToCart : null,
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: Colors.grey.shade200,
+                      backgroundColor: widget.isInStock ? Colors.grey.shade200 : Colors.grey.shade300,
                     ),
-                    child: const Text(
-                      "SEPETE EKLE",
-                      style: TextStyle(color: Colors.black54),
+                    child: Text(
+                      widget.isInStock ? "SEPETE EKLE" : "STOKTA YOK",
+                      style: const TextStyle(color: Colors.black54),
                     ),
                   ),
                 ),

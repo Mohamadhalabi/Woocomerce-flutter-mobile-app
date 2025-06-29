@@ -113,6 +113,7 @@ class _FreeShippingProductsState extends State<FreeShippingProducts> {
                       rating: product.rating,
                       freeShipping: product.freeShipping,
                       isNew: product.isNew,
+                      isInStock: product.isInStock,
                       press: () {
                         Navigator.pushNamed(
                           context,

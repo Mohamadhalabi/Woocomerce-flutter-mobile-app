@@ -11,9 +11,10 @@ class ProductModel {
   final Map<String, dynamic>? discount;
   final bool? freeShipping;
   final bool isNew;
+  final bool isInStock;
   final List<String> images;
   final String description;
-  final Map<String, List<String>> attributes; // ✅ this is your UI-compatible format
+  final Map<String, List<String>> attributes;
 
   ProductModel({
     required this.id,
@@ -30,6 +31,7 @@ class ProductModel {
     this.discount,
     this.freeShipping,
     required this.isNew,
+    required this.isInStock,
     required this.attributes,
   });
 
@@ -70,6 +72,7 @@ class ProductModel {
           createdDate.isAfter(DateTime.now().subtract(const Duration(days: 7))),
       rating: double.tryParse(json['average_rating'].toString()) ?? 0.0,
       attributes: attributeMap,
+      isInStock: json['stock_status'] == 'instock', // ✅ fix here
     );
   }
 
@@ -103,7 +106,7 @@ class ProductModel {
       'rating': rating,
       'num_of_reviews': 0,
       'attributes': attributes,
-      'faq': [],
+      'stock_status': isInStock ? 'instock' : 'outofstock',
     };
   }
 }

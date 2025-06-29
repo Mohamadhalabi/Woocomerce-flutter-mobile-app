@@ -108,11 +108,12 @@ class _RelatedProductsState extends State<RelatedProducts> {
                     discount: product.discount,
                     freeShipping: product.freeShipping,
                     isNew: product.isNew,
+                    isInStock: product.isInStock,
                     press: () {
                       Navigator.pushNamed(
                         context,
                         productDetailsScreenRoute,
-                        arguments: index.isEven,
+                        arguments: product.id,
                       );
                     },
                   ),

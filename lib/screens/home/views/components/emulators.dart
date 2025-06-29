@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:visibility_detector/visibility_detector.dart';
-import 'package:shop/components/product/product_card.dart';
 import 'package:shop/components/skleton/product/products_skelton.dart';
 import 'package:shop/models/product_model.dart';
 import 'package:shop/route/screen_export.dart';
@@ -18,28 +17,50 @@ class EmulatorProducts extends StatefulWidget {
 }
 
 class _EmulatorProductsState extends State<EmulatorProducts> {
+  static final Map<String, List<ProductModel>> _cache = {};
+
   List<ProductModel> products = [];
   bool isLoading = true;
   String errorMessage = "";
+  String? _currentLocale;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    fetchProducts();
+
+    final locale = Localizations.localeOf(context).languageCode;
+    if (_currentLocale != locale) {
+      _currentLocale = locale;
+
+      if (_cache.containsKey(locale)) {
+        setState(() {
+          products = _cache[locale]!;
+          isLoading = false;
+        });
+      } else {
+        fetchProducts(locale);
+      }
+    }
   }
 
-  Future<void> fetchProducts() async {
-    final locale = Localizations.localeOf(context).languageCode;
+  Future<void> fetchProducts(String locale) async {
+    if (!mounted) return;
+    setState(() {
+      isLoading = true;
+      errorMessage = '';
+    });
 
     try {
       final response = await ApiService.fetchEmulatorProducts(locale);
-      if (!mounted) return; // ✅ Ensure widget is still in the tree
+      if (!mounted) return;
+
       setState(() {
         products = response;
+        _cache[locale] = response;
         isLoading = false;
       });
     } catch (e) {
-      if (!mounted) return; // ✅ Prevent error update on disposed widget
+      if (!mounted) return;
       setState(() {
         errorMessage = e.toString();
         isLoading = false;
@@ -49,7 +70,8 @@ class _EmulatorProductsState extends State<EmulatorProducts> {
 
   @override
   Widget build(BuildContext context) {
-    // 👇 Group products in pairs (2 items per column)
+    final t = AppLocalizations.of(context)!;
+
     final groupedProducts = <List<ProductModel>>[];
     for (int i = 0; i < products.length; i += 2) {
       final group = products.skip(i).take(2).toList();
@@ -74,7 +96,7 @@ class _EmulatorProductsState extends State<EmulatorProducts> {
                 onPressed: () {
                   // Navigator.pushNamed(context, '/emulators');
                 },
-                child: Text(AppLocalizations.of(context)!.viewAll),
+                child: Text(t.viewAll),
               ),
             ],
           ),
@@ -89,12 +111,9 @@ class _EmulatorProductsState extends State<EmulatorProducts> {
         else
           VisibilityDetector(
             key: const Key('emulator-products'),
-            onVisibilityChanged: (VisibilityInfo visibilityInfo) {
-              double visiblePercentage = visibilityInfo.visibleFraction * 100;
-              // You can handle analytics or tracking here
-            },
+            onVisibilityChanged: (_) {},
             child: SizedBox(
-              height: 325, // Enough for two rows
+              height: 325,
               child: Container(
                 color: const Color(0xFFEAF2F4),
                 padding: const EdgeInsets.symmetric(vertical: 8),

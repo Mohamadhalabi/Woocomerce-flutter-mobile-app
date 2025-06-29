@@ -110,6 +110,7 @@ class _BundleProductsState extends State<BundleProducts> {
                       discount: product.discount,
                       freeShipping: product.freeShipping,
                       isNew: product.isNew,
+                      isInStock: product.isInStock,
                       press: () {
                         Navigator.pushNamed(
                           context,

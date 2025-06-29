@@ -437,4 +437,5 @@ class ApiService {
       throw Exception('Kayıt başarısız: ${response.body}');
     }
   }
+
 }

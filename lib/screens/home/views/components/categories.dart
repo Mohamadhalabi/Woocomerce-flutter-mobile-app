@@ -12,6 +12,7 @@ class Categories extends StatefulWidget {
 }
 
 class _CategoriesState extends State<Categories> {
+  static final Map<String, List<CategoryModel>> _cachedByLocale = {};
   List<CategoryModel> categories = [];
   bool isLoading = true;
   String? _currentLocale;
@@ -24,29 +25,37 @@ class _CategoriesState extends State<Categories> {
 
     if (_currentLocale != newLocale) {
       _currentLocale = newLocale;
-      fetchCategories(newLocale);
+
+      if (_cachedByLocale.containsKey(newLocale)) {
+        setState(() {
+          categories = _cachedByLocale[newLocale]!;
+          isLoading = false;
+        });
+      } else {
+        fetchCategories(newLocale);
+      }
     }
   }
 
   Future<void> fetchCategories(String locale) async {
-    if (!mounted) return; // ✅ Prevent running on unmounted widget
+    if (!mounted) return;
     setState(() => isLoading = true);
 
     try {
       final data = await ApiService.fetchCategories(locale);
-      if (!mounted) return; // ✅ Check again before calling setState
+      if (!mounted) return;
+
       setState(() {
+        _cachedByLocale[locale] = data;
         categories = data;
         isLoading = false;
       });
     } catch (e) {
       print('Kategori hatası: $e');
-      if (!mounted) return; // ✅ Safe guard for async error path too
+      if (!mounted) return;
       setState(() => isLoading = false);
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +77,7 @@ class _CategoriesState extends State<Categories> {
             ),
             child: CategoryBtn(
               category: categories[index].name,
-              image: "",
+              image: "", // Optionally pass category image
               press: () {
                 if (categories[index].route != null) {
                   Navigator.pushNamed(context, categories[index].route!);
@@ -116,7 +125,7 @@ class CategoryBtn extends StatelessWidget {
                 )
               ],
             ),
-            child: image != null && image.isNotEmpty
+            child: image.isNotEmpty
                 ? Image.network(image, fit: BoxFit.contain)
                 : const Icon(Icons.image_not_supported, color: Colors.grey),
           ),
@@ -129,7 +138,7 @@ class CategoryBtn extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: greenColor
+                color: greenColor,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
