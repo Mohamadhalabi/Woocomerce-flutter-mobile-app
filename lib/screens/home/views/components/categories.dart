@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shop/components/skleton/others/categories_skelton.dart';
+import 'package:shop/models/category_model.dart';
+import 'package:shop/screens/category/category_products_screen.dart';
 import '../../../../constants.dart';
 import '../../../../services/api_service.dart';
-import 'package:shop/models/category_model.dart';
 
 class Categories extends StatefulWidget {
   const Categories({super.key});
@@ -67,25 +68,28 @@ class _CategoriesState extends State<Categories> {
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: defaultPadding),
       child: Row(
-        children: List.generate(
-          categories.length,
-              (index) => Padding(
-            padding: EdgeInsets.only(
-              top: 15.0,
-              right: index == categories.length - 1 ? defaultPadding : 0,
-            ),
+        children: categories.map((cat) {
+          return Padding(
+            padding: const EdgeInsets.only(right: defaultPadding),
             child: CategoryBtn(
-              category: categories[index].name,
-              image: "", // Optionally pass category image
+              category: cat.name,
+              image: cat.image ?? '',
               press: () {
-                if (categories[index].route != null) {
-                  Navigator.pushNamed(context, categories[index].route!);
-                }
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CategoryProductsScreen(
+                      categoryId: cat.id,
+                      categoryName: cat.name,
+                    ),
+                  ),
+                );
               },
             ),
-          ),
-        ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -131,7 +135,7 @@ class CategoryBtn extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           SizedBox(
-            width: 130,
+            width: 90,
             child: Text(
               category,
               textAlign: TextAlign.center,

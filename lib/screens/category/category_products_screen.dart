@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shop/components/product/product_card.dart';
 import 'package:shop/models/product_model.dart';
 import 'package:shop/services/api_service.dart';
-
+import '../../route/route_constants.dart';
 import '../search/views/global_search_screen.dart';
 
 class CategoryProductsScreen extends StatefulWidget {
@@ -21,6 +21,8 @@ class CategoryProductsScreen extends StatefulWidget {
 
 class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   List<ProductModel> products = [];
+  Map<String, List<String>> filters = {};
+  Map<String, List<String>> selectedTermsByAttribute = {}; // For multiple filters
   int currentPage = 1;
   bool isLoading = false;
   bool hasMore = true;
@@ -50,6 +52,16 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
     locale = Localizations.localeOf(context).languageCode;
     if (products.isEmpty && !isLoading) {
       fetchProducts();
+      fetchFilters();
+    }
+  }
+
+  Future<void> fetchFilters() async {
+    try {
+      final result = await ApiService.fetchFiltersForCategory(widget.categoryId);
+      setState(() => filters = result);
+    } catch (e) {
+      debugPrint("Filter fetch error: $e");
     }
   }
 
@@ -67,13 +79,13 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
     setState(() => isLoading = true);
 
     try {
-      final response = await ApiService.fetchProductsByCategory(
+      final response = await ApiService.fetchFilteredProducts(
         categoryId: widget.categoryId,
         page: currentPage,
         perPage: perPage,
-        locale: locale,
-        search: searchQuery,
+        selectedFilters: selectedTermsByAttribute,
       );
+
       setState(() {
         products.addAll(response);
         currentPage++;
@@ -86,27 +98,54 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
     }
   }
 
-  List<Widget> buildSkeletonItems() {
-    return List.generate(4, (index) {
-      return Container(
-        height: 130, // 👈 reduce height
-        decoration: BoxDecoration(
-          color: Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(8),
-        ),
-      );
-    });
-  }
+  void openAttributeModal(String attributeKey, List<String> terms) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        final selectedTerms = [...(selectedTermsByAttribute[attributeKey] ?? [])];
 
-  void onSearch(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => GlobalSearchScreen(query: trimmed),
-      ),
+        return StatefulBuilder(
+          builder: (context, setStateModal) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text("Select ${attributeKey.replaceFirst("pa_", "")}"),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: terms.map((term) {
+                      final isSelected = selectedTerms.contains(term);
+                      return FilterChip(
+                        label: Text(term),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setStateModal(() {
+                            if (selected) {
+                              selectedTerms.add(term);
+                            } else {
+                              selectedTerms.remove(term);
+                            }
+                            selectedTermsByAttribute[attributeKey] = selectedTerms.cast<String>();
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      fetchProducts(isRefresh: true);
+                    },
+                    child: const Text("Apply Filter"),
+                  )
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -128,32 +167,58 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
       ),
       body: Column(
         children: [
-          // 🔍 Search Input
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            padding: const EdgeInsets.all(12),
             child: TextField(
               controller: searchController,
-              onSubmitted: onSearch,
+              onSubmitted: (value) => onSearch(value),
               decoration: InputDecoration(
                 hintText: "Ürün ara...",
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                suffixIcon: searchController.text.isNotEmpty
-                    ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    searchController.clear();
-                    onSearch('');
-                  },
-                )
-                    : null,
               ),
             ),
           ),
+
+          // Filter UI
+          if (filters.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: filters.entries.map((entry) {
+                return ActionChip(
+                  label: Text(entry.key.replaceFirst("pa_", "")),
+                  onPressed: () => openAttributeModal(entry.key, entry.value),
+                );
+              }).toList(),
+            ),
+
           const SizedBox(height: 10),
-          // 🔁 Product Grid with Refresh
+
+          // Active filters summary
+          if (selectedTermsByAttribute.isNotEmpty)
+            Wrap(
+              spacing: 6,
+              children: selectedTermsByAttribute.entries.expand((entry) {
+                return entry.value.map((term) {
+                  return Chip(
+                    label: Text("${entry.key.replaceFirst("pa_", "")}: $term"),
+                    onDeleted: () {
+                      setState(() {
+                        selectedTermsByAttribute[entry.key]?.remove(term);
+                        if (selectedTermsByAttribute[entry.key]?.isEmpty ?? true) {
+                          selectedTermsByAttribute.remove(entry.key);
+                        }
+                        fetchProducts(isRefresh: true);
+                      });
+                    },
+                  );
+                });
+              }).toList(),
+            ),
+
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => fetchProducts(isRefresh: true),
@@ -164,7 +229,13 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                 mainAxisSpacing: 12,
                 padding: const EdgeInsets.all(12),
                 childAspectRatio: 0.75,
-                children: buildSkeletonItems(),
+                children: List.generate(4, (_) => Container(
+                  height: 130,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                )),
               )
                   : GridView.builder(
                 controller: _scrollController,
@@ -178,9 +249,14 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                 ),
                 itemBuilder: (context, index) {
                   if (index >= products.length) {
-                    return buildSkeletonItems()[index % 4];
+                    return Container(
+                      height: 130,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    );
                   }
-
                   final product = products[index];
                   return ProductCard(
                     id: product.id,
@@ -199,7 +275,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                     press: () {
                       Navigator.pushNamed(
                         context,
-                        '/product-detail',
+                        productDetailsScreenRoute,
                         arguments: product.id,
                       );
                     },
@@ -209,6 +285,17 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void onSearch(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GlobalSearchScreen(query: trimmed),
       ),
     );
   }

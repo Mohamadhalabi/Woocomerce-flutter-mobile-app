@@ -445,6 +445,7 @@ class ApiService {
     int page = 1,
     int perPage = 16,
     String? search,
+    Map<String, List<String>> selectedFilters = const {},
   }) async {
     await dotenv.load();
     final baseUrl = dotenv.env['API_BASE_URL'];
@@ -463,6 +464,15 @@ class ApiService {
       query.write('&search=${Uri.encodeComponent(search)}');
     }
 
+    // Encode attribute filters
+    if (selectedFilters.isNotEmpty) {
+      for (var entry in selectedFilters.entries) {
+        for (var term in entry.value) {
+          query.write('&attribute=${entry.key}&attribute_term=${Uri.encodeComponent(term)}');
+        }
+      }
+    }
+
     final url = Uri.parse('$baseUrl/products?$query');
 
     final response = await http.get(url);
@@ -470,9 +480,49 @@ class ApiService {
       final List jsonData = jsonDecode(response.body);
       return jsonData.map((json) => ProductModel.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load category products');
+      throw Exception('Failed to load filtered category products');
     }
   }
+
+
+  static Future<Map<String, List<String>>> fetchFiltersForCategory(int categoryId) async {
+    final url = Uri.parse('https://www.aanahtar.com.tr/wp-json/custom/v1/attributes-for-category?category=$categoryId');
+
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> jsonData = jsonDecode(response.body);
+      return jsonData.map((key, value) {
+        final terms = List<String>.from(value.map((e) => e.toString()));
+        return MapEntry(key, terms);
+      });
+    } else {
+      throw Exception('Failed to fetch filters: ${response.body}');
+    }
+  }
+
+  static Future<List<ProductModel>> fetchFilteredProducts({
+    required int categoryId,
+    required int page,
+    required int perPage,
+    required Map<String, List<String>> selectedFilters,
+  }) async {
+    final filtersJson = jsonEncode(selectedFilters);
+    final url = Uri.parse(
+      'https://www.aanahtar.com.tr/wp-json/custom/v1/filtered-products'
+          '?category=$categoryId&page=$page&per_page=$perPage&attributes=${Uri.encodeComponent(filtersJson)}',
+    );
+
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((json) => ProductModel.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load filtered products: ${response.body}');
+    }
+  }
+
 
   //search
   static Future<List<ProductModel>> fetchProductsBySearch({
