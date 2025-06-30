@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shop/components/product/product_card.dart';
 import 'package:shop/models/product_model.dart';
 import 'package:shop/services/api_service.dart';
+import '../../components/skleton/product/product_category_skelton.dart';
 import '../../route/route_constants.dart';
 import '../search/views/global_search_screen.dart';
 
@@ -223,20 +224,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
             child: RefreshIndicator(
               onRefresh: () => fetchProducts(isRefresh: true),
               child: products.isEmpty && isLoading
-                  ? GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                padding: const EdgeInsets.all(12),
-                childAspectRatio: 0.75,
-                children: List.generate(4, (_) => Container(
-                  height: 130,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                )),
-              )
+                  ? const ProductCategorySkelton()
                   : GridView.builder(
                 controller: _scrollController,
                 itemCount: hasMore ? products.length + 4 : products.length,
@@ -257,6 +245,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                       ),
                     );
                   }
+
                   final product = products[index];
                   return ProductCard(
                     id: product.id,

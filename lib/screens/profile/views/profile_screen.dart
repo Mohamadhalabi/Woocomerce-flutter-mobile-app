@@ -40,7 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context, snapshot) {
         debugPrint("📱 Token snapshot: hasData=${snapshot.hasData}, value=${snapshot.data}");
 
-        if (!snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const ColoredBox(
             color: Colors.white,
             child: Center(child: CircularProgressIndicator()),

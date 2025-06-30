@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:shop/constants.dart';
 
 class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget {
   final TextEditingController controller;
   final VoidCallback onBellTap;
   final ValueChanged<String> onSearchSubmitted;
+  final VoidCallback onSearchTap;
 
   const CustomSearchAppBar({
     super.key,
     required this.controller,
     required this.onBellTap,
     required this.onSearchSubmitted,
+    required this.onSearchTap,
   });
 
   @override
@@ -27,37 +28,32 @@ class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget 
           onPressed: () => Scaffold.of(context).openDrawer(),
         ),
       ),
-      title: Container(
-        height: 42,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: Row(
-          children: [
-            const Icon(Icons.search, size: 20, color: Colors.grey),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                style: const TextStyle(fontSize: 14),
-                decoration: const InputDecoration(
-                  hintText: "Ürün ara...",
-                  hintStyle: TextStyle(color: Colors.grey),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  isCollapsed: true,
-                  filled: true,
-                  fillColor: Colors.transparent,
+      title: GestureDetector(
+        onTap: onSearchTap,
+        child: Container(
+          height: 42,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: const Row(
+            children: [
+              Icon(Icons.search, size: 20, color: Colors.grey),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "Ürün ara...",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                onSubmitted: (value) {
-                  debugPrint('Search for: $value');
-                },
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       actions: [

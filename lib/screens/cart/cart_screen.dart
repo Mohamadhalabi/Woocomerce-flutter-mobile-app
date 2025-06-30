@@ -271,22 +271,24 @@ class _CartScreenState extends State<CartScreen> {
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (isLoggedIn)
-                    Text(
-                      '₺${price.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 14),
+                  const SizedBox(height: 8),
+                  Text(
+                    '₺${price.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: blueColor,
                     ),
-                  const SizedBox(height: 6),
+                  ),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          border: Border.all(
-                              color: blueColor, width: 1.5),
-                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: blueColor, width: 2),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 1),
                         child: Row(
                           children: [
                             IconButton(
@@ -295,7 +297,7 @@ class _CartScreenState extends State<CartScreen> {
                             ),
                             Text(
                               quantity.toString(),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: blueColor,
                               ),

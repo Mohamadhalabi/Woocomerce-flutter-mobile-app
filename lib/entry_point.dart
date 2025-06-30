@@ -62,13 +62,15 @@ class _EntryPointState extends State<EntryPoint> {
       onTabChange: (index) {
         setState(() => _currentIndex = index);
       },
+      onSearchTap: () {
+        setState(() => _currentIndex = 1);
+      },
       searchController: _searchController,
+      showAppBar: _currentIndex != 1,
       drawer: CustomDrawer(
         onNavigateToIndex: (int index) {
-          setState(() {
-            _currentIndex = index;
-          });
-          Navigator.pop(context); // Close the drawer
+          setState(() => _currentIndex = index);
+          Navigator.pop(context);
         },
       ),
     );

@@ -72,7 +72,7 @@ class _CategoriesState extends State<Categories> {
       child: Row(
         children: categories.map((cat) {
           return Padding(
-            padding: const EdgeInsets.only(right: defaultPadding),
+            padding: const EdgeInsets.only(right: defaultPadding, top:16),
             child: CategoryBtn(
               category: cat.name,
               image: cat.image ?? '',
