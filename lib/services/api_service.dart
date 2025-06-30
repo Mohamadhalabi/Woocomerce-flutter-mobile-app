@@ -438,4 +438,68 @@ class ApiService {
     }
   }
 
+  //fetch products by category
+  static Future<List<ProductModel>> fetchProductsByCategory({
+    required int categoryId,
+    required String locale,
+    int page = 1,
+    int perPage = 16,
+    String? search,
+  }) async {
+    await dotenv.load();
+    final baseUrl = dotenv.env['API_BASE_URL'];
+    final key = dotenv.env['CONSUMER_KEY'];
+    final secret = dotenv.env['CONSUMER_SECRET'];
+
+    final query = StringBuffer()
+      ..write('category=$categoryId')
+      ..write('&page=$page')
+      ..write('&per_page=$perPage')
+      ..write('&consumer_key=$key')
+      ..write('&consumer_secret=$secret')
+      ..write('&lang=$locale');
+
+    if (search != null && search.isNotEmpty) {
+      query.write('&search=${Uri.encodeComponent(search)}');
+    }
+
+    final url = Uri.parse('$baseUrl/products?$query');
+
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      final List jsonData = jsonDecode(response.body);
+      return jsonData.map((json) => ProductModel.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load category products');
+    }
+  }
+
+  //search
+  static Future<List<ProductModel>> fetchProductsBySearch({
+    required String search,
+    required String locale,
+    int page = 1,
+    int perPage = 16,
+  }) async {
+    await dotenv.load();
+    final baseUrl = dotenv.env['API_BASE_URL'];
+    final key = dotenv.env['CONSUMER_KEY'];
+    final secret = dotenv.env['CONSUMER_SECRET'];
+
+    final url = Uri.parse(
+      '$baseUrl/products?search=${Uri.encodeComponent(search)}'
+          '&page=$page&per_page=$perPage'
+          '&consumer_key=$key&consumer_secret=$secret'
+          '&lang=$locale',
+    );
+
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      final List jsonData = jsonDecode(response.body);
+      return jsonData.map((json) => ProductModel.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to search products');
+    }
+  }
+
 }

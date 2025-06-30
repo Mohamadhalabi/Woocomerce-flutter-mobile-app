@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:shop/constants.dart';
 
-class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const CustomAppBar({super.key});
+class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final TextEditingController controller;
+  final VoidCallback onBellTap;
+  final ValueChanged<String> onSearchSubmitted;
+
+  const CustomSearchAppBar({
+    super.key,
+    required this.controller,
+    required this.onBellTap,
+    required this.onSearchSubmitted,
+  });
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight + 10);
@@ -11,10 +20,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       backgroundColor: Colors.white,
-      elevation: 0.8,
+      elevation: 1,
       leading: Builder(
         builder: (context) => IconButton(
-          icon: const Icon(Icons.menu, color: Colors.black87),
+          icon: const Icon(Icons.menu, color: Colors.black),
           onPressed: () => Scaffold.of(context).openDrawer(),
         ),
       ),
@@ -53,14 +62,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.notifications_none, color: Colors.black87),
-          onPressed: () {
-            // Handle notifications
-          },
+          icon: const Icon(Icons.notifications_none, color: Colors.black),
+          onPressed: onBellTap,
         ),
-        const SizedBox(width: 6),
       ],
-      centerTitle: true,
     );
   }
 }

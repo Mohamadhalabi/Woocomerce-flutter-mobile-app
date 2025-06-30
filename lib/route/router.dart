@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shop/entry_point.dart';
 
 import '../models/product_model.dart';
+import '../screens/category/category_products_screen.dart';
 import 'screen_export.dart';
 import "package:shop/controllers/locale_controller.dart";
 // Yuo will get 50+ screens and more once you have the full template
@@ -199,13 +200,6 @@ Route<dynamic> generateRoute(RouteSettings settings) {
           },
         ),
       );
-    case profileScreenRoute:
-      return MaterialPageRoute(
-        builder: (context) => ProfileScreen(
-          onLocaleChange: LocaleController.updateLocale ?? (_) {},
-          onTabChange: (_) {}, // ✅ dummy tab switcher
-        ),
-      );
     // case getHelpScreenRoute:
     //   return MaterialPageRoute(
     //     builder: (context) => const GetHelpScreen(),
@@ -214,6 +208,14 @@ Route<dynamic> generateRoute(RouteSettings settings) {
     //   return MaterialPageRoute(
     //     builder: (context) => const ChatScreen(),
     //   );
+    case profileScreenRoute:
+      return MaterialPageRoute(
+        builder: (context) => ProfileScreen(
+          onLocaleChange: LocaleController.updateLocale ?? (_) {},
+          onTabChange: (_) {}, // ✅ dummy tab switcher
+          searchController: TextEditingController(), // ✅ Provide controller
+        ),
+      );
     case userInfoScreenRoute:
       return MaterialPageRoute(
         builder: (context) => const UserInfoScreen(),
@@ -226,6 +228,14 @@ Route<dynamic> generateRoute(RouteSettings settings) {
     //   return MaterialPageRoute(
     //     builder: (context) => const EditUserInfoScreen(),
     //   );
+    case '/category-products':
+      final args = settings.arguments as Map<String, dynamic>;
+      return MaterialPageRoute(
+        builder: (context) => CategoryProductsScreen(
+          categoryId: args['categoryId'],
+          categoryName: args['categoryName'],
+        ),
+      );
     case notificationsScreenRoute:
       return MaterialPageRoute(
         builder: (context) => const NotificationsScreen(),

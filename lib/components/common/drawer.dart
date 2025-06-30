@@ -1,32 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:shop/models/category_model.dart';
+import 'package:shop/screens/category/category_products_screen.dart';
+// import 'package:shop/screens/shop/shop_screen.dart';
 import 'package:shop/services/api_service.dart';
 
 class CustomDrawer extends StatefulWidget {
-  const CustomDrawer({super.key});
+  final void Function(int)? onNavigateToIndex;
+  final void Function(Widget)? onNavigateToScreen;
+
+  const CustomDrawer({
+    super.key,
+    this.onNavigateToIndex,
+    this.onNavigateToScreen,
+  });
 
   @override
   State<CustomDrawer> createState() => _CustomDrawerState();
 }
 
 class _CustomDrawerState extends State<CustomDrawer> {
-  static List<CategoryModel> _cachedCategories = [];
-  List<CategoryModel> categories = [];
+  static List<dynamic>? _cachedCategories;
+  List<dynamic> categories = [];
   bool isLoading = true;
+  String? _locale;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final locale = Localizations.localeOf(context).languageCode;
-      if (_cachedCategories.isNotEmpty) {
-        setState(() {
-          categories = _cachedCategories;
-          isLoading = false;
-        });
+      _locale = Localizations.localeOf(context).languageCode;
+      if (_cachedCategories != null) {
+        categories = _cachedCategories!;
+        isLoading = false;
+        setState(() {});
       } else {
-        fetchCategories(locale);
+        fetchCategories(_locale!);
       }
     });
   }
@@ -35,12 +43,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
     try {
       final response = await ApiService.fetchCategories(locale);
       setState(() {
-        _cachedCategories = response;
         categories = response;
+        _cachedCategories = response;
         isLoading = false;
       });
     } catch (e) {
-      debugPrint('Kategori alma hatası: $e');
+      debugPrint('Error fetching categories: $e');
       setState(() => isLoading = false);
     }
   }
@@ -53,7 +61,6 @@ class _CustomDrawerState extends State<CustomDrawer> {
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          // Header
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -61,36 +68,26 @@ class _CustomDrawerState extends State<CustomDrawer> {
           ),
           const Divider(height: 1),
 
-          // Menu Items
+          // Navigation items
           ListTile(
             leading: const Icon(Icons.home),
-            title: Text("Anasayfa"),
-            onTap: () => Navigator.pushNamed(context, '/'),
+            title: const Text("Anasayfa"),
+            onTap: () => widget.onNavigateToIndex?.call(0),
           ),
           ListTile(
             leading: const Icon(Icons.store),
-            title: Text("Mağaza"),
-            onTap: () => Navigator.pushNamed(context, '/shop'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.category),
-            title: const Text('Kategoriler'),
-            onTap: () => Navigator.pushNamed(context, '/categories'),
+            title: const Text("Mağaza"),
+            // onTap: () => widget.onNavigateToScreen?.call(const ShopScreen()),
           ),
           ListTile(
             leading: const Icon(Icons.shopping_cart),
             title: const Text('Sepet'),
-            onTap: () => Navigator.pushNamed(context, '/cart'),
+            onTap: () => widget.onNavigateToIndex?.call(3),
           ),
           ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('Ayarlar'),
-            onTap: () => Navigator.pushNamed(context, '/settings'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.login),
-            title: const Text('Giriş / Kayıt'),
-            onTap: () => Navigator.pushNamed(context, '/login'),
+            leading: const Icon(Icons.person),
+            title: const Text('Profil'),
+            onTap: () => widget.onNavigateToIndex?.call(4),
           ),
 
           const Divider(height: 32),
@@ -99,18 +96,30 @@ class _CustomDrawerState extends State<CustomDrawer> {
             child: Text("KATEGORİLER", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
 
-          // Category List
           if (isLoading)
             const Padding(
               padding: EdgeInsets.all(16),
               child: Center(child: CircularProgressIndicator()),
             )
           else
-            ...categories.map((cat) => ListTile(
-              title: Text(cat.name),
-              trailing: Text('${cat.count} ürün'),
-              onTap: () => Navigator.pushNamed(context, '/shop?cat=${cat.id}'),
-            )),
+            ...categories.map(
+                  (cat) => ListTile(
+                title: Text(cat.name),
+                trailing: Text('${cat.count} ürün'),
+                    onTap: () {
+                      Navigator.pop(context); // close the drawer
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CategoryProductsScreen(
+                            categoryId: cat.id,
+                            categoryName: cat.name,
+                          ),
+                        ),
+                      );
+                    },
+              ),
+            )
         ],
       ),
     );
