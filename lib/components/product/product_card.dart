@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../constants.dart';
 import 'add_to_cart_modal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 
 class ProductCard extends StatelessWidget {
   const ProductCard({
@@ -214,7 +215,8 @@ class ProductCard extends StatelessWidget {
                                 return const SizedBox(height: 24); // loading space
                               }
 
-                              final isLoggedIn = snapshot.data != null;
+                              final token = snapshot.data;
+                              final isLoggedIn = token != null && !JwtDecoder.isExpired(token);
 
                               if (!isLoggedIn) {
                                 return const Text(
@@ -251,7 +253,6 @@ class ProductCard extends StatelessWidget {
                               );
                             },
                           ),
-
                           // Text(
                           //   "₺${finalPrice.toStringAsFixed(2)}",
                           //   style: const TextStyle(
@@ -273,50 +274,51 @@ class ProductCard extends StatelessWidget {
                         ],
                       ),
 
-                      Align(
-                        alignment: Alignment.bottomRight,
-                        child: GestureDetector(
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      if ((salePrice ?? price) > 0)
+                        Align(
+                          alignment: Alignment.bottomRight,
+                          child: GestureDetector(
+                            onTap: () {
+                              showModalBottomSheet(
+                                context: context,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                ),
+                                isScrollControlled: true,
+                                builder: (context) => AddToCartModal(
+                                  productId: id ?? 0,
+                                  title: title,
+                                  price: price,
+                                  salePrice: salePrice,
+                                  sku: sku,
+                                  image: image,
+                                  isInStock: isInStock,
+                                ),
+                              );
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: blueColor,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ],
                               ),
-                              isScrollControlled: true,
-                              builder: (context) => AddToCartModal(
-                                productId: id ?? 0,
-                                title: title,
-                                price: price,
-                                salePrice: salePrice,
-                                sku: sku,
-                                image: image,
-                                isInStock: isInStock,
+                              child: const Icon(
+                                Icons.shopping_cart_checkout_sharp,
+                                color: Colors.white,
+                                size: 14,
                               ),
-                            );
-                          },
-
-                          child: Container(
-                            margin: const EdgeInsets.only(top: 4),
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: blueColor, // same blue color as the screenshot
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                )
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.shopping_cart_checkout_sharp, // This gives you the "+" icon
-                              color: Colors.white,
-                              size: 14,
                             ),
                           ),
                         ),
-                      ),
+
 
 
                     ],
