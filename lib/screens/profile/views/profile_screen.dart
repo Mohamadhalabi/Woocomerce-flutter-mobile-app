@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import '../../../services/api_service.dart';
+import '../../../services/alert_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Function(String) onLocaleChange;
@@ -27,7 +29,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
+
     if (!mounted) return;
+
+    AlertService.showTopAlert(
+      context,
+      'Başarıyla çıkış yapıldı',
+      isError: false,
+    );
+
     widget.onTabChange(0); // Go to home tab
   }
 
@@ -48,8 +58,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
 
         final token = snapshot.data;
-        if (token == null || token.isEmpty) {
-          debugPrint("📱 No token → guest view");
+        if (token == null || token.isEmpty || JwtDecoder.isExpired(token)) {
+          debugPrint("📱 No token or token expired → guest view");
+
+          // Optionally clear expired token
+          SharedPreferences.getInstance().then((prefs) => prefs.remove('auth_token'));
+
           return _buildGuestView();
         }
 
@@ -153,8 +167,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   final orders = await ApiService.fetchUserOrders();
                   Navigator.pushNamed(context, '/orders', arguments: orders);
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Siparişler alınamadı: $e')),
+                  AlertService.showTopAlert(
+                    context,
+                    'Siparişler alınamadı: $e',
+                    isError: true,
                   );
                 }
               },

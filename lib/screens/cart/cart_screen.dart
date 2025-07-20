@@ -4,7 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../constants.dart';
 import '../../../services/cart_service.dart';
 import '../../../services/api_service.dart';
-import 'package:shop/components/skleton/skelton.dart'; // ✅ update if your path differs
+import 'package:shop/components/skleton/skelton.dart';
+import '../../../services/alert_service.dart';
+
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -59,8 +61,10 @@ class _CartScreenState extends State<CartScreen> {
       return items;
     } catch (e) {
       setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Hata: ${e.toString()}")),
+      AlertService.showTopAlert(
+        context,
+        "Sepet yüklenemedi: ${e.toString()}",
+        isError: true,
       );
       return [];
     }
@@ -123,7 +127,11 @@ class _CartScreenState extends State<CartScreen> {
         final updated = await CartService.fetchWooCart(token);
         await loadCart(updated);
       } catch (e) {
-        print('❌ Error: $e');
+        AlertService.showTopAlert(
+          context,
+          'Miktar güncellenemedi: ${e.toString()}',
+          isError: true,
+        );
       }
     } else {
       cartItems[index]['quantity'] = newQty;
@@ -145,7 +153,11 @@ class _CartScreenState extends State<CartScreen> {
       try {
         await CartService.removeWooCartItem(token, cartItemKey);
       } catch (e) {
-        print('❌ Error removing item: $e');
+        AlertService.showTopAlert(
+          context,
+          'Ürün silinirken hata oluştu: ${e.toString()}',
+          isError: true,
+        );
       }
     } else {
       cartItems.removeAt(index);
@@ -169,7 +181,13 @@ class _CartScreenState extends State<CartScreen> {
       await CartService.clearGuestCart();
     }
 
-    await loadCart(); // ⬅️ re-fetch to confirm it's empty
+    await loadCart();
+
+    AlertService.showTopAlert(
+      context,
+      'Sepet başarıyla temizlendi',
+      isError: false,
+    );
   }
 
   @override

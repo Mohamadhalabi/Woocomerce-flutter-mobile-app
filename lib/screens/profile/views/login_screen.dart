@@ -3,9 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shop/screens/profile/views/register_screen.dart';
 import '../../../entry_point.dart';
 import '../../../services/api_service.dart';
-import '../../../constants.dart';
 import '../../../services/cart_service.dart';
-import 'forgot_password_screen.dart'; // Make sure primaryColor is defined here
+import 'forgot_password_screen.dart';
+import '../../../services/alert_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -55,17 +55,17 @@ class _LoginScreenState extends State<LoginScreen> {
           quantity = int.tryParse(rawQty.toString()) ?? 1;
         }
 
-        // 👇 This will now send the correct type
         await CartService.addToWooCart(token, productId, quantity);
       }
 
-      // ✅ Clear guest cart after merge
       await CartService.clearGuestCart();
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Giriş başarılı')),
+      AlertService.showTopAlert(
+        context,
+        'Giriş başarılı',
+        isError: false,
       );
 
       Navigator.pushReplacement(
@@ -75,8 +75,10 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+      AlertService.showTopAlert(
+        context,
+        e.toString(),
+        isError: true,
       );
     } finally {
       setState(() => isLoading = false);

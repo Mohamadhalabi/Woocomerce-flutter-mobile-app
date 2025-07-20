@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../constants.dart';
 import '../../services/cart_service.dart';
+import '../../services/alert_service.dart';
 
 class AddToCartModal extends StatefulWidget {
   final int productId;
@@ -76,14 +77,14 @@ class _AddToCartModalState extends State<AddToCartModal> {
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sepete eklendi')),
-        );
+        AlertService.showTopAlert(context, 'Ürün sepete eklendi', isError: false);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sepete ekleme hatası: ${e.toString()}')),
+        AlertService.showTopAlert(
+          context,
+          'Sepete ekleme hatası: ${e.toString()}',
+          isError: true,
         );
       }
     }

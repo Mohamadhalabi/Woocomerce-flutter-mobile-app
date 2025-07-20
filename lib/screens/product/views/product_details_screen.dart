@@ -11,6 +11,7 @@ import '../../../services/cart_service.dart';
 import 'components/expandable_section.dart';
 import 'components/product_images.dart';
 import 'components/product_info.dart';
+import '../../../services/alert_service.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
   const ProductDetailsScreen({
@@ -84,14 +85,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         );
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ürün sepete eklendi')),
-      );
+      AlertService.showTopAlert(context, 'Ürün sepete eklendi', isError: false);
     } catch (e) {
-      debugPrint('Add to cart error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sepete ekleme başarısız')),
-      );
+      AlertService.showTopAlert(context, 'Sepete ekleme başarısız', isError: true);
     }
   }
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import 'package:shop/constants.dart';
+import '../../../services/alert_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -28,15 +28,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Şifre sıfırlama bağlantısı gönderildi.')),
+        AlertService.showTopAlert(
+          context,
+          'Şifre sıfırlama bağlantısı gönderildi.',
+          isError: false,
         );
       } else {
         throw data['message'] ?? 'Bir hata oluştu';
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+      AlertService.showTopAlert(
+        context,
+        e.toString(),
+        isError: true,
       );
     } finally {
       setState(() => isLoading = false);
