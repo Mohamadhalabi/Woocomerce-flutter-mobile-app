@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:visibility_detector/visibility_detector.dart';
 import 'package:shop/components/product/product_card.dart';
 import 'package:shop/components/skleton/product/products_skelton.dart';
 import 'package:shop/models/product_model.dart';
@@ -8,6 +7,8 @@ import 'package:shop/route/screen_export.dart';
 import 'package:shop/services/api_service.dart';
 import '../../../../constants.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
+import 'package:shop/providers/currency_provider.dart';
 
 class FlashSaleProducts extends StatefulWidget {
   const FlashSaleProducts({super.key});
@@ -17,34 +18,36 @@ class FlashSaleProducts extends StatefulWidget {
 }
 
 class _FlashSaleProductsState extends State<FlashSaleProducts> {
-  static final Map<String, List<ProductModel>> _cachedProductsByLocale = {};
+  static final Map<String, List<ProductModel>> _cachedProductsByLocaleAndCurrency = {};
 
   List<ProductModel> products = [];
   bool isLoading = true;
   String errorMessage = "";
-  String? _currentLocale;
+  String _cacheKey = "";
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
     final locale = Localizations.localeOf(context).languageCode;
+    final currency = Provider.of<CurrencyProvider>(context, listen: true).selectedCurrency;
+    final newKey = '$locale|$currency';
 
-    if (_currentLocale != locale) {
-      _currentLocale = locale;
+    if (_cacheKey != newKey) {
+      _cacheKey = newKey;
 
-      if (_cachedProductsByLocale.containsKey(locale)) {
+      if (_cachedProductsByLocaleAndCurrency.containsKey(_cacheKey)) {
         setState(() {
-          products = _cachedProductsByLocale[locale]!;
+          products = _cachedProductsByLocaleAndCurrency[_cacheKey]!;
           isLoading = false;
         });
       } else {
-        fetchProducts(locale);
+        fetchProducts(locale, currency);
       }
     }
   }
 
-  Future<void> fetchProducts(String locale) async {
+  Future<void> fetchProducts(String locale, String currency) async {
     setState(() {
       isLoading = true;
       errorMessage = '';
@@ -56,7 +59,7 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
 
       setState(() {
         products = response;
-        _cachedProductsByLocale[locale] = response;
+        _cachedProductsByLocaleAndCurrency[_cacheKey] = response;
         isLoading = false;
       });
     } catch (e) {
@@ -81,14 +84,9 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                t.specialOffer,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
+              Text(t.specialOffer, style: Theme.of(context).textTheme.titleSmall),
               TextButton(
-                onPressed: () {
-                  // Navigator.pushNamed(context, '/discount');
-                },
+                onPressed: () {},
                 child: Text(t.viewAll),
               ),
             ],
@@ -102,51 +100,46 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
             child: Text(errorMessage, style: const TextStyle(color: Colors.red)),
           )
         else
-          VisibilityDetector(
-            key: const Key('flash-sale-products'),
-            onVisibilityChanged: (info) {
-              // Optional: log visibility
-            },
-            child: SizedBox(
-              height: 290,
-              child: Container(
-                color: const Color(0xFFEAF2F4),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: products.length,
-                  itemBuilder: (context, index) {
-                    final product = products[index];
-                    return Padding(
-                      padding: EdgeInsets.only(
-                        left: defaultPadding,
-                        right: index == products.length - 1 ? defaultPadding : 0,
-                      ),
-                      child: ProductCard(
-                        id: product.id,
-                        image: product.image,
-                        category: product.category,
-                        title: product.title,
-                        price: product.price,
-                        salePrice: product.salePrice,
-                        dicountpercent: product.discountPercent,
-                        sku: product.sku,
-                        rating: product.rating,
-                        discount: product.discount,
-                        freeShipping: product.freeShipping,
-                        isNew: product.isNew,
-                        isInStock: product.isInStock,
-                        press: () {
-                          Navigator.pushNamed(
-                            context,
-                            productDetailsScreenRoute,
-                            arguments: product.id,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
+          SizedBox(
+            height: 290,
+            child: Container(
+              color: const Color(0xFFEAF2F4),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: products.length,
+                itemBuilder: (context, index) {
+                  final product = products[index];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      left: defaultPadding,
+                      right: index == products.length - 1 ? defaultPadding : 0,
+                    ),
+                    child: ProductCard(
+                      id: product.id,
+                      image: product.image,
+                      category: product.category,
+                      title: product.title,
+                      price: product.price,
+                      salePrice: product.salePrice,
+                      dicountpercent: product.discountPercent,
+                      sku: product.sku,
+                      rating: product.rating,
+                      discount: product.discount,
+                      freeShipping: product.freeShipping,
+                      isNew: product.isNew,
+                      isInStock: product.isInStock,
+                      currencySymbol: product.currencySymbol,
+                      press: () {
+                        Navigator.pushNamed(
+                          context,
+                          productDetailsScreenRoute,
+                          arguments: product.id,
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
             ),
           ),

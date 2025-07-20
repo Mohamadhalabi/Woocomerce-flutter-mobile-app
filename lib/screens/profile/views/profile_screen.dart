@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import '../../../services/api_service.dart';
 import '../../../services/alert_service.dart';
+import 'package:provider/provider.dart';
+import 'package:shop/providers/currency_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Function(String) onLocaleChange;
@@ -21,6 +23,43 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  String _selectedCurrency = 'TRY';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrency();
+  }
+
+  Future<void> _loadCurrency() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _selectedCurrency = prefs.getString('selected_currency') ?? 'TRY';
+    });
+
+  }
+
+  Future<void> _updateCurrency(String newCurrency) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_currency', newCurrency);
+
+    if (!mounted) return;
+
+    // ✅ Update the provider to notify all listening widgets
+    Provider.of<CurrencyProvider>(context, listen: false)
+        .setCurrency(newCurrency);
+
+    setState(() {
+      _selectedCurrency = newCurrency;
+    });
+
+    AlertService.showTopAlert(
+      context,
+      'Para birimi güncellendi: $newCurrency',
+      isError: false,
+    );
+  }
+
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('auth_token');
@@ -43,13 +82,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint("📱 ProfileScreen build started");
-
     return FutureBuilder<String?>(
       future: _getToken(),
       builder: (context, snapshot) {
-        debugPrint("📱 Token snapshot: hasData=${snapshot.hasData}, value=${snapshot.data}");
-
+        final token = snapshot.data;
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const ColoredBox(
             color: Colors.white,
@@ -57,30 +93,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         }
 
-        final token = snapshot.data;
         if (token == null || token.isEmpty || JwtDecoder.isExpired(token)) {
-          debugPrint("📱 No token or token expired → guest view");
-
-          // Optionally clear expired token
           SharedPreferences.getInstance().then((prefs) => prefs.remove('auth_token'));
-
           return _buildGuestView();
         }
-
-        debugPrint("📱 Token exists → fetching user info");
 
         return FutureBuilder<Map<String, dynamic>>(
           future: ApiService.fetchUserInfo(),
           builder: (context, userSnapshot) {
-            debugPrint("📱 User fetch: state=${userSnapshot.connectionState}, hasError=${userSnapshot.hasError}");
-
             if (userSnapshot.connectionState == ConnectionState.waiting) {
               return const ColoredBox(
                 color: Colors.white,
                 child: Center(child: CircularProgressIndicator()),
               );
             } else if (userSnapshot.hasError) {
-              debugPrint("❌ User fetch error: ${userSnapshot.error}");
               return const ColoredBox(
                 color: Colors.white,
                 child: Center(child: Text("Kullanıcı bilgileri alınamadı")),
@@ -89,14 +115,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             final user = userSnapshot.data;
             if (user == null) {
-              debugPrint("❌ user is null");
               return const ColoredBox(
                 color: Colors.white,
                 child: Center(child: Text("Geçersiz kullanıcı verisi")),
               );
             }
 
-            debugPrint("✅ User fetched: ${user['name']}");
             return _buildLoggedInView(user);
           },
         );
@@ -124,6 +148,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: () => Navigator.pushNamed(context, '/register'),
             ),
             const Divider(height: 32),
+            _buildCurrencySelector(),
             const ListTile(
               leading: Icon(Icons.favorite_border),
               title: Text('İstek Listem'),
@@ -182,6 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: _logout,
             ),
             const Divider(height: 32),
+            _buildCurrencySelector(),
             const ListTile(
               leading: Icon(Icons.favorite_border),
               title: Text('İstek Listem'),
@@ -200,6 +226,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCurrencySelector() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+      child: Row(
+        children: [
+          const Icon(Icons.attach_money, color: Colors.grey),
+          const SizedBox(width: 12),
+          const Text(
+            'Para Birimi',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const Spacer(),
+          DropdownButton<String>(
+            value: _selectedCurrency,
+            items: ['TRY', 'USD'].map((currency) {
+              return DropdownMenuItem(
+                value: currency,
+                child: Text(currency),
+              );
+            }).toList(),
+            onChanged: (newCurrency) {
+              if (newCurrency != null) _updateCurrency(newCurrency);
+            },
+          ),
+        ],
       ),
     );
   }

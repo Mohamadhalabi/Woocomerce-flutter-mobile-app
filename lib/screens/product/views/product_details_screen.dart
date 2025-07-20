@@ -35,6 +35,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   double? salePrice;
   int quantity = 1;
   bool isInStock = true;
+  String currencySymbol = '₺';
 
   @override
   void didChangeDependencies() {
@@ -58,6 +59,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         price = (data['price'] as num?)?.toDouble() ?? 0.0;
         salePrice = data['sale_price'] != null ? (data['sale_price'] as num).toDouble() : null;
         isInStock = data['stock_status'] == 'instock';
+        currencySymbol = data['currency_symbol'] ?? '₺'; // ✅ Add this line
         isLoading = false;
       });
     } catch (e) {
@@ -147,7 +149,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         Row(
                           children: [
                             Text(
-                              "₺${price.toStringAsFixed(2)}",
+                              "$currencySymbol${price.toStringAsFixed(2)}",
                               style: const TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey,
@@ -156,7 +158,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              "₺${salePrice!.toStringAsFixed(2)}",
+                              "$currencySymbol${salePrice!.toStringAsFixed(2)}",
                               style: const TextStyle(
                                 fontSize: 20,
                                 color: primaryColor,
@@ -167,7 +169,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         )
                       else
                         Text(
-                          "₺${price.toStringAsFixed(2)}",
+                          "$currencySymbol${price.toStringAsFixed(2)}",
                           style: const TextStyle(
                             fontSize: 20,
                             color: primaryColor,

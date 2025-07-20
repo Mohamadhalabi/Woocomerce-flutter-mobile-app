@@ -16,6 +16,7 @@ class ProductCard extends StatelessWidget {
     required this.sku,
     required this.isNew,
     required this.isInStock,
+    required this.currencySymbol,
 
     this.salePrice,
     this.dicountpercent,
@@ -33,6 +34,7 @@ class ProductCard extends StatelessWidget {
   final VoidCallback press;
   final bool isNew;
   final bool isInStock;
+  final String? currencySymbol;
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +234,7 @@ class ProductCard extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    "₺${finalPrice.toStringAsFixed(2)}",
+                                    "$currencySymbol${finalPrice.toStringAsFixed(2)}",
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 15,
@@ -241,7 +243,7 @@ class ProductCard extends StatelessWidget {
                                   ),
                                   if (hasDiscount)
                                     Text(
-                                      "₺${price.toStringAsFixed(2)}",
+                                      "$currencySymbol${price.toStringAsFixed(2)}",
                                       style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
@@ -253,24 +255,6 @@ class ProductCard extends StatelessWidget {
                               );
                             },
                           ),
-                          // Text(
-                          //   "₺${finalPrice.toStringAsFixed(2)}",
-                          //   style: const TextStyle(
-                          //     fontWeight: FontWeight.bold,
-                          //     fontSize: 15,
-                          //     color: Colors.red,
-                          //   ),
-                          // ),
-                          // if (hasDiscount)
-                          //   Text(
-                          //     "₺${price.toStringAsFixed(2)}",
-                          //     style: const TextStyle(
-                          //       fontSize: 12,
-                          //       fontWeight: FontWeight.bold,
-                          //       color: Colors.grey,
-                          //       decoration: TextDecoration.lineThrough,
-                          //     ),
-                          //   ),
                         ],
                       ),
 
@@ -293,6 +277,7 @@ class ProductCard extends StatelessWidget {
                                   sku: sku,
                                   image: image,
                                   isInStock: isInStock,
+                                  currencySymbol: currencySymbol ?? "₺",
                                 ),
                               );
                             },
@@ -318,9 +303,6 @@ class ProductCard extends StatelessWidget {
                             ),
                           ),
                         ),
-
-
-
                     ],
                   ),
                 ],

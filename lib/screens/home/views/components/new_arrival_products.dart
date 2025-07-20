@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shop/components/product/product_card.dart';
 import 'package:shop/components/skleton/product/products_skelton.dart';
 import 'package:shop/models/product_model.dart';
@@ -7,6 +8,7 @@ import 'package:shop/route/screen_export.dart';
 import 'package:shop/services/api_service.dart';
 import '../../../../constants.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:shop/providers/currency_provider.dart';
 
 class NewArrivalProducts extends StatefulWidget {
   const NewArrivalProducts({super.key});
@@ -16,33 +18,26 @@ class NewArrivalProducts extends StatefulWidget {
 }
 
 class _NewArrivalProductsState extends State<NewArrivalProducts> {
-  static final Map<String, List<ProductModel>> _cachedProductsByLocale = {};
   List<ProductModel> products = [];
   bool isLoading = true;
-  String errorMessage = "";
-  String? _currentLocale;
+  String errorMessage = '';
+  String? _currentKey;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    final newLocale = Localizations.localeOf(context).languageCode;
+    final locale = Localizations.localeOf(context).languageCode;
+    final currency = Provider.of<CurrencyProvider>(context).selectedCurrency;
+    final newKey = '$locale|$currency';
 
-    if (_currentLocale != newLocale) {
-      _currentLocale = newLocale;
-
-      if (_cachedProductsByLocale.containsKey(newLocale)) {
-        setState(() {
-          products = _cachedProductsByLocale[newLocale]!;
-          isLoading = false;
-        });
-      } else {
-        fetchProducts(newLocale);
-      }
+    if (_currentKey != newKey) {
+      _currentKey = newKey;
+      fetchProducts(locale, currency);
     }
   }
 
-  Future<void> fetchProducts(String locale) async {
+  Future<void> fetchProducts(String locale, String currency) async {
     if (!mounted) return;
     setState(() {
       isLoading = true;
@@ -55,7 +50,6 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
 
       setState(() {
         products = response;
-        _cachedProductsByLocale[locale] = response;
         isLoading = false;
       });
     } catch (e) {
@@ -79,13 +73,10 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                t.newArrival,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
+              Text(t.newArrival, style: Theme.of(context).textTheme.titleSmall),
               TextButton(
                 onPressed: () {
-                  // Navigator.pushNamed(context, '/new-arrival');
+                  // Future navigation
                 },
                 child: Text(t.viewAll),
               ),
@@ -122,13 +113,11 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
                       title: product.title,
                       price: product.price,
                       salePrice: product.salePrice,
-                      dicountpercent: product.discountPercent,
                       sku: product.sku,
                       rating: product.rating,
-                      discount: product.discount,
-                      freeShipping: product.freeShipping,
                       isNew: product.isNew,
                       isInStock: product.isInStock,
+                      currencySymbol: product.currencySymbol,
                       press: () {
                         Navigator.pushNamed(
                           context,
@@ -141,7 +130,7 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
                 },
               ),
             ),
-          )
+          ),
       ],
     );
   }

@@ -6,11 +6,17 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/category_model.dart';
 
 class ApiService {
-  static Map<String, String> _buildHeaders(String locale, String apiKey, String secretKey) {
+
+  // set Turkish lira default Currency
+  static Future<String> getSelectedCurrency() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('selected_currency') ?? 'TRY'; // Default to TRY
+  }
+  static Future<Map<String, String>> _buildHeaders(String locale, String apiKey, String secretKey) async {
     return {
       'Accept-Language': locale,
       'Content-Type': 'application/json',
-      'currency': 'USD',
+      'currency': await getSelectedCurrency(),
       'Accept': 'application/json',
       'secret-key': secretKey,
       'api-key': apiKey,
@@ -39,15 +45,15 @@ class ApiService {
   }
 
   static Future<List<ProductModel>> fetchLatestProducts(String locale) async {
+    final currency = await getSelectedCurrency();
     try {
       await dotenv.load();
-      String apiBaseUrl = dotenv.env['API_BASE_URL'] ?? '';
+      String apiBaseUrl = dotenv.env['API_BASE_URL_PRODUCTS'] ?? '';
       String consumerKey = dotenv.env['CONSUMER_KEY'] ?? '';
       String consumerSecret = dotenv.env['CONSUMER_SECRET'] ?? '';
 
-      // Fetch latest 12 published products, ordered by date descending
       String url =
-          '$apiBaseUrl/products?per_page=12&order=desc&orderby=date&status=publish&consumer_key=$consumerKey&consumer_secret=$consumerSecret';
+          '$apiBaseUrl/$currency?per_page=12&order=desc&orderby=date&status=publish&consumer_key=$consumerKey&consumer_secret=$consumerSecret&currency=$currency';
 
       final response = await http.get(
         Uri.parse(url),
@@ -55,7 +61,7 @@ class ApiService {
           'Accept-Language': locale,
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'currency': 'USD',
+          'Cookie': 'woocommerce-currency=$currency',
         },
       );
 
@@ -71,15 +77,16 @@ class ApiService {
   }
 
   static Future<List<ProductModel>> fetchEmulatorProducts(String locale) async {
+    final currency = await getSelectedCurrency();
     try {
       await dotenv.load();
-      String apiBaseUrl = dotenv.env['API_BASE_URL'] ?? '';
+      String apiBaseUrl = dotenv.env['API_BASE_URL_PRODUCTS'] ?? '';
       String consumerKey = dotenv.env['CONSUMER_KEY'] ?? '';
       String consumerSecret = dotenv.env['CONSUMER_SECRET'] ?? '';
 
       // Fetch latest 12 published products, ordered by date descending
       String url =
-          '$apiBaseUrl/products?per_page=12&order=desc&orderby=date&status=publish'
+          '$apiBaseUrl/$currency?per_page=12&order=desc&orderby=date&status=publish'
           '&category=62'
           '&consumer_key=$consumerKey'
           '&consumer_secret=$consumerSecret';
@@ -90,10 +97,9 @@ class ApiService {
           'Accept-Language': locale,
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'currency': 'USD',
+          'Cookie': 'woocommerce-currency=$currency',
         },
       );
-
       if (response.statusCode == 200) {
         final List data = json.decode(response.body);
         return data.map((item) => ProductModel.fromJson(item)).toList();
@@ -118,7 +124,7 @@ class ApiService {
         headers: {
           'Accept-Language': locale,
           'Content-Type': 'application/json',
-          'currency': 'USD',
+          'currency': await getSelectedCurrency(),
           'Accept': 'application/json',
           'secret-key': secretKey,
           'api-key': apiKey,
@@ -147,19 +153,24 @@ class ApiService {
 
 
   static Future<List<ProductModel>> fetchFlashSaleProducts(String locale) async {
+    final currency = await getSelectedCurrency();
+
+
+    print("fetching sale products!!!!!!!!");
+
     await dotenv.load();
-    String apiBaseUrl = dotenv.env['API_BASE_URL'] ?? '';
+    String apiBaseUrl = dotenv.env['API_BASE_URL_PRODUCTS'] ?? '';
     String consumerKey = dotenv.env['CONSUMER_KEY'] ?? '';
     String consumerSecret = dotenv.env['CONSUMER_SECRET'] ?? '';
 
-    final url = Uri.parse('$apiBaseUrl/products?on_sale=true&per_page=12&consumer_key=$consumerKey&consumer_secret=$consumerSecret');
+    final url = Uri.parse('$apiBaseUrl/$currency?on_sale=true&per_page=12&consumer_key=$consumerKey&consumer_secret=$consumerSecret');
 
     final response = await http.get(
       url,
       headers: {
         'Accept-Language': locale,
         'Content-Type': 'application/json',
-        'currency': 'USD',
+        'currency': await getSelectedCurrency(),
         'Accept': 'application/json',
       },
     );
@@ -171,44 +182,6 @@ class ApiService {
       throw Exception("Failed to load flash sale products: ${response.body}");
     }
   }
-
-  static Future<List<ProductModel>> fetchFreeShippingProducts(String locale) async {
-    try {
-      await dotenv.load();
-      String apiBaseUrl = dotenv.env['API_BASE_URL'] ?? '';
-      String apiKey = dotenv.env['API_KEY'] ?? '';
-      String secretKey = dotenv.env['SECRET_KEY'] ?? '';
-      String url = '$apiBaseUrl/products/free-shipping';
-
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Accept-Language': locale,
-          'Content-Type': 'application/json',
-          'currency': 'USD',
-          'Accept': 'application/json',
-          'secret-key': secretKey,
-          'api-key': apiKey,
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final jsonResponse = json.decode(response.body);
-        if (jsonResponse['free_shipping'] != null && jsonResponse['free_shipping'] is List) {
-          return (jsonResponse['free_shipping'] as List)
-              .map((item) => ProductModel.fromJson(item))
-              .toList();
-        } else {
-          throw Exception("Invalid API response format for free_shipping");
-        }
-      } else {
-        throw Exception("Failed to load free shipping products");
-      }
-    } catch (e) {
-      throw Exception("Error: $e");
-    }
-  }
-
 
   static Future<List<ProductModel>> fetchBundleProducts(String locale) async {
     try {
@@ -223,7 +196,7 @@ class ApiService {
         headers: {
           'Accept-Language': locale,
           'Content-Type': 'application/json',
-          'currency': 'USD',
+          'currency': await getSelectedCurrency(),
           'Accept': 'application/json',
           'secret-key': secretKey,
           'api-key': apiKey,
@@ -249,11 +222,14 @@ class ApiService {
   }
   // product details
   static Future<ProductModel> fetchProductById(int id, String locale) async {
+    final currency = await getSelectedCurrency();
     await dotenv.load();
-    final baseUrl = dotenv.env['API_BASE_URL']!;
+    final baseUrl = dotenv.env['API_BASE_URL_PRODUCTS']!;
     final consumerKey = dotenv.env['CONSUMER_KEY']!;
     final consumerSecret = dotenv.env['CONSUMER_SECRET']!;
-    final url = Uri.parse('$baseUrl/products/$id?consumer_key=$consumerKey&consumer_secret=$consumerSecret');
+    final url = Uri.parse(
+      '$baseUrl/$currency?product_id=$id&consumer_key=$consumerKey&consumer_secret=$consumerSecret',
+    );
 
     final response = await http.get(
       url,
@@ -272,16 +248,26 @@ class ApiService {
     }
   }
 
-  static Future<List<ProductModel>> fetchRelatedProductsWoo(
-      String locale, int productId) async {
-    final baseUrl = dotenv.env['API_BASE_URL']!;
+  static Future<List<ProductModel>> fetchRelatedProductsWoo(String locale, int productId) async {
+    final currency = await getSelectedCurrency();
+    await dotenv.load(); // Make sure this is included if not already called
+    final baseUrl = dotenv.env['API_BASE_URL_PRODUCTS']!;
     final consumerKey = dotenv.env['CONSUMER_KEY']!;
     final consumerSecret = dotenv.env['CONSUMER_SECRET']!;
+
     try {
-      final productUrl =
-          '$baseUrl/products/$productId?consumer_key=$consumerKey&consumer_secret=$consumerSecret';
-      // 1. Fetch the main product to get related_ids
-      final productRes = await http.get(Uri.parse(productUrl));
+      // 1. Fetch main product to get related_ids
+      final productUrl = '$baseUrl/$currency?product_id=$productId&consumer_key=$consumerKey&consumer_secret=$consumerSecret';
+      final productRes = await http.get(
+        Uri.parse(productUrl),
+        headers: {
+          'Accept-Language': locale,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cookie': 'woocommerce-currency=$currency',
+        },
+      );
+
       if (productRes.statusCode != 200) throw Exception('Product fetch failed');
 
       final productJson = json.decode(productRes.body);
@@ -290,10 +276,17 @@ class ApiService {
       if (relatedIds.isEmpty) return [];
 
       // 2. Fetch related products by IDs
-      final relatedUrl =
-          '$baseUrl/products?include=${relatedIds.join(",")}&orderby=date&order=desc&per_page=5&consumer_key=$consumerKey&consumer_secret=$consumerSecret';
+      final relatedUrl = '$baseUrl/$currency?include=${relatedIds.join(",")}&orderby=date&order=desc&per_page=5&consumer_key=$consumerKey&consumer_secret=$consumerSecret';
+      final relatedRes = await http.get(
+        Uri.parse(relatedUrl),
+        headers: {
+          'Accept-Language': locale,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cookie': 'woocommerce-currency=$currency',
+        },
+      );
 
-      final relatedRes = await http.get(Uri.parse(relatedUrl));
       if (relatedRes.statusCode != 200) throw Exception('Related fetch failed');
 
       final relatedJson = json.decode(relatedRes.body) as List;

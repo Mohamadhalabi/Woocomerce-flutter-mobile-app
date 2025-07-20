@@ -12,6 +12,7 @@ class AddToCartModal extends StatefulWidget {
   final String sku;
   final bool isInStock;
   final String image;
+  final String currencySymbol;
 
   const AddToCartModal({
     super.key,
@@ -22,6 +23,7 @@ class AddToCartModal extends StatefulWidget {
     required this.sku,
     required this.isInStock,
     required this.image,
+    required this.currencySymbol,
   });
 
   @override
@@ -161,7 +163,7 @@ class _AddToCartModalState extends State<AddToCartModal> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "₺${widget.salePrice!.toStringAsFixed(2)}",
+                  "${widget.currencySymbol}${widget.salePrice!.toStringAsFixed(2)}",
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -169,7 +171,7 @@ class _AddToCartModalState extends State<AddToCartModal> {
                   ),
                 ),
                 Text(
-                  "₺${widget.price.toStringAsFixed(2)}",
+                  "${widget.currencySymbol}${widget.price.toStringAsFixed(2)}",
                   style: const TextStyle(
                     fontSize: 13,
                     color: Colors.grey,
@@ -179,7 +181,7 @@ class _AddToCartModalState extends State<AddToCartModal> {
               ],
             )
                 : Text(
-              "₺${widget.price.toStringAsFixed(2)}",
+              "${widget.currencySymbol}${widget.price.toStringAsFixed(2)}",
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

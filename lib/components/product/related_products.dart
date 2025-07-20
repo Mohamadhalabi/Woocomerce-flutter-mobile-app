@@ -6,10 +6,7 @@ import 'package:shop/models/product_model.dart';
 import 'package:shop/route/screen_export.dart';
 import 'package:shop/services/api_service.dart';
 import '../../../../constants.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-
 import '../../route/route_constants.dart';
-import '../skleton/product/products_skelton.dart';
 
 class RelatedProducts extends StatefulWidget {
   final int productId;
@@ -84,7 +81,7 @@ class _RelatedProductsState extends State<RelatedProducts> {
           )
         else
           SizedBox(
-            height: 280,
+            height: 260,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: products.length,
@@ -109,6 +106,7 @@ class _RelatedProductsState extends State<RelatedProducts> {
                     freeShipping: product.freeShipping,
                     isNew: product.isNew,
                     isInStock: product.isInStock,
+                    currencySymbol: product.currencySymbol,
                     press: () {
                       Navigator.pushNamed(
                         context,

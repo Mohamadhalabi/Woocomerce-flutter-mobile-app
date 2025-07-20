@@ -134,6 +134,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
             freeShipping: product.freeShipping,
             isNew: product.isNew,
             isInStock: product.isInStock,
+            currencySymbol: product.currencySymbol,
             press: () {
               Navigator.pushNamed(
                 context,

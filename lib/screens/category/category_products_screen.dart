@@ -261,6 +261,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                     freeShipping: product.freeShipping,
                     isNew: product.isNew,
                     isInStock: product.isInStock,
+                    currencySymbol: product.currencySymbol,
                     press: () {
                       Navigator.pushNamed(
                         context,

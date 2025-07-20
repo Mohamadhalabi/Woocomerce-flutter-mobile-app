@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../constants.dart';
 import 'add_to_cart_modal.dart';
 
+// ... (imports remain unchanged)
+
 class ProductCardHorizontal extends StatelessWidget {
   const ProductCardHorizontal({
     super.key,
@@ -19,6 +21,7 @@ class ProductCardHorizontal extends StatelessWidget {
     this.discount,
     this.freeShipping,
     required this.press,
+    required this.currencySymbol,
   });
 
   final String image, category, title, sku;
@@ -29,6 +32,7 @@ class ProductCardHorizontal extends StatelessWidget {
   final bool? freeShipping;
   final VoidCallback press;
   final bool isNew;
+  final String? currencySymbol;
 
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
@@ -39,6 +43,7 @@ class ProductCardHorizontal extends StatelessWidget {
   Widget build(BuildContext context) {
     final double finalPrice = salePrice ?? price;
     final bool hasDiscount = salePrice != null && salePrice! < price;
+    final symbol = currencySymbol ?? "₺";
 
     return GestureDetector(
       onTap: press,
@@ -142,7 +147,7 @@ class ProductCardHorizontal extends StatelessWidget {
                               children: loggedIn
                                   ? [
                                 Text(
-                                  "₺${finalPrice.toStringAsFixed(2)}",
+                                  "$symbol${finalPrice.toStringAsFixed(2)}",
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
@@ -151,7 +156,7 @@ class ProductCardHorizontal extends StatelessWidget {
                                 ),
                                 if (hasDiscount)
                                   Text(
-                                    "₺${price.toStringAsFixed(2)}",
+                                    "$symbol${price.toStringAsFixed(2)}",
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey,
@@ -170,14 +175,15 @@ class ProductCardHorizontal extends StatelessWidget {
                               ],
                             ),
 
-                            // 🛒 Cart Icon (always visible)
+                            // 🛒 Cart Icon
                             GestureDetector(
                               onTap: () {
                                 showModalBottomSheet(
                                   context: context,
                                   shape: const RoundedRectangleBorder(
                                     borderRadius: BorderRadius.vertical(
-                                        top: Radius.circular(16)),
+                                      top: Radius.circular(16),
+                                    ),
                                   ),
                                   isScrollControlled: true,
                                   builder: (context) => AddToCartModal(
@@ -188,6 +194,7 @@ class ProductCardHorizontal extends StatelessWidget {
                                     sku: sku,
                                     isInStock: true,
                                     image: image,
+                                    currencySymbol: symbol,
                                   ),
                                 );
                               },

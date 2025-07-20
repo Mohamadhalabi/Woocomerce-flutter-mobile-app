@@ -15,6 +15,7 @@ class ProductModel {
   final List<String> images;
   final String description;
   final Map<String, List<String>> attributes;
+  final String? currencySymbol;
 
   ProductModel({
     required this.id,
@@ -33,6 +34,7 @@ class ProductModel {
     required this.isNew,
     required this.isInStock,
     required this.attributes,
+    required this.currencySymbol,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -72,7 +74,12 @@ class ProductModel {
           createdDate.isAfter(DateTime.now().subtract(const Duration(days: 7))),
       rating: double.tryParse(json['average_rating'].toString()) ?? 0.0,
       attributes: attributeMap,
-      isInStock: json['stock_status'] == 'instock', // ✅ fix here
+      isInStock: json['stock_status'] == 'instock',
+      currencySymbol: (json['currency'] == 'USD')
+          ? '\$'
+          : (json['currency'] == 'TRY')
+          ? '₺'
+          : (json['currency_symbol'] ?? '₺'),
     );
   }
 
@@ -89,6 +96,12 @@ class ProductModel {
   }
 
   Map<String, dynamic> toJson() {
+    final resolvedCurrencySymbol = (currencySymbol == 'USD')
+        ? '\$'
+        : (currencySymbol == 'TRY')
+        ? '₺'
+        : (currencySymbol ?? '₺');
+
     return {
       'id': id,
       'title': title,
@@ -107,6 +120,7 @@ class ProductModel {
       'num_of_reviews': 0,
       'attributes': attributes,
       'stock_status': isInStock ? 'instock' : 'outofstock',
+      'currency_symbol': resolvedCurrencySymbol,
     };
   }
 }
