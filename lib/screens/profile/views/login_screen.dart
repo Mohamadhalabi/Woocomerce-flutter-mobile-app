@@ -6,6 +6,7 @@ import '../../../services/api_service.dart';
 import '../../../services/cart_service.dart';
 import 'forgot_password_screen.dart';
 import '../../../services/alert_service.dart';
+import 'package:shop/screens/profile/views/phone_login_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -173,28 +174,30 @@ class _LoginScreenState extends State<LoginScreen> {
                 ? const CircularProgressIndicator(color: Colors.white)
                 : const Text('E-posta ile giriş yap'),
           ),
+          const SizedBox(height: 12),
+
+          OutlinedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PhoneLoginScreen()),
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: primaryColor),
+              minimumSize: const Size.fromHeight(50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
+            ),
+            child: Text(
+              'Giriş kodu ile (Telefon)',
+              style: TextStyle(color: primaryColor),
+            ),
+          ),
 
           const SizedBox(height: 20),
           const Divider(),
-          const SizedBox(height: 20),
-
-          Center(
-            child: GestureDetector(
-              onTap: () {
-                // TODO: Google sign-in
-              },
-              child: const CircleAvatar(
-                radius: 25,
-                backgroundColor: Colors.white,
-                child: Image(
-                  height: 30,
-                  image: NetworkImage(
-                    'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg',
-                  ),
-                ),
-              ),
-            ),
-          ),
 
           const SizedBox(height: 16),
           Row(
@@ -220,24 +223,37 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 4,
-        onTap: (index) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => EntryPoint(onLocaleChange: (_) {})),
-          );
-        },
-        selectedItemColor: primaryColor,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Mağaza"),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
-          BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: "Kaydedilenler"),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              offset: Offset(0, -2),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.white,
+          currentIndex: 4,
+          onTap: (index) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => EntryPoint(onLocaleChange: (_) {})),
+            );
+          },
+          selectedItemColor: primaryColor,
+          unselectedItemColor: Colors.grey,
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Mağaza"),
+            BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
+            BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: "Kaydedilenler"),
+            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
+          ],
+        ),
       ),
     );
   }

@@ -59,7 +59,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         price = (data['price'] as num?)?.toDouble() ?? 0.0;
         salePrice = data['sale_price'] != null ? (data['sale_price'] as num).toDouble() : null;
         isInStock = data['stock_status'] == 'instock';
-        currencySymbol = data['currency_symbol'] ?? '₺'; // ✅ Add this line
+        currencySymbol = data['currency_symbol'] ?? '₺';
         isLoading = false;
       });
     } catch (e) {
@@ -195,11 +195,28 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                   icon: const Icon(Icons.remove, color: primaryColor),
                                   visualDensity: VisualDensity.compact,
                                 ),
-                                Text(
-                                  quantity.toString(),
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                SizedBox(
+                                  width: 50,
+                                  child: TextFormField(
+                                    initialValue: quantity.toString(),
+                                    textAlign: TextAlign.center,
+                                    keyboardType: TextInputType.number,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: primaryColor,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                      isDense: true,
+                                      border: InputBorder.none,
+                                    ),
+                                    onChanged: (value) {
+                                      final intValue = int.tryParse(value);
+                                      if (intValue != null && intValue > 0) {
+                                        setState(() => quantity = intValue.clamp(1, 999));
+                                      }
+                                    },
                                   ),
                                 ),
                                 IconButton(

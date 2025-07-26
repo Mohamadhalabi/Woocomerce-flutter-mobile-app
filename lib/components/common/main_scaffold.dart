@@ -35,19 +35,32 @@ class MainScaffold extends StatelessWidget {
           : null,
       drawer: drawer,
       body: body,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: onTabChange,
-        selectedItemColor: primaryColor,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Anasayfa"),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
-          BottomNavigationBarItem(icon: Icon(Icons.store), label: "Mağaza"),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              offset: Offset(0, -2),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.white,
+          currentIndex: currentIndex,
+          onTap: onTabChange,
+          selectedItemColor: primaryColor,
+          unselectedItemColor: Colors.grey,
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Anasayfa"),
+            BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
+            BottomNavigationBarItem(icon: Icon(Icons.store), label: "Mağaza"),
+            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
+          ],
+        ),
       ),
     );
   }

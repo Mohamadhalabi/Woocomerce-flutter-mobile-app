@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../constants.dart';
+import '../../../entry_point.dart';
+
 class SearchScreen extends StatefulWidget {
   final int currentIndex;
   final Function(int) onTabChange;
@@ -53,23 +56,37 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       ),
       // 🔽 Bottom Navigation Bar
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: widget.currentIndex,
-        onTap: (index) {
-          if (index != widget.currentIndex) {
-            widget.onTabChange(index);
-            Navigator.pop(context); // Go back to main screen
-          }
-        },
-        selectedItemColor: Theme.of(context).primaryColor,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Mağaza"),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
-          BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: "Kaydedilenler"),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              offset: Offset(0, -2),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.white,
+          currentIndex: 4,
+          onTap: (index) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => EntryPoint(onLocaleChange: (_) {})),
+            );
+          },
+          selectedItemColor: primaryColor,
+          unselectedItemColor: Colors.grey,
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Mağaza"),
+            BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
+            BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: "Kaydedilenler"),
+            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
+          ],
+        ),
       ),
     );
   }

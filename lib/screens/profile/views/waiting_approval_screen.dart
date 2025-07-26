@@ -54,19 +54,37 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _navigateTo,
-        selectedItemColor: primaryColor,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Mağaza"),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
-          BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: "Kaydedilenler"),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              offset: Offset(0, -2),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.white,
+          currentIndex: 4,
+          onTap: (index) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => EntryPoint(onLocaleChange: (_) {})),
+            );
+          },
+          selectedItemColor: primaryColor,
+          unselectedItemColor: Colors.grey,
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Mağaza"),
+            BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
+            BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: "Kaydedilenler"),
+            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
+          ],
+        ),
       ),
     );
   }

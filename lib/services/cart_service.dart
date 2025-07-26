@@ -25,6 +25,8 @@ class CartService {
       },
     );
 
+    print(jsonDecode(response.body));
+
     if (response.statusCode != 200) {
       throw Exception('❌ Failed to fetch cart: ${response.body}');
     }

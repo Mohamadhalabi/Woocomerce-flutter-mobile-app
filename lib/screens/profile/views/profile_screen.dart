@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:shop/constants.dart';
 import '../../../services/api_service.dart';
 import '../../../services/alert_service.dart';
 import 'package:provider/provider.dart';
@@ -36,7 +37,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _selectedCurrency = prefs.getString('selected_currency') ?? 'TRY';
     });
-
   }
 
   Future<void> _updateCurrency(String newCurrency) async {
@@ -45,7 +45,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (!mounted) return;
 
-    // ✅ Update the provider to notify all listening widgets
     Provider.of<CurrencyProvider>(context, listen: false)
         .setCurrency(newCurrency);
 
@@ -71,13 +70,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (!mounted) return;
 
-    AlertService.showTopAlert(
-      context,
-      'Başarıyla çıkış yapıldı',
-      isError: false,
-    );
-
-    widget.onTabChange(0); // Go to home tab
+    AlertService.showTopAlert(context, 'Başarıyla çıkış yapıldı', isError: false);
+    widget.onTabChange(0);
   }
 
   @override
@@ -86,6 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       future: _getToken(),
       builder: (context, snapshot) {
         final token = snapshot.data;
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const ColoredBox(
             color: Colors.white,
@@ -106,21 +101,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: Colors.white,
                 child: Center(child: CircularProgressIndicator()),
               );
-            } else if (userSnapshot.hasError) {
+            } else if (userSnapshot.hasError || userSnapshot.data == null) {
               return const ColoredBox(
                 color: Colors.white,
                 child: Center(child: Text("Kullanıcı bilgileri alınamadı")),
               );
             }
 
-            final user = userSnapshot.data;
-            if (user == null) {
-              return const ColoredBox(
-                color: Colors.white,
-                child: Center(child: Text("Geçersiz kullanıcı verisi")),
-              );
-            }
-
+            final user = userSnapshot.data!;
             return _buildLoggedInView(user);
           },
         );
@@ -133,38 +121,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Container(
         color: Colors.white,
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+          padding: const EdgeInsets.all(16),
           children: [
-            ListTile(
-              leading: const Icon(Icons.login),
-              title: const Text('Giriş Yap'),
-              trailing: const Icon(Icons.arrow_forward_ios),
+            _cardItem(
+              icon: Icons.login,
+              title: 'Giriş Yap',
               onTap: () => Navigator.pushNamed(context, '/login'),
             ),
-            ListTile(
-              leading: const Icon(Icons.person_add),
-              title: const Text('Kayıt Ol'),
-              trailing: const Icon(Icons.arrow_forward_ios),
+            _cardItem(
+              icon: Icons.person_add,
+              title: 'Kayıt Ol',
               onTap: () => Navigator.pushNamed(context, '/register'),
             ),
-            const Divider(height: 32),
+            const SizedBox(height: 20),
             _buildCurrencySelector(),
-            const ListTile(
-              leading: Icon(Icons.favorite_border),
-              title: Text('İstek Listem'),
-            ),
-            const ListTile(
-              leading: Icon(Icons.message_outlined),
-              title: Text('Bildirim Mesajları'),
-            ),
-            const ListTile(
-              leading: Icon(Icons.star_border),
-              title: Text('Uygulamayı Puanla'),
-            ),
-            const ListTile(
-              leading: Icon(Icons.info_outline),
-              title: Text('Hakkımızda'),
-            ),
+            _staticCardItem(Icons.favorite_border, 'İstek Listem'),
+            _staticCardItem(Icons.message_outlined, 'Bildirim Mesajları'),
+            _staticCardItem(Icons.info_outline, 'Hakkımızda'),
           ],
         ),
       ),
@@ -172,89 +145,101 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildLoggedInView(Map<String, dynamic> user) {
+    final hasName = (user['name']?.isNotEmpty == true);
+    final hasSurname = (user['surname']?.isNotEmpty == true);
+    final fullName = "${user['name'] ?? ''} ${user['surname'] ?? ''}".trim();
+    final displayName = (hasName || hasSurname) ? fullName : user['email'];
+
     return SafeArea(
       child: Container(
         color: Colors.white,
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+          padding: const EdgeInsets.all(16),
           children: [
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: Text(user['name'] ?? 'Profilim'),
-              subtitle: Text(user['email'] ?? ''),
+            _cardItem(
+              icon: Icons.person,
+              title: displayName,
+              subtitle: (hasName || hasSurname) ? user['email'] ?? '' : '',
+              onTap: null,
             ),
-            ListTile(
-              leading: const Icon(Icons.list_alt),
-              title: const Text('Siparişlerim'),
-              trailing: const Icon(Icons.arrow_forward_ios),
+            _cardItem(
+              icon: Icons.list_alt,
+              title: 'Siparişlerim',
               onTap: () async {
                 try {
                   final orders = await ApiService.fetchUserOrders();
                   Navigator.pushNamed(context, '/orders', arguments: orders);
                 } catch (e) {
-                  AlertService.showTopAlert(
-                    context,
-                    'Siparişler alınamadı: $e',
-                    isError: true,
-                  );
+                  AlertService.showTopAlert(context, 'Siparişler alınamadı: $e', isError: true);
                 }
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Çıkış Yap'),
-              trailing: const Icon(Icons.arrow_forward_ios),
+            _cardItem(
+              icon: Icons.logout,
+              title: 'Çıkış Yap',
               onTap: _logout,
             ),
-            const Divider(height: 32),
+            const SizedBox(height: 20),
             _buildCurrencySelector(),
-            const ListTile(
-              leading: Icon(Icons.favorite_border),
-              title: Text('İstek Listem'),
-            ),
-            const ListTile(
-              leading: Icon(Icons.message_outlined),
-              title: Text('Bildirim Mesajları'),
-            ),
-            const ListTile(
-              leading: Icon(Icons.star_border),
-              title: Text('Uygulamayı Puanla'),
-            ),
-            const ListTile(
-              leading: Icon(Icons.info_outline),
-              title: Text('Hakkımızda'),
-            ),
+            _staticCardItem(Icons.favorite_border, 'İstek Listem'),
+            _staticCardItem(Icons.message_outlined, 'Bildirim Mesajları'),
+            _staticCardItem(Icons.info_outline, 'Hakkımızda'),
           ],
         ),
       ),
     );
   }
 
+  Widget _cardItem({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    VoidCallback? onTap,
+  }) {
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ListTile(
+        leading: Icon(icon, color: primaryColor),
+        title: Text(title),
+        subtitle: subtitle != null && subtitle.isNotEmpty ? Text(subtitle) : null,
+        trailing: onTap != null ? const Icon(Icons.arrow_forward_ios, size: 16) : null,
+        onTap: onTap,
+      ),
+    );
+  }
+
+  Widget _staticCardItem(IconData icon, String title) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ListTile(
+        leading: Icon(icon, color: Colors.grey),
+        title: Text(title),
+      ),
+    );
+  }
+
   Widget _buildCurrencySelector() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-      child: Row(
-        children: [
-          const Icon(Icons.attach_money, color: Colors.grey),
-          const SizedBox(width: 12),
-          const Text(
-            'Para Birimi',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const Spacer(),
-          DropdownButton<String>(
-            value: _selectedCurrency,
-            items: ['TRY', 'USD'].map((currency) {
-              return DropdownMenuItem(
-                value: currency,
-                child: Text(currency),
-              );
-            }).toList(),
-            onChanged: (newCurrency) {
-              if (newCurrency != null) _updateCurrency(newCurrency);
-            },
-          ),
-        ],
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ListTile(
+        leading: const Icon(Icons.attach_money, color: Colors.grey),
+        title: const Text('Para Birimi', style: TextStyle(fontWeight: FontWeight.bold)),
+        trailing: DropdownButton<String>(
+          value: _selectedCurrency,
+          underline: const SizedBox(),
+          items: ['TRY', 'USD'].map((currency) {
+            return DropdownMenuItem(
+              value: currency,
+              child: Text(currency),
+            );
+          }).toList(),
+          onChanged: (newCurrency) {
+            if (newCurrency != null) _updateCurrency(newCurrency);
+          },
+        ),
       ),
     );
   }

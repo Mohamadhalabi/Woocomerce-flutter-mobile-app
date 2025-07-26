@@ -326,6 +326,40 @@ class ApiService {
     }
   }
   // check if the user is LoggeIn
+
+  //login with phone
+  static Future<void> sendLoginCode(String phone) async {
+    final response = await http.post(
+      Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/request-code'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'phone_number': phone}),
+    );
+
+    final json = jsonDecode(response.body);
+    if (response.statusCode != 200 || json['success'] != true) {
+      throw Exception(json['message'] ?? 'Kod gönderilemedi');
+    }
+  }
+
+  static Future<Map<String, dynamic>> verifyLoginCode({
+    required String phone,
+    required String code,
+  }) async {
+    final response = await http.post(
+      Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/verify-code'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'phone_number': phone, 'code': code}),
+    );
+
+    final json = jsonDecode(response.body);
+
+    if (response.statusCode != 200 || json['token'] == null) {
+      throw Exception(json['message'] ?? 'Doğrulama başarısız');
+    }
+
+    return json;
+  }
+
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
@@ -406,28 +440,83 @@ class ApiService {
   }
 
   static Future<void> registerUser({
-    required String email,
-    required String password,
+    String? email,
+    String? password,
     required String phone,
   }) async {
-    const baseUrl = 'https://www.aanahtar.com.tr';
-    final url = Uri.parse('$baseUrl/wp-json/custom/v1/register');
-
     final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/register'),
+      headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'email': email,
-        'password': password,
+        'email': email?.isNotEmpty == true ? email : null,
+        'password': password?.isNotEmpty == true ? password : null,
         'phone': phone,
       }),
     );
 
-    if (response.statusCode != 200) {
-      throw Exception('Kayıt başarısız: ${response.body}');
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Kayıt başarısız');
+    }
+  }
+  //register with phone
+  static Future<void> registerWithPhone({
+    required String phone,
+    String? email,
+    String? password,
+  }) async {
+    // Step 1: Register the user
+    final registerResponse = await http.post(
+      Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'phone': phone,
+        if (email != null && email.isNotEmpty) 'email': email,
+        if (password != null && password.isNotEmpty) 'password': password,
+      }),
+    );
+
+    final registerJson = jsonDecode(registerResponse.body);
+    if (registerResponse.statusCode != 200 || registerJson['success'] != true) {
+      throw Exception(registerJson['message'] ?? 'Kayıt başarısız');
+    }
+
+    // Step 2: Send login/verification code via WhatsApp
+    final codeResponse = await http.post(
+      Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/request-code'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'phone_number': phone}),
+    );
+
+    final codeJson = jsonDecode(codeResponse.body);
+    if (codeResponse.statusCode != 200 || codeJson['success'] != true) {
+      throw Exception(codeJson['message'] ?? 'Kod gönderilemedi');
+    }
+  }
+
+
+  //update profile name
+
+  static Future<void> updateProfileName({
+    required String token,
+    required String firstName,
+    required String lastName,
+  }) async {
+    final response = await http.post(
+      Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/update-profile'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'first_name': firstName,
+        'last_name': lastName,
+      }),
+    );
+
+    final json = jsonDecode(response.body);
+    if (response.statusCode != 200 || json['success'] != true) {
+      throw Exception(json['message'] ?? 'Profil güncellenemedi');
     }
   }
 

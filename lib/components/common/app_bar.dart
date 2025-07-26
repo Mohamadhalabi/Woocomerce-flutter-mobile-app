@@ -20,8 +20,11 @@ class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget 
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 1,
+      backgroundColor: const Color(0xFFFFFFFF), // Pure white
+      elevation: 4,
+      scrolledUnderElevation: 1, // Prevent elevation on scroll
+      surfaceTintColor: Colors.white, // Prevent default Material3 behavior
+      shadowColor: Colors.black38,
       leading: Builder(
         builder: (context) => IconButton(
           icon: const Icon(Icons.menu, color: Colors.black),
@@ -33,7 +36,7 @@ class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget 
         child: Container(
           height: 42,
           decoration: BoxDecoration(
-            color: Colors.grey.shade100,
+            color: Colors.white70,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.grey.shade300),
           ),

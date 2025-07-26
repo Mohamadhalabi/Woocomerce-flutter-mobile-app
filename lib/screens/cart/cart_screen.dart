@@ -58,6 +58,7 @@ class _CartScreenState extends State<CartScreen> {
             item['price'] = product.salePrice ?? product.price;
             item['product_id'] = product.id;
             item['key'] = item['key'];
+            item['currency_symbol'] = product.currencySymbol;
           }
         }
       }
@@ -93,8 +94,6 @@ class _CartScreenState extends State<CartScreen> {
       } else if (rawPrice is String) {
         price = double.tryParse(rawPrice) ?? 0.0;
       }
-
-      if (price > 1000) price /= 100;
 
       final rawQty = item['quantity'];
       final quantity = rawQty is int
@@ -283,7 +282,6 @@ class _CartScreenState extends State<CartScreen> {
               price = double.tryParse(priceRaw) ?? 0.0;
             }
 
-            if (price > 1000) price /= 100;
 
             final rawQty = item['quantity'];
             final quantity = rawQty is int
@@ -390,7 +388,7 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                       const SizedBox(height: 12),
                           Text(
-                            '₺${price.toStringAsFixed(2)}',
+                            '${item['currency_symbol'] ?? '₺'}${price.toStringAsFixed(2)}',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -486,7 +484,9 @@ class _CartScreenState extends State<CartScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             Text(
-              isLoggedIn ? '₺${total.toStringAsFixed(2)}' : '-',
+              isLoggedIn
+                  ? '${cartItems.isNotEmpty ? (cartItems.first['currency_symbol'] ?? '₺') : '₺'}${total.toStringAsFixed(2)}'
+                  : '-',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
