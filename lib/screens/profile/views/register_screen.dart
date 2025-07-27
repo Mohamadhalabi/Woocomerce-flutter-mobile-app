@@ -138,9 +138,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           unselectedItemColor: Colors.grey,
           type: BottomNavigationBarType.fixed,
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Mağaza"),
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Anasayfa"),
             BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
-            BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: "Kaydedilenler"),
+            BottomNavigationBarItem(icon: Icon(Icons.store), label: "Mağaza"),
             BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
           ],

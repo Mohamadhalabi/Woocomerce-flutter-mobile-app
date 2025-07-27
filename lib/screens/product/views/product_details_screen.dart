@@ -84,6 +84,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           price: price,
           salePrice: salePrice,
           sku: product!['sku'] ?? '',
+          category: product!['category'] ?? '',
         );
       }
 

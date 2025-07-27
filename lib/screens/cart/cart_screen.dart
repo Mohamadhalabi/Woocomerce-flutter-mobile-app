@@ -7,7 +7,6 @@ import '../../../services/api_service.dart';
 import 'package:shop/components/skleton/skelton.dart';
 import '../../../services/alert_service.dart';
 import 'dart:async';
-
 import '../../route/route_constants.dart';
 
 
@@ -15,10 +14,10 @@ class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
 
   @override
-  State<CartScreen> createState() => _CartScreenState();
+  State<CartScreen> createState() => CartScreenState();
 }
 
-class _CartScreenState extends State<CartScreen> {
+class CartScreenState extends State<CartScreen> {
   List<Map<String, dynamic>> cartItems = [];
   bool isLoading = true;
   bool isLoggedIn = false;
@@ -29,9 +28,13 @@ class _CartScreenState extends State<CartScreen> {
   void initState() {
     super.initState();
     loadCart();
+    CartService.onGuestCartUpdated = () {
+      loadCart();
+    };
   }
   @override
   void dispose() {
+    CartService.onGuestCartUpdated = null;
     debounceTimer?.cancel();
     super.dispose();
   }
@@ -142,9 +145,6 @@ class _CartScreenState extends State<CartScreen> {
           productId: item['product_id'] ?? item['id'],
         );
 
-        // Optional: sync again in background if needed later
-        // final updated = await CartService.fetchWooCart(token);
-        // await loadCart(updated);
       } catch (e) {
         if (!mounted) return;
 
@@ -333,7 +333,7 @@ class _CartScreenState extends State<CartScreen> {
               );
               },
                 child: Container(
-                  margin: const EdgeInsets.only(top: 15, left: 3),
+                  margin: const EdgeInsets.only(top: 10),
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
@@ -387,14 +387,17 @@ class _CartScreenState extends State<CartScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                          Text(
-                            '${item['currency_symbol'] ?? '₺'}${price.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: blueColor,
-                            ),
+                      if (isLoggedIn)
+                        Text(
+                          '${item['currency_symbol'] ?? '₺'}${price.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: blueColor,
                           ),
+                        )
+                      else
+
                           const SizedBox(height: 12),
                           Row(
                             children: [
@@ -406,8 +409,8 @@ class _CartScreenState extends State<CartScreen> {
                                 child: Row(
                                   children: [
                                     IconButton(
-                                      icon: const Icon(Icons.remove, color: blueColor),
-                                      onPressed: () => _changeQuantity(index, -1),
+                                      icon: Icon(Icons.remove, color: quantity <= 1 ? Colors.grey : blueColor),
+                                      onPressed: quantity <= 1 ? null : () => _changeQuantity(index, -1),
                                     ),
                                     SizedBox(
                                       width: 40,

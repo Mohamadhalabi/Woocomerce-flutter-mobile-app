@@ -13,6 +13,7 @@ class AddToCartModal extends StatefulWidget {
   final bool isInStock;
   final String image;
   final String currencySymbol;
+  final String category;
 
   const AddToCartModal({
     super.key,
@@ -21,6 +22,7 @@ class AddToCartModal extends StatefulWidget {
     required this.price,
     this.salePrice,
     required this.sku,
+    required this.category,
     required this.isInStock,
     required this.image,
     required this.currencySymbol,
@@ -74,6 +76,7 @@ class _AddToCartModalState extends State<AddToCartModal> {
           price: widget.price,
           salePrice: widget.salePrice,
           sku: widget.sku,
+          category: widget.category,
         );
       }
 

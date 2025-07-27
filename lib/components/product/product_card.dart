@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../constants.dart';
+import '../../providers/wishlist_provider.dart';
 import 'add_to_cart_modal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -146,18 +148,49 @@ class ProductCard extends StatelessWidget {
                   ),
 
                 // ❤️ Wishlist
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    padding: const EdgeInsets.all(4),
-                    child: const Icon(Icons.favorite_border, size: 16),
+                if (id != null)
+                  Selector<WishlistProvider, bool>(
+                    selector: (_, provider) => provider.isInWishlist(id!),
+                    builder: (context, isWished, _) {
+                      return Positioned(
+                        top: 8,
+                        right: 8,
+                        child: GestureDetector(
+                          onTap: () {
+                            final productData = {
+                              'id': id,
+                              'name': title,
+                              'sku': sku,
+                              'images': [
+                                {'src': image}
+                              ],
+                              'categories': [
+                                {'name': category}
+                              ],
+                              'regular_price': price,
+                              'sale_price': salePrice,
+                              'average_rating': rating,
+                              'stock_status': isInStock ? 'instock' : 'outofstock',
+                              'isNew': isNew,
+                            };
+                            Provider.of<WishlistProvider>(context, listen: false).toggleWishlist(productData);
+                          },
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              isWished ? Icons.favorite : Icons.favorite_border,
+                              size: 16,
+                              color: isWished ? Colors.red : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ),
               ],
             ),
             Padding(
@@ -278,6 +311,7 @@ class ProductCard extends StatelessWidget {
                                   image: image,
                                   isInStock: isInStock,
                                   currencySymbol: currencySymbol ?? "₺",
+                                  category: category,
                                 ),
                               );
                             },

@@ -8,16 +8,21 @@ class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
 
   @override
-  State<DiscoverScreen> createState() => _DiscoverScreenState();
+  DiscoverScreenState createState() => DiscoverScreenState(); // 🔓 Public state
 }
 
-class _DiscoverScreenState extends State<DiscoverScreen> {
+class DiscoverScreenState extends State<DiscoverScreen> {
   List<String> previousSearches = [];
 
   @override
   void initState() {
     super.initState();
     loadPreviousSearches();
+  }
+
+  // 🔄 Called by EntryPoint to reload the tab
+  Future<void> refresh() async {
+    await loadPreviousSearches();
   }
 
   Future<void> loadPreviousSearches() async {

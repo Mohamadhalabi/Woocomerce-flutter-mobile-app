@@ -192,6 +192,7 @@ class ProductCardHorizontal extends StatelessWidget {
                                     price: price,
                                     salePrice: salePrice,
                                     sku: sku,
+                                    category: category,
                                     isInStock: true,
                                     image: image,
                                     currencySymbol: symbol,

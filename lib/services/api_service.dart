@@ -67,6 +67,9 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final List data = json.decode(response.body);
+
+        print("testt");
+        print(data);
         return data.map((item) => ProductModel.fromJson(item)).toList();
       } else {
         throw Exception("Failed to load latest products: ${response.body}");
@@ -155,9 +158,6 @@ class ApiService {
   static Future<List<ProductModel>> fetchFlashSaleProducts(String locale) async {
     final currency = await getSelectedCurrency();
 
-
-    print("fetching sale products!!!!!!!!");
-
     await dotenv.load();
     String apiBaseUrl = dotenv.env['API_BASE_URL_PRODUCTS'] ?? '';
     String consumerKey = dotenv.env['CONSUMER_KEY'] ?? '';
@@ -242,6 +242,7 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+
       return ProductModel.fromJson(data);
     } else {
       throw Exception('Failed to load product: ${response.statusCode}');
@@ -375,7 +376,7 @@ class ApiService {
       throw Exception("Kullanıcı girişi yapılmamış.");
     }
 
-    const url = 'https://www.aanahtar.com.tr/wp-json/wp/v2/users/me';
+    const url = 'https://www.aanahtar.com.tr/wp-json/custom-auth/v1/user-info';
 
     final response = await http.get(
       Uri.parse(url),
@@ -385,7 +386,6 @@ class ApiService {
         'Accept': 'application/json',
       },
     );
-
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {

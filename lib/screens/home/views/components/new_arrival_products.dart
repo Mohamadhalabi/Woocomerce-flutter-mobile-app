@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shop/components/product/product_card.dart';
@@ -9,36 +8,63 @@ import 'package:shop/services/api_service.dart';
 import '../../../../constants.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shop/providers/currency_provider.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 class NewArrivalProducts extends StatefulWidget {
-  const NewArrivalProducts({super.key});
+  final int refreshCounter;
+  const NewArrivalProducts({super.key, required this.refreshCounter});
 
   @override
   State<NewArrivalProducts> createState() => _NewArrivalProductsState();
 }
 
 class _NewArrivalProductsState extends State<NewArrivalProducts> {
+  static final Map<String, List<ProductModel>> _cachedProductsByLocaleAndCurrency = {};
+
   List<ProductModel> products = [];
-  bool isLoading = true;
+  bool isLoading = false;
   String errorMessage = '';
-  String? _currentKey;
+  String _cacheKey = '';
+  bool isVisible = false;
+  bool hasLoaded = false;
+  int _lastRefresh = -1;
+
+  void _handleVisibility(VisibilityInfo info) {
+    final visible = info.visibleFraction > 0.2;
+    setState(() => isVisible = visible);
+
+    if (visible && !hasLoaded) {
+      final locale = Localizations.localeOf(context).languageCode;
+      final currency = Provider.of<CurrencyProvider>(context, listen: false).selectedCurrency;
+      _cacheKey = '$locale|$currency';
+
+      if (_cachedProductsByLocaleAndCurrency.containsKey(_cacheKey)) {
+        setState(() {
+          products = _cachedProductsByLocaleAndCurrency[_cacheKey]!;
+          hasLoaded = true;
+          isLoading = false;
+        });
+      } else {
+        fetchProducts(locale, currency);
+      }
+    }
+  }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    final locale = Localizations.localeOf(context).languageCode;
-    final currency = Provider.of<CurrencyProvider>(context).selectedCurrency;
-    final newKey = '$locale|$currency';
-
-    if (_currentKey != newKey) {
-      _currentKey = newKey;
-      fetchProducts(locale, currency);
+  void didUpdateWidget(covariant NewArrivalProducts oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.refreshCounter != _lastRefresh) {
+      _lastRefresh = widget.refreshCounter;
+      hasLoaded = false;
+      if (isVisible) {
+        final locale = Localizations.localeOf(context).languageCode;
+        final currency = Provider.of<CurrencyProvider>(context, listen: false).selectedCurrency;
+        fetchProducts(locale, currency);
+      }
     }
   }
 
   Future<void> fetchProducts(String locale, String currency) async {
-    if (!mounted) return;
     setState(() {
       isLoading = true;
       errorMessage = '';
@@ -50,13 +76,16 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
 
       setState(() {
         products = response;
+        _cachedProductsByLocaleAndCurrency[_cacheKey] = response;
         isLoading = false;
+        hasLoaded = true;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         errorMessage = e.toString();
         isLoading = false;
+        hasLoaded = true;
       });
     }
   }
@@ -65,73 +94,77 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: defaultPadding),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(t.newArrival, style: Theme.of(context).textTheme.titleSmall),
-              TextButton(
-                onPressed: () {
-                  // Future navigation
-                },
-                child: Text(t.viewAll),
-              ),
-            ],
-          ),
-        ),
-        if (isLoading)
-          const Center(child: ProductsSkelton())
-        else if (errorMessage.isNotEmpty)
+    return VisibilityDetector(
+      key: const Key('new-arrival-products'),
+      onVisibilityChanged: _handleVisibility,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Padding(
-            padding: const EdgeInsets.all(defaultPadding),
-            child: Text(errorMessage, style: const TextStyle(color: Colors.red)),
-          )
-        else
-          SizedBox(
-            height: 280,
-            child: Container(
-              color: const Color(0xFFEAF2F4),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: products.length,
-                itemBuilder: (context, index) {
-                  final product = products[index];
-                  return Padding(
-                    padding: EdgeInsets.only(
-                      left: defaultPadding,
-                      right: index == products.length - 1 ? defaultPadding : 0,
-                    ),
-                    child: ProductCard(
-                      id: product.id,
-                      image: product.image,
-                      category: product.category,
-                      title: product.title,
-                      price: product.price,
-                      salePrice: product.salePrice,
-                      sku: product.sku,
-                      rating: product.rating,
-                      isNew: product.isNew,
-                      isInStock: product.isInStock,
-                      currencySymbol: product.currencySymbol,
-                      press: () {
-                        Navigator.pushNamed(
-                          context,
-                          productDetailsScreenRoute,
-                          arguments: product.id,
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
+            padding: const EdgeInsets.symmetric(horizontal: defaultPadding),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(t.newArrival, style: Theme.of(context).textTheme.titleSmall),
+                TextButton(
+                  onPressed: () {
+                    // future navigation
+                  },
+                  child: Text(t.viewAll),
+                ),
+              ],
             ),
           ),
-      ],
+          if (isLoading)
+            const Center(child: ProductsSkelton())
+          else if (errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(defaultPadding),
+              child: Text(errorMessage, style: const TextStyle(color: Colors.red)),
+            )
+          else
+            SizedBox(
+              height: 280,
+              child: Container(
+                color: const Color(0xFFEAF2F4),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    final product = products[index];
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        left: defaultPadding,
+                        right: index == products.length - 1 ? defaultPadding : 0,
+                      ),
+                      child: ProductCard(
+                        id: product.id,
+                        image: product.image,
+                        category: product.category,
+                        title: product.title,
+                        price: product.price,
+                        salePrice: product.salePrice,
+                        sku: product.sku,
+                        rating: product.rating,
+                        isNew: product.isNew,
+                        isInStock: product.isInStock,
+                        currencySymbol: product.currencySymbol,
+                        press: () {
+                          Navigator.pushNamed(
+                            context,
+                            productDetailsScreenRoute,
+                            arguments: product.id,
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

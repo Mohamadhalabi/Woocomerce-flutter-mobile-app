@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shop/screens/category/category_products_screen.dart';
-// import 'package:shop/screens/shop/shop_screen.dart';
 import 'package:shop/services/api_service.dart';
 
 class CustomDrawer extends StatefulWidget {

@@ -6,12 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class CartService {
   static const _cartKey = 'guest_cart';
   static const baseUrl = 'https://www.aanahtar.com.tr';
-
-  /// 🔐 Get JWT from shared preferences
-  static Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
+  static VoidCallback? onGuestCartUpdated;
 
   // ─────────────────────────────────────────────
   // 🛒 Store API: Authenticated WooCommerce Cart
@@ -24,8 +19,6 @@ class CartService {
         'Authorization': 'Bearer $token',
       },
     );
-
-    print(jsonDecode(response.body));
 
     if (response.statusCode != 200) {
       throw Exception('❌ Failed to fetch cart: ${response.body}');
@@ -145,6 +138,7 @@ class CartService {
     required double price,
     double? salePrice,
     required String sku,
+    required String category,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final String? cartData = prefs.getString(_cartKey);
@@ -154,7 +148,6 @@ class CartService {
       cart = List<Map<String, dynamic>>.from(jsonDecode(cartData));
     }
 
-    // Check if product already exists in cart
     final existingIndex = cart.indexWhere((item) => item['productId'] == productId);
 
     if (existingIndex != -1) {
@@ -168,10 +161,16 @@ class CartService {
         'price': price,
         'salePrice': salePrice,
         'sku': sku,
+        'category': category,
       });
     }
 
     await prefs.setString(_cartKey, jsonEncode(cart));
+
+    // 🔔 Notify cart screen to reload
+    if (onGuestCartUpdated != null) {
+      onGuestCartUpdated!();
+    }
   }
 
   // ─────────────────────────────────────────────

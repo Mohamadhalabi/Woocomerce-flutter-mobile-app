@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shop/providers/currency_provider.dart';
+import 'package:shop/providers/wishlist_provider.dart'; // ✅ ADDED
 
 import 'package:shop/services/api_initializer.dart';
 import 'package:shop/theme/app_theme.dart';
 import 'package:shop/route/route_constants.dart';
 import 'package:shop/route/router.dart' as router;
-import 'package:provider/provider.dart';
 
 import "controllers/locale_controller.dart";
 
@@ -22,6 +23,13 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => CurrencyProvider()),
+        ChangeNotifierProvider(
+          create: (_) {
+            final provider = WishlistProvider();
+            provider.loadWishlist(); // ✅ explicitly called here
+            return provider;
+          },
+        ),
       ],
       child: const MyApp(),
     ),

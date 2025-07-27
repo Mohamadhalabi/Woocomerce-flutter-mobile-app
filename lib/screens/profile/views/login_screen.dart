@@ -7,6 +7,8 @@ import '../../../services/cart_service.dart';
 import 'forgot_password_screen.dart';
 import '../../../services/alert_service.dart';
 import 'package:shop/screens/profile/views/phone_login_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:shop/providers/wishlist_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,23 +30,31 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => isLoading = true);
 
     try {
-      final token = await ApiService.loginUserWithEmail(
+      final response = await ApiService.loginUserWithEmail(
         username: usernameController.text.trim(),
         password: passwordController.text.trim(),
       );
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', token);
+      final token = response;
+      // final userIdRaw = response['user']['id'];
+      // final userId = int.tryParse(userIdRaw.toString());
 
-      // ✅ Merge guest cart into WooCommerce
+      // if (token == null || userId == null) {
+      //   throw Exception('Geçersiz kimlik doğrulama bilgileri');
+      // }
+
+      final prefs = await SharedPreferences.getInstance(); // ✅ Add this
+
+      await prefs.setString('auth_token', token);
+      // await prefs.setInt('user_id', userId);
+
+      // ✅ Merge guest cart
       final guestCart = await CartService.getGuestCart();
       for (var item in guestCart) {
         final productId = item['productId'];
         final rawQty = item['quantity'];
-
         if (productId == null || rawQty == null) continue;
 
-        // ✅ Force to int
         int quantity;
         if (rawQty is int) {
           quantity = rawQty;
@@ -58,8 +68,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
         await CartService.addToWooCart(token, productId, quantity);
       }
-
       await CartService.clearGuestCart();
+
+      // ✅ Sync guest wishlist to WooCommerce
+      final wishlistProvider = Provider.of<WishlistProvider>(context, listen: false);
+      await wishlistProvider.syncGuestWishlistToServer();
 
       if (!mounted) return;
 
@@ -85,6 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => isLoading = false);
     }
   }
+
 
   InputDecoration _inputDecoration(String label) {
     return InputDecoration(
@@ -223,37 +237,29 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              offset: Offset(0, -2),
-              blurRadius: 6,
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 4,
+        onTap: (index) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EntryPoint(
+                onLocaleChange: (_) {},
+                initialIndex: index,
+              ),
             ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          backgroundColor: Colors.white,
-          currentIndex: 4,
-          onTap: (index) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => EntryPoint(onLocaleChange: (_) {})),
-            );
-          },
-          selectedItemColor: primaryColor,
-          unselectedItemColor: Colors.grey,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Mağaza"),
-            BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
-            BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: "Kaydedilenler"),
-            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
-          ],
-        ),
+          );
+        },
+        selectedItemColor: primaryColor,
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Anasayfa"),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
+          BottomNavigationBarItem(icon: Icon(Icons.store), label: "Mağaza"),
+          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
+        ],
       ),
     );
   }
