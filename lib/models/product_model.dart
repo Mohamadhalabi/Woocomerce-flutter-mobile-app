@@ -38,7 +38,8 @@ class ProductModel {
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
-    final DateTime createdDate = DateTime.tryParse(json['date_created'] ?? '') ?? DateTime.now();
+    final DateTime createdDate = DateTime.tryParse(json['created_at'] ?? '') ?? DateTime(2000);
+    // print('📦 Product: ${json['id']} → Date Created: ${json['created_at']}');
     final List<dynamic> metaData = json['meta_data'] ?? [];
 
     // ✅ Parse attributes into Map<String, List<String>>
@@ -71,7 +72,7 @@ class ProductModel {
       discount: json['discount'],
       freeShipping: json['free_shipping'] == 1,
       isNew: checkIsNewFromMetaData(metaData) ||
-          createdDate.isAfter(DateTime.now().subtract(const Duration(days: 7))),
+          createdDate.isAfter(DateTime.now().subtract(const Duration(days: 30))),
       rating: double.tryParse(json['average_rating'].toString()) ?? 0.0,
       attributes: attributeMap,
       isInStock: json['stock_status'] == 'instock',

@@ -81,8 +81,9 @@ class _CategoriesState extends State<Categories> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => CategoryProductsScreen(
-                      categoryId: cat.id,
-                      categoryName: cat.name,
+                      id: cat.id,
+                      title: cat.name,
+                      filterType: 'category',
                     ),
                   ),
                 );

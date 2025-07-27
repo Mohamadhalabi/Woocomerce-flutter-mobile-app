@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shop/screens/category/category_products_screen.dart';
-import 'package:shop/services/api_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class CustomDrawer extends StatefulWidget {
   final void Function(int)? onNavigateToIndex;
@@ -18,107 +18,164 @@ class CustomDrawer extends StatefulWidget {
 }
 
 class _CustomDrawerState extends State<CustomDrawer> {
-  static List<dynamic>? _cachedCategories;
+  bool isCategoryExpanded = false;
+  bool isBrandExpanded = false;
+  bool isManufacturerExpanded = false;
+
   List<dynamic> categories = [];
-  bool isLoading = true;
-  String? _locale;
+  List<dynamic> brands = [];
+  List<dynamic> manufacturers = [];
+
+  bool loadingCategories = false;
+  bool loadingBrands = false;
+  bool loadingManufacturers = false;
+
+  bool _drawerDataFetched = false;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _locale = Localizations.localeOf(context).languageCode;
-      if (_cachedCategories != null) {
-        categories = _cachedCategories!;
-        isLoading = false;
-        setState(() {});
-      } else {
-        fetchCategories(_locale!);
-      }
-    });
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (!_drawerDataFetched) {
+      final lang = Localizations.localeOf(context).languageCode;
+      fetchDrawerData(lang);
+      _drawerDataFetched = true;
+    }
   }
 
-  Future<void> fetchCategories(String locale) async {
-    try {
-      final response = await ApiService.fetchCategories(locale);
+  String getFilterTypeByTitle(String title) {
+    if (title == "KATEGORİLER") return "category";
+    if (title == "MARKALAR") return "brand";
+    if (title == "ÜRETİCİ FİRMALAR") return "manufacturer";
+    return "category";
+  }
+
+  Future<void> fetchDrawerData(String lang) async {
+    final url = Uri.parse('https://www.aanahtar.com.tr/wp-json/custom/v1/drawer-data?lang=$lang');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final jsonData = json.decode(response.body);
+
       setState(() {
-        categories = response;
-        _cachedCategories = response;
-        isLoading = false;
+        categories = (jsonData['categories'] as Map<String, dynamic>).values.toList();
+        brands = jsonData['brands'] ?? [];
+        manufacturers = jsonData['manufacturers'] ?? [];
+
+        loadingCategories = false;
+        loadingBrands = false;
+        loadingManufacturers = false;
       });
-    } catch (e) {
-      debugPrint('Error fetching categories: $e');
-      setState(() => isLoading = false);
+    } else {
+      throw Exception('Failed to fetch drawer data');
     }
+  }
+
+
+  Widget buildExpansion(String title, List<dynamic> items, bool isLoading, bool isExpanded, Function(bool) onExpand) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.11),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            initiallyExpanded: isExpanded,
+            onExpansionChanged: onExpand,
+            tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+            title: Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Colors.black54,
+              ),
+            ),
+            childrenPadding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [
+              if (isLoading)
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else
+                Column(
+                  children: List.generate(items.length, (index) {
+                    final item = items[index];
+                    return Column(
+                      children: [
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 0),
+                          title: Text(
+                            item['name'],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          trailing: Text(
+                            '${item['count']} ürün',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CategoryProductsScreen(
+                                  id: item['id'],
+                                  title: item['name'],
+                                  filterType: getFilterTypeByTitle(title),                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const Divider(
+                          height: 1,
+                          thickness: 2,
+                          color: Colors.black12,
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
-
     return Drawer(
+      backgroundColor: Colors.white,
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
           Container(
-            color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             child: Image.asset('assets/logo/aanahtar-logo.webp', height: 48),
           ),
-          const Divider(height: 1),
-
-          // Navigation items
-          ListTile(
-            leading: const Icon(Icons.home),
-            title: const Text("Anasayfa"),
-            onTap: () => widget.onNavigateToIndex?.call(0),
-          ),
-          ListTile(
-            leading: const Icon(Icons.store),
-            title: const Text("Mağaza"),
-            // onTap: () => widget.onNavigateToScreen?.call(const ShopScreen()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.shopping_cart),
-            title: const Text('Sepet'),
-            onTap: () => widget.onNavigateToIndex?.call(3),
-          ),
-          ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text('Profil'),
-            onTap: () => widget.onNavigateToIndex?.call(4),
-          ),
-
-          const Divider(height: 32),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text("KATEGORİLER", style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-
-          if (isLoading)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else
-            ...categories.map(
-                  (cat) => ListTile(
-                title: Text(cat.name),
-                trailing: Text('${cat.count} ürün'),
-                    onTap: () {
-                      Navigator.pop(context); // close the drawer
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => CategoryProductsScreen(
-                            categoryId: cat.id,
-                            categoryName: cat.name,
-                          ),
-                        ),
-                      );
-                    },
-              ),
-            )
+          const Divider(height: 8),
+          buildExpansion("KATEGORİLER", categories, loadingCategories, isCategoryExpanded, (val) => setState(() => isCategoryExpanded = val)),
+          buildExpansion("MARKALAR", brands, loadingBrands, isBrandExpanded, (val) => setState(() => isBrandExpanded = val)),
+          buildExpansion("ÜRETİCİ FİRMALAR", manufacturers, loadingManufacturers, isManufacturerExpanded, (val) => setState(() => isManufacturerExpanded = val)),
         ],
       ),
     );

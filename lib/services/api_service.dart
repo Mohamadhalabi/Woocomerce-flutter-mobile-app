@@ -67,9 +67,6 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final List data = json.decode(response.body);
-
-        print("testt");
-        print(data);
         return data.map((item) => ProductModel.fromJson(item)).toList();
       } else {
         throw Exception("Failed to load latest products: ${response.body}");
@@ -520,90 +517,149 @@ class ApiService {
     }
   }
 
-  //fetch products by category
-  static Future<List<ProductModel>> fetchProductsByCategory({
-    required int categoryId,
-    required String locale,
-    int page = 1,
-    int perPage = 16,
-    String? search,
-    Map<String, List<String>> selectedFilters = const {},
+  static Future<Map<String, List<String>>> fetchFiltersForEntry({
+    required int id,
+    required String filterType, // 'category', 'brand', or 'manufacturer'
   }) async {
-    await dotenv.load();
-    final baseUrl = dotenv.env['API_BASE_URL'];
-    final key = dotenv.env['CONSUMER_KEY'];
-    final secret = dotenv.env['CONSUMER_SECRET'];
-
-    final query = StringBuffer()
-      ..write('category=$categoryId')
-      ..write('&page=$page')
-      ..write('&per_page=$perPage')
-      ..write('&consumer_key=$key')
-      ..write('&consumer_secret=$secret')
-      ..write('&lang=$locale');
-
-    if (search != null && search.isNotEmpty) {
-      query.write('&search=${Uri.encodeComponent(search)}');
-    }
-
-    // Encode attribute filters
-    if (selectedFilters.isNotEmpty) {
-      for (var entry in selectedFilters.entries) {
-        for (var term in entry.value) {
-          query.write('&attribute=${entry.key}&attribute_term=${Uri.encodeComponent(term)}');
-        }
-      }
-    }
-
-    final url = Uri.parse('$baseUrl/products?$query');
-
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      final List jsonData = jsonDecode(response.body);
-      return jsonData.map((json) => ProductModel.fromJson(json)).toList();
-    } else {
-      throw Exception('Failed to load filtered category products');
-    }
-  }
-
-
-  static Future<Map<String, List<String>>> fetchFiltersForCategory(int categoryId) async {
-    final url = Uri.parse('https://www.aanahtar.com.tr/wp-json/custom/v1/attributes-for-category?category=$categoryId');
-
-    final response = await http.get(url);
-
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> jsonData = jsonDecode(response.body);
-      return jsonData.map((key, value) {
-        final terms = List<String>.from(value.map((e) => e.toString()));
-        return MapEntry(key, terms);
-      });
-    } else {
-      throw Exception('Failed to fetch filters: ${response.body}');
-    }
-  }
-
-  static Future<List<ProductModel>> fetchFilteredProducts({
-    required int categoryId,
-    required int page,
-    required int perPage,
-    required Map<String, List<String>> selectedFilters,
-  }) async {
-    final filtersJson = jsonEncode(selectedFilters);
     final url = Uri.parse(
-      'https://www.aanahtar.com.tr/wp-json/custom/v1/filtered-products'
-          '?category=$categoryId&page=$page&per_page=$perPage&attributes=${Uri.encodeComponent(filtersJson)}',
+      'https://www.aanahtar.com.tr/wp-json/custom/v1/attributes-for-filter?filterType=$filterType&id=$id',
     );
 
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      final result = <String, List<String>>{};
+
+      for (var item in data) {
+        final String taxonomy = item['taxonomy'];
+        final List<String> terms = List<String>.from(
+          (item['terms'] as List).map((e) => e['name'].toString()),
+        );
+        result[taxonomy] = terms;
+      }
+
+      return result;
+    } else {
+      throw Exception('Failed to fetch filters: ${response.body}');
+    }
+  }
+
+
+  static Future<List<ProductModel>> fetchFilteredProducts({
+    required int id,
+    required String filterType, // 'category', 'brand', 'manufacturer'
+    required int page,
+    required int perPage,
+    required Map<String, List<String>> selectedFilters,
+    String sort = 'new_to_old',
+  }) async {
+    // ✅ Load currency dynamically
+    final currency = await getSelectedCurrency(); // e.g. 'TRY' or 'USD'
+
+    // ✅ Map sort
+    String orderBy = 'date';
+    String order = 'desc';
+
+    switch (sort) {
+      case 'old_to_new':
+        order = 'asc';
+        break;
+      case 'price_asc':
+        orderBy = 'price';
+        order = 'asc';
+        break;
+      case 'price_desc':
+        orderBy = 'price';
+        order = 'desc';
+        break;
+      case 'new_to_old':
+      default:
+        orderBy = 'date';
+        order = 'desc';
+    }
+
+    // ✅ Encode filters
+    final filtersJson = jsonEncode(selectedFilters);
+
+    // ✅ Build API URL
+    final uri = Uri.parse(
+      'https://www.aanahtar.com.tr/wp-json/woocs/v3/products/$currency'
+          '?${filterType.toLowerCase()}=$id'
+          '&page=$page'
+          '&per_page=$perPage'
+          '&orderby=$orderBy'
+          '&order=$order'
+          '&attributes=${Uri.encodeComponent(filtersJson)}',
+    );
+
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
       return data.map((json) => ProductModel.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load filtered products: ${response.body}');
+      throw Exception('Failed to fetch filtered products: ${response.body}');
     }
   }
+
+  // static Future<List<ProductModel>> fetchFilteredProducts({
+  //   required int id,
+  //   required String filterType,
+  //   required int page,
+  //   required int perPage,
+  //   required Map<String, List<String>> selectedFilters,
+  //   String sort = '',
+  //   String currency = 'TRY',
+  // }) async {
+  //   final filtersJson = jsonEncode(selectedFilters);
+  //
+  //   // ✅ Map sort key to API-compatible query param
+  //   String orderBy = 'date';
+  //   String order = 'desc';
+  //
+  //   switch (sort) {
+  //     case 'old_to_new':
+  //       orderBy = 'date';
+  //       order = 'asc';
+  //       break;
+  //     case 'price_asc':
+  //       orderBy = 'price';
+  //       order = 'asc';
+  //       break;
+  //     case 'price_desc':
+  //       orderBy = 'price';
+  //       order = 'desc';
+  //       break;
+  //     case 'new_to_old':
+  //     default:
+  //       orderBy = 'date';
+  //       order = 'desc';
+  //   }
+  //
+  //   final url = Uri.parse(
+  //       'https://www.aanahtar.com.tr/wp-json/custom/v1/filtered-products'
+  //           '?filterType=$filterType'
+  //           '&id=$id'
+  //           '&page=$page'
+  //           '&per_page=$perPage'
+  //           '&orderby=$orderBy'
+  //           '&order=$order'
+  //           '&attributes=${Uri.encodeComponent(filtersJson)}'
+  //           '&currency=$currency'
+  //   );
+  //
+  //
+  //   final response = await http.get(url);
+  //
+  //   if (response.statusCode == 200) {
+  //     final List data = jsonDecode(response.body);
+  //     return data.map((json) => ProductModel.fromJson(json)).toList();
+  //   } else {
+  //     throw Exception('Failed to fetch filtered products: ${response.body}');
+  //   }
+  // }
+
 
 
   //search
@@ -633,5 +689,20 @@ class ApiService {
       throw Exception('Failed to search products');
     }
   }
+
+  // brands and manufacturers fetch
+  static Future<Map<String, dynamic>> fetchDrawerData(String lang) async {
+    await dotenv.load();
+    final baseUrl = dotenv.env['API_BASE_URL'];
+
+    final response = await http.get(Uri.parse('$baseUrl/custom/v1/drawer-data?lang=$lang'));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body); // Return Map<String, dynamic>
+    } else {
+      throw Exception('Failed to fetch drawer data');
+    }
+  }
+
 
 }

@@ -233,8 +233,9 @@ Route<dynamic> generateRoute(RouteSettings settings) {
       final args = settings.arguments as Map<String, dynamic>;
       return MaterialPageRoute(
         builder: (context) => CategoryProductsScreen(
-          categoryId: args['categoryId'],
-          categoryName: args['categoryName'],
+          id: args['id'],
+          title: args['title'],
+          filterType: args['filterType'], // must be 'category', 'brand', or 'manufacturer'
         ),
       );
     case notificationsScreenRoute:
