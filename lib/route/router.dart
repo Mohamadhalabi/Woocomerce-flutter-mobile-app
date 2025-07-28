@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shop/entry_point.dart';
+import 'package:shop/screens/store/views/store_screen.dart';
 
 import '../models/product_model.dart';
 import '../screens/category/category_products_screen.dart';
@@ -191,7 +192,7 @@ Route<dynamic> generateRoute(RouteSettings settings) {
     //   );
     case bookmarkScreenRoute:
       return MaterialPageRoute(
-        builder: (context) => const BookmarkScreen(),
+        builder: (context) => const StoreScreen(),
       );
     case entryPointScreenRoute:
       return MaterialPageRoute(

@@ -2,6 +2,7 @@ import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:shop/constants.dart';
 import 'package:shop/route/screen_export.dart';
+import 'package:shop/screens/store/views/store_screen.dart';
 import 'components/common/drawer.dart';
 import 'components/common/main_scaffold.dart';
 import 'screens/cart/cart_screen.dart';
@@ -27,7 +28,7 @@ class _EntryPointState extends State<EntryPoint> {
   // 🔑 GlobalKeys for accessing refreshable screen states
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
   final GlobalKey<DiscoverScreenState> _discoverKey = GlobalKey<DiscoverScreenState>();
-  final GlobalKey<BookmarkScreenState> _bookmarkKey = GlobalKey<BookmarkScreenState>();
+  final GlobalKey<StoreScreenState> _storeKey = GlobalKey<StoreScreenState>();
   final GlobalKey<CartScreenState> _cartKey = GlobalKey<CartScreenState>();
   final GlobalKey<ProfileScreenState> _profileKey = GlobalKey<ProfileScreenState>();
 
@@ -46,7 +47,7 @@ class _EntryPointState extends State<EntryPoint> {
         _discoverKey.currentState?.refresh();
         break;
       case 2:
-        _bookmarkKey.currentState?.refresh();
+        _storeKey.currentState?.refresh();
         break;
       case 3:
         _cartKey.currentState?.loadCart();
@@ -62,14 +63,14 @@ class _EntryPointState extends State<EntryPoint> {
     final List<Widget> pages = [
       HomeScreen(key: _homeKey),
       DiscoverScreen(key: _discoverKey),
-      BookmarkScreen(key: _bookmarkKey),
+      StoreScreen(key: _storeKey),
       CartScreen(key: _cartKey),
       ProfileScreen(
         key: _profileKey,
         onLocaleChange: widget.onLocaleChange,
         onTabChange: (index) {
           setState(() => _currentIndex = index);
-          _refreshTab(index); // refresh from within profile too
+          _refreshTab(index);
         },
         searchController: _searchController,
       ),
