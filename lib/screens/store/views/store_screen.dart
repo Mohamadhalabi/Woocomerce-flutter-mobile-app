@@ -5,9 +5,6 @@ import 'package:shop/services/api_service.dart';
 import '../../../components/skleton/product/product_category_skelton.dart';
 import '../../../route/route_constants.dart';
 import '../../search/views/global_search_screen.dart';
-// import '../../components/skleton/product/product_category_skelton.dart';
-// import '../../route/route_constants.dart';
-// import '../search/views/global_search_screen.dart';
 
 class StoreScreen extends StatefulWidget {
   const StoreScreen({super.key});
@@ -23,7 +20,7 @@ class StoreScreenState extends State<StoreScreen> {
   int currentPage = 1;
   bool isLoading = false;
   bool hasMore = true;
-  final int perPage = 16;
+  final int perPage = 8;
   String selectedSort = '';
   String searchQuery = '';
   final ScrollController _scrollController = ScrollController();

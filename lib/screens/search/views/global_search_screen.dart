@@ -19,7 +19,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   int currentPage = 1;
   bool isLoading = false;
   bool hasMore = true;
-  final int perPage = 16;
+  final int perPage = 8;
   late String locale;
 
   final ScrollController _scrollController = ScrollController();

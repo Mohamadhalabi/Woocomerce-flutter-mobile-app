@@ -667,7 +667,7 @@ class ApiService {
     required String search,
     required String locale,
     int page = 1,
-    int perPage = 16,
+    int perPage = 8,
   }) async {
     await dotenv.load();
     final baseUrl = dotenv.env['API_BASE_URL'];
