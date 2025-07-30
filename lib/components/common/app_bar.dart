@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../constants.dart';
+
 class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget {
   final TextEditingController controller;
   final VoidCallback onBellTap;
@@ -27,7 +29,7 @@ class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget 
       shadowColor: Colors.black38,
       leading: Builder(
         builder: (context) => IconButton(
-          icon: const Icon(Icons.menu, color: Colors.black),
+          icon: const Icon(Icons.menu, color: Colors.black,),
           onPressed: () => Scaffold.of(context).openDrawer(),
         ),
       ),
@@ -43,14 +45,13 @@ class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget 
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: const Row(
             children: [
-              Icon(Icons.search, size: 20, color: Colors.grey),
+              Icon(Icons.search, size: 20, color: primaryColor,),
               SizedBox(width: 8),
               Expanded(
                 child: Text(
                   "Ürün ara...",
                   style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
+                    fontSize: 14, color: Colors.grey,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -61,7 +62,7 @@ class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget 
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.notifications_none, color: Colors.black),
+          icon: const Icon(Icons.notifications_none, color: primaryColor,),
           onPressed: onBellTap,
         ),
       ],

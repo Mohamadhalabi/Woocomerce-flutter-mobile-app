@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:shop/components/product/product_card.dart';
 import 'package:shop/models/product_model.dart';
 import 'package:shop/services/api_service.dart';
+import '../../components/common/app_bar.dart';
+import '../../components/common/drawer.dart';
+import '../../components/skleton/product/product_card_skelton.dart';
 import '../../components/skleton/product/product_category_skelton.dart';
+import '../../constants.dart';
+import '../../entry_point.dart';
 import '../../route/route_constants.dart';
 import '../search/views/global_search_screen.dart';
 
@@ -33,9 +38,9 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   late String locale;
   String searchQuery = "";
   String selectedSort = '';
+  int currentIndex = 2;
 
   final ScrollController _scrollController = ScrollController();
-  final TextEditingController searchController = TextEditingController();
 
   final List<Map<String, String>> sortOptions = [
     {'key': 'new_to_old', 'label': 'En Yeni'},
@@ -85,16 +90,14 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
     if (isLoading || (!hasMore && !isRefresh)) return;
 
     if (isRefresh) {
-      if (mounted) {
-        setState(() {
-          currentPage = 1;
-          hasMore = true;
-          products.clear();
-        });
-      }
+      setState(() {
+        currentPage = 1;
+        hasMore = true;
+        products.clear();
+      });
     }
 
-    if (mounted) setState(() => isLoading = true);
+    setState(() => isLoading = true);
 
     try {
       final response = await ApiService.fetchFilteredProducts(
@@ -106,18 +109,14 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
         sort: selectedSort,
       );
 
-      if (mounted) {
-        setState(() {
-          products.addAll(response);
-          currentPage++;
-          isLoading = false;
-          if (response.length < perPage) hasMore = false;
-        });
-      }
+      setState(() {
+        products.addAll(response);
+        currentPage++;
+        isLoading = false;
+        if (response.length < perPage) hasMore = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+      setState(() => isLoading = false);
       debugPrint('Error fetching products: $e');
     }
   }
@@ -126,9 +125,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.zero,
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -136,7 +133,6 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
               height: MediaQuery.of(context).size.height,
               child: Column(
                 children: [
-                  // Header with X and Clear
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     child: Row(
@@ -146,10 +142,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                           onTap: () => Navigator.pop(context),
                           child: const Icon(Icons.close),
                         ),
-                        const Text(
-                          "Filtrele",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
+                        const Text("Filtrele", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         TextButton(
                           onPressed: () {
                             setModalState(() {
@@ -190,56 +183,47 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                             const Divider(height: 30),
                             const Text("Filtreler", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 12),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Column(
+                            ...filters.entries.map((entry) {
+                              final attrKey = entry.key;
+                              final terms = entry.value;
+                              final selected = [...(selectedTermsByAttribute[attrKey] ?? [])];
+                              return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: filters.entries.map((entry) {
-                                  final attrKey = entry.key;
-                                  final terms = entry.value;
-                                  final selected = [...(selectedTermsByAttribute[attrKey] ?? [])];
-                                  return Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(attrKey.replaceFirst("pa_", ""),
-                                          style: const TextStyle(fontWeight: FontWeight.w600)),
-                                      Wrap(
-                                        spacing: 6,
-                                        runSpacing: 4,
-                                        children: terms.map((term) {
-                                          final isTermSelected = selected.contains(term);
-                                          return FilterChip(
-                                            label: Text(term),
-                                            selected: isTermSelected,
-                                            shape: const RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.zero,
-                                            ),
-                                            onSelected: (selectedState) {
-                                              setModalState(() {
-                                                if (selectedState) {
-                                                  selected.add(term);
-                                                } else {
-                                                  selected.remove(term);
-                                                }
-                                                selectedTermsByAttribute[attrKey] = List<String>.from(selected);
-                                              });
-                                            },
-                                          );
-                                        }).toList(),
-                                      ),
-                                      const SizedBox(height: 12),
-                                    ],
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
+                                children: [
+                                  Text(attrKey.replaceFirst("pa_", ""),
+                                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    children: terms.map((term) {
+                                      final isTermSelected = selected.contains(term);
+                                      return FilterChip(
+                                        label: Text(term),
+                                        selected: isTermSelected,
+                                        shape: const RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.zero),
+                                        onSelected: (selectedState) {
+                                          setModalState(() {
+                                            if (selectedState) {
+                                              selected.add(term);
+                                            } else {
+                                              selected.remove(term);
+                                            }
+                                            selectedTermsByAttribute[attrKey] = List<String>.from(selected);
+                                          });
+                                        },
+                                      );
+                                    }).toList(),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
+                              );
+                            }).toList(),
                           ],
                         ),
                       ),
                     ),
                   ),
-                  // Sticky Button
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: SizedBox(
@@ -263,6 +247,26 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
     );
   }
 
+  void onTabChange(int index) {
+    setState(() => currentIndex = index);
+    switch (index) {
+      case 0:
+        Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+        break;
+      case 1:
+        Navigator.pushNamedAndRemoveUntil(context, '/discover', (_) => false);
+        break;
+      case 2:
+        break;
+      case 3:
+        Navigator.pushNamedAndRemoveUntil(context, '/cart', (_) => false);
+        break;
+      case 4:
+        Navigator.pushNamedAndRemoveUntil(context, '/profile', (_) => false);
+        break;
+    }
+  }
+
   void onSearch(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return;
@@ -277,39 +281,78 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
-    searchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0.5,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_alt_outlined),
-            onPressed: openFilterModal,
-          )
-        ],
+      backgroundColor: Colors.white,
+      drawer: const CustomDrawer(), // 👈 Your drawer
+      appBar: CustomSearchAppBar(
+        controller: TextEditingController(),
+        onBellTap: () {
+          // Optional: Add logic for notifications
+        },
+        onSearchTap: () {
+          setState(() => currentIndex = 1); // Discover tab
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EntryPoint(
+                onLocaleChange: (_) {},
+                initialIndex: 1,
+              ),
+            ),
+          );
+        },
+        onSearchSubmitted: onSearch,
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              controller: searchController,
-              onSubmitted: onSearch,
-              decoration: InputDecoration(
-                hintText: "Ürün ara...",
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04), // subtle shadow
+                  blurRadius: 6,
+                  offset: const Offset(0, 1), // downward shadow
                 ),
-              ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Back button
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  color: primaryColor,
+                  onPressed: () => Navigator.pop(context),
+                ),
+
+                // Title centered
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+
+                // Filter button
+                IconButton(
+                  icon: const Icon(Icons.filter_alt_outlined),
+                  color: primaryColor,
+                  onPressed: openFilterModal,
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -329,12 +372,14 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                 ),
                 itemBuilder: (context, index) {
                   if (index >= products.length) {
-                    return Container(
-                      height: 130,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                    return GridView.count(
+                      crossAxisCount: 1,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      childAspectRatio: 0.6,
+                      children: List.generate(4, (_) => const ProductCardSkelton()),
                     );
                   }
 
@@ -367,6 +412,39 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
             ),
           ),
         ],
+      ),
+
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              offset: Offset(0, -2),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.white,
+          currentIndex: 2,
+          onTap: (index) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => EntryPoint(onLocaleChange: (_) {})),
+            );
+          },
+          selectedItemColor: primaryColor,
+          unselectedItemColor: Colors.grey,
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Anasayfa"),
+            BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
+            BottomNavigationBarItem(icon: Icon(Icons.store), label: "Mağaza"),
+            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
+          ],
+        ),
       ),
     );
   }

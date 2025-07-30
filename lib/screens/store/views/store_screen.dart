@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shop/components/product/product_card.dart';
 import 'package:shop/models/product_model.dart';
 import 'package:shop/services/api_service.dart';
+import '../../../components/skleton/product/product_card_skelton.dart';
 import '../../../components/skleton/product/product_category_skelton.dart';
 import '../../../route/route_constants.dart';
 import '../../search/views/global_search_screen.dart';
@@ -272,9 +273,11 @@ class StoreScreenState extends State<StoreScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Tüm Ürünler"),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.white, // force white background
         foregroundColor: Colors.black,
         elevation: 0.5,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_alt_outlined),
@@ -284,20 +287,6 @@ class StoreScreenState extends State<StoreScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              controller: searchController,
-              onSubmitted: onSearch,
-              decoration: InputDecoration(
-                hintText: "Ürün ara...",
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => fetchProducts(isRefresh: true),
@@ -315,12 +304,14 @@ class StoreScreenState extends State<StoreScreen> {
                 ),
                 itemBuilder: (context, index) {
                   if (index >= products.length) {
-                    return Container(
-                      height: 130,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                    return GridView.count(
+                      crossAxisCount: 1,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      childAspectRatio: 0.6,
+                      children: List.generate(4, (_) => const ProductCardSkelton()),
                     );
                   }
 

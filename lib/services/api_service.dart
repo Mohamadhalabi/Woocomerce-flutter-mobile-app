@@ -597,6 +597,10 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
+
+      print("----");
+      print(data);
+
       return data.map((json) => ProductModel.fromJson(json)).toList();
     } else {
       throw Exception('Failed to fetch filtered products: ${response.body}');

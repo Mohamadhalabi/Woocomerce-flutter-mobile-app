@@ -15,7 +15,7 @@ class ProductCategorySkelton extends StatelessWidget {
         mainAxisSpacing: 12,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 0.65,
+        childAspectRatio: 0.6,
         children: List.generate(4, (_) => const ProductCardSkelton()),
       ),
     );
