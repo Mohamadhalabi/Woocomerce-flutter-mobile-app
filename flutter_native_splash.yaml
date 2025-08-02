@@ -1,0 +1,9 @@
+flutter_native_splash:
+  background_image: assets/splash/splash.png
+  android: true
+  ios: true
+
+  # Optional but recommended settings
+  android_gravity: fill
+  ios_content_mode: scaleAspectFill
+  fullscreen: true

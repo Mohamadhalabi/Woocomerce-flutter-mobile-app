@@ -6,6 +6,7 @@ class ExpandableSection extends StatefulWidget {
   final Widget? child;
   final bool initiallyExpanded;
   final IconData? leadingIcon;
+  final Color? iconColor; // ✅ NEW
 
   const ExpandableSection({
     super.key,
@@ -14,6 +15,7 @@ class ExpandableSection extends StatefulWidget {
     this.child,
     this.initiallyExpanded = false,
     this.leadingIcon,
+    this.iconColor,
   });
 
   @override
@@ -31,6 +33,8 @@ class _ExpandableSectionState extends State<ExpandableSection> {
 
   @override
   Widget build(BuildContext context) {
+    final color = widget.iconColor ?? Theme.of(context).iconTheme.color;
+
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,12 +44,12 @@ class _ExpandableSectionState extends State<ExpandableSection> {
             onTap: () => setState(() => isExpanded = !isExpanded),
             leading: Icon(
               widget.leadingIcon ?? Icons.info_outline,
-              color: Theme.of(context).iconTheme.color,
+              color: color,
             ),
             title: Text(widget.title),
             trailing: Icon(
               isExpanded ? Icons.expand_less : Icons.expand_more,
-              color: Theme.of(context).iconTheme.color,
+              color: color,
             ),
           ),
           if (isExpanded)

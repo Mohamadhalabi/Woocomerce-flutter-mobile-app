@@ -137,9 +137,11 @@ Route<dynamic> generateRoute(RouteSettings settings) {
       return MaterialPageRoute(
         builder: (_) => ProductDetailsScreen(
           productId: productId,
-          onLocaleChange: (_) {}, // 👈 dummy no-op function
+          onLocaleChange: (_) {}, // ✅ dummy or real function
+          onTabChange: (_) {},     // ✅ dummy or real function
         ),
       );
+
 
     case productReviewsScreenRoute:
       return MaterialPageRoute(

@@ -2,7 +2,6 @@ import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:shop/constants.dart';
 import 'package:shop/route/screen_export.dart';
-import 'package:shop/screens/store/views/store_screen.dart';
 import 'components/common/drawer.dart';
 import 'components/common/main_scaffold.dart';
 import 'screens/cart/cart_screen.dart';
@@ -10,11 +9,15 @@ import 'screens/cart/cart_screen.dart';
 class EntryPoint extends StatefulWidget {
   final Function(String) onLocaleChange;
   final int initialIndex;
+  final Map<String, dynamic>? initialDrawerData;
+  final Map<String, dynamic>? initialUserData; // ✅
 
   const EntryPoint({
     super.key,
     required this.onLocaleChange,
     this.initialIndex = 0,
+    this.initialDrawerData,
+    this.initialUserData, // ✅
   });
 
   @override
@@ -25,7 +28,7 @@ class _EntryPointState extends State<EntryPoint> {
   late int _currentIndex;
   final TextEditingController _searchController = TextEditingController();
 
-  // 🔑 GlobalKeys for accessing refreshable screen states
+  // 🔑 Keys for refreshing tabs
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
   final GlobalKey<DiscoverScreenState> _discoverKey = GlobalKey<DiscoverScreenState>();
   final GlobalKey<StoreScreenState> _storeKey = GlobalKey<StoreScreenState>();
@@ -60,8 +63,11 @@ class _EntryPointState extends State<EntryPoint> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> pages = [
-      HomeScreen(key: _homeKey),
+    final pages = [
+      HomeScreen(
+        key: _homeKey,
+        initialDrawerData: widget.initialDrawerData,
+      ),
       DiscoverScreen(key: _discoverKey),
       StoreScreen(key: _storeKey),
       CartScreen(key: _cartKey),
@@ -73,17 +79,19 @@ class _EntryPointState extends State<EntryPoint> {
           _refreshTab(index);
         },
         searchController: _searchController,
+        initialUserData: widget.initialUserData, // ✅ pass preloaded user data
       ),
     ];
 
     return MainScaffold(
       body: PageTransitionSwitcher(
         duration: defaultDuration,
-        transitionBuilder: (child, animation, secondaryAnimation) => FadeThroughTransition(
-          animation: animation,
-          secondaryAnimation: secondaryAnimation,
-          child: child,
-        ),
+        transitionBuilder: (child, animation, secondaryAnimation) =>
+            FadeThroughTransition(
+              animation: animation,
+              secondaryAnimation: secondaryAnimation,
+              child: child,
+            ),
         child: IndexedStack(
           index: _currentIndex,
           children: pages,
@@ -101,6 +109,7 @@ class _EntryPointState extends State<EntryPoint> {
       searchController: _searchController,
       showAppBar: _currentIndex != 1,
       drawer: CustomDrawer(
+        initialData: widget.initialDrawerData, // ✅ pass preloaded drawer data
         onNavigateToIndex: (index) {
           setState(() => _currentIndex = index);
           _refreshTab(index);

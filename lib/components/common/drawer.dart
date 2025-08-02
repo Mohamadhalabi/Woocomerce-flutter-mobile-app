@@ -6,11 +6,13 @@ import 'dart:convert';
 class CustomDrawer extends StatefulWidget {
   final void Function(int)? onNavigateToIndex;
   final void Function(Widget)? onNavigateToScreen;
+  final Map<String, dynamic>? initialData;
 
   const CustomDrawer({
     super.key,
     this.onNavigateToIndex,
     this.onNavigateToScreen,
+    this.initialData,
   });
 
   @override
@@ -33,12 +35,16 @@ class _CustomDrawerState extends State<CustomDrawer> {
   bool _drawerDataFetched = false;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    if (!_drawerDataFetched) {
-      final lang = Localizations.localeOf(context).languageCode;
-      fetchDrawerData(lang);
+  void initState() {
+    super.initState();
+    if (widget.initialData != null) {
+      categories = (widget.initialData!['categories'] as Map<String, dynamic>).values.toList();
+      brands = widget.initialData!['brands'] ?? [];
+      manufacturers = widget.initialData!['manufacturers'] ?? [];
+      _drawerDataFetched = true;
+    } else {
+      final lang = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+      fetchDrawerData(lang); // Fallback fetch
       _drawerDataFetched = true;
     }
   }

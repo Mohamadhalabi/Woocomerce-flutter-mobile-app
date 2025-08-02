@@ -43,7 +43,8 @@ flutter_native_splash:
   image: assets/splash.png
   android: true
   ios: true
-  fullscreen: true
+  android_gravity: fill
+  ios_content_mode: scaleAspectfill
 
 flutter:
   uses-material-design: true
@@ -56,6 +57,7 @@ flutter:
     - assets/flags/
     - assets/logo/
     - assets/screens/
+    - assets/splash/splash.png
     - .env
 
   fonts:

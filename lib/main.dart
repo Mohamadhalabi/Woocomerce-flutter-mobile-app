@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shop/providers/currency_provider.dart';
 import 'package:shop/providers/wishlist_provider.dart'; // ✅ ADDED
+import 'package:shop/screens/splash_screen.dart';
 
 import 'package:shop/services/api_initializer.dart';
 import 'package:shop/theme/app_theme.dart';
@@ -84,7 +85,7 @@ class _MyAppState extends State<MyApp> {
       theme: AppTheme.lightTheme(context),
       themeMode: ThemeMode.light,
       onGenerateRoute: router.generateRoute,
-      initialRoute: entryPointScreenRoute,
+      home: const SplashScreen(),
     );
   }
 }

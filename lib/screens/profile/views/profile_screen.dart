@@ -11,12 +11,14 @@ class ProfileScreen extends StatefulWidget {
   final Function(String) onLocaleChange;
   final Function(int) onTabChange;
   final TextEditingController searchController;
+  final Map<String, dynamic>? initialUserData; // ✅ Added
 
   const ProfileScreen({
     super.key,
     required this.onLocaleChange,
     required this.onTabChange,
     required this.searchController,
+    this.initialUserData, // ✅ Added
   });
 
   @override
@@ -45,7 +47,8 @@ class ProfileScreenState extends State<ProfileScreen> {
 
     if (!mounted) return;
 
-    Provider.of<CurrencyProvider>(context, listen: false).setCurrency(newCurrency);
+    Provider.of<CurrencyProvider>(context, listen: false)
+        .setCurrency(newCurrency);
 
     setState(() {
       _selectedCurrency = newCurrency;
@@ -69,12 +72,19 @@ class ProfileScreenState extends State<ProfileScreen> {
 
     if (!mounted) return;
 
-    AlertService.showTopAlert(context, 'Başarıyla çıkış yapıldı', isError: false);
+    AlertService.showTopAlert(
+        context, 'Başarıyla çıkış yapıldı', isError: false);
     widget.onTabChange(0);
   }
 
   @override
   Widget build(BuildContext context) {
+    // ✅ If splash preloaded user data, show instantly
+    if (widget.initialUserData != null) {
+      return _buildLoggedInView(widget.initialUserData!);
+    }
+
+    // Otherwise, check token and fetch
     return FutureBuilder<String?>(
       future: _getToken(),
       builder: (context, snapshot) {
@@ -106,8 +116,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               );
             }
 
-            final user = userSnapshot.data!;
-            return _buildLoggedInView(user);
+            return _buildLoggedInView(userSnapshot.data!);
           },
         );
       },
@@ -131,44 +140,42 @@ class ProfileScreenState extends State<ProfileScreen> {
             child: Card(
               elevation: 2,
               margin: const EdgeInsets.only(bottom: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               child: ListTile(
                 contentPadding: const EdgeInsets.all(16),
-                leading: const Icon(Icons.person, size: 32, color: primaryColor),
-                title: Text(displayName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                leading: const Icon(Icons.person,
+                    size: 32, color: primaryColor),
+                title: Text(displayName,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.bold)),
                 subtitle: Text(email),
                 trailing: const Icon(Icons.edit, size: 20),
               ),
             ),
           ),
-
           _quickActions(),
-
           const SizedBox(height: 20),
-
           _cardItem(Icons.list_alt, 'Siparişlerim', onTap: () async {
             try {
               final orders = await ApiService.fetchUserOrders();
               Navigator.pushNamed(context, '/orders', arguments: orders);
             } catch (e) {
-              AlertService.showTopAlert(context, 'Siparişler alınamadı: $e', isError: true);
+              AlertService.showTopAlert(
+                  context, 'Siparişler alınamadı: $e',
+                  isError: true);
             }
           }),
-
           _cardItem(Icons.favorite_border, 'İstek Listem', onTap: () {
             Navigator.pushNamed(context, '/wishlist');
           }),
-
           _cardItem(Icons.remove_red_eye_outlined, 'Göz Atma Geçmişi', onTap: () {
             Navigator.pushNamed(context, '/browsing-history');
           }),
-
           _cardItem(Icons.visibility, 'İncelediğim Ürünler', onTap: () {
             Navigator.pushNamed(context, '/viewed-products');
           }),
-
           _buildCurrencySelector(),
-
           _cardItem(Icons.logout, 'Çıkış Yap', onTap: _logout),
         ],
       ),
@@ -178,23 +185,29 @@ class ProfileScreenState extends State<ProfileScreen> {
   Widget _quickActions() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape:
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _quickActionTile(Icons.list_alt, 'Siparişlerim', () => Navigator.pushNamed(context, '/orders')),
-            _quickActionTile(Icons.favorite_border, 'İstekler', () => Navigator.pushNamed(context, '/wishlist')),
-            _quickActionTile(Icons.history, 'Geçmiş', () => Navigator.pushNamed(context, '/browsing-history')),
-            _quickActionTile(Icons.remove_red_eye, 'İncelemeler', () => Navigator.pushNamed(context, '/viewed-products')),
+            _quickActionTile(Icons.list_alt, 'Siparişlerim',
+                    () => Navigator.pushNamed(context, '/orders')),
+            _quickActionTile(Icons.favorite_border, 'İstekler',
+                    () => Navigator.pushNamed(context, '/wishlist')),
+            _quickActionTile(Icons.history, 'Geçmiş',
+                    () => Navigator.pushNamed(context, '/browsing-history')),
+            _quickActionTile(Icons.remove_red_eye, 'İncelemeler',
+                    () => Navigator.pushNamed(context, '/viewed-products')),
           ],
         ),
       ),
     );
   }
 
-  Widget _quickActionTile(IconData icon, String label, VoidCallback onTap) {
+  Widget _quickActionTile(
+      IconData icon, String label, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -210,7 +223,8 @@ class ProfileScreenState extends State<ProfileScreen> {
   Widget _cardItem(IconData icon, String title, {VoidCallback? onTap}) {
     return Card(
       elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape:
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ListTile(
         leading: Icon(icon, color: Colors.black87),
@@ -224,7 +238,8 @@ class ProfileScreenState extends State<ProfileScreen> {
   Widget _buildCurrencySelector() {
     return Card(
       elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape:
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ListTile(
         leading: const Icon(Icons.attach_money, color: Colors.black87),
@@ -252,8 +267,10 @@ class ProfileScreenState extends State<ProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _cardItem(Icons.login, 'Giriş Yap', onTap: () => Navigator.pushNamed(context, '/login')),
-          _cardItem(Icons.person_add, 'Kayıt Ol', onTap: () => Navigator.pushNamed(context, '/register')),
+          _cardItem(Icons.login, 'Giriş Yap',
+              onTap: () => Navigator.pushNamed(context, '/login')),
+          _cardItem(Icons.person_add, 'Kayıt Ol',
+              onTap: () => Navigator.pushNamed(context, '/register')),
           _buildCurrencySelector(),
           _cardItem(Icons.info_outline, 'Hakkımızda'),
         ],

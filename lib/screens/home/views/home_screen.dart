@@ -6,7 +6,8 @@ import 'components/flash_sale.dart';
 import 'components/emulators.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final Map<String, dynamic>? initialDrawerData;
+  const HomeScreen({super.key, this.initialDrawerData});
 
   @override
   State<HomeScreen> createState() => HomeScreenState();
@@ -40,7 +41,9 @@ class HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMix
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const OffersCarouselAndCategories(),
+                 OffersCarouselAndCategories(
+                  initialDrawerData: widget.initialDrawerData,
+                ),
                 NewArrivalProducts(refreshCounter: refreshCounter),
                 const HomePageBanner1(),
                 FlashSaleProducts(refreshCounter: refreshCounter),

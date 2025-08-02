@@ -3,15 +3,17 @@ import 'offers_carousel.dart';
 import 'categories.dart';
 
 class OffersCarouselAndCategories extends StatelessWidget {
-  const OffersCarouselAndCategories({super.key});
+  final Map<String, dynamic>? initialDrawerData;
+
+  const OffersCarouselAndCategories({super.key, this.initialDrawerData});
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Categories(),
-        OffersCarousel(),
+        Categories(initialDrawerData: initialDrawerData),
+        const OffersCarousel(),
       ],
     );
   }

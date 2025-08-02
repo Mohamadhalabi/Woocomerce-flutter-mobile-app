@@ -43,14 +43,18 @@ class ProductModel {
     final List<dynamic> metaData = json['meta_data'] ?? [];
 
     // ✅ Parse attributes into Map<String, List<String>>
-    final attributeMap = <String, List<String>>{};
+    Map<String, List<String>> attributeMap = {};
+
     if (json['attributes'] != null && json['attributes'] is List) {
-      for (var item in json['attributes']) {
-        if (item['name'] != null && item['options'] != null) {
-          attributeMap[item['name']] = List<String>.from(item['options']);
-        }
+      for (var attr in json['attributes']) {
+        String name = attr['name'] ?? '';
+        List<dynamic> options = attr['options'] ?? [];
+        List<String> values = options.map((e) => e.toString()).toList();
+
+        attributeMap[name] = values;
       }
     }
+
 
     return ProductModel(
       id: json['id'],

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../constants.dart';
+
 class ProductAttributes extends StatelessWidget {
-  final Map<String, dynamic> attributes;
+  final Map<String, List<String>> attributes;
 
   const ProductAttributes({super.key, required this.attributes});
 
@@ -17,15 +19,11 @@ class ProductAttributes extends StatelessWidget {
       },
       border: TableBorder(
         horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-        top: BorderSide.none,
-        bottom: BorderSide.none,
-        left: BorderSide.none,
-        right: BorderSide.none,
       ),
       children: List.generate(rows.length, (index) {
         final entry = rows[index];
         final key = entry.key;
-        final value = (entry.value as List).join(', ');
+        final value = entry.value.join(', ');
         final isStriped = index % 2 == 1;
 
         return TableRow(
@@ -40,7 +38,7 @@ class ProductAttributes extends StatelessWidget {
                 style: theme.textTheme.bodyMedium!.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
-                  fontSize: 13,
+                  fontSize: 15,
                 ),
               ),
             ),
@@ -50,8 +48,9 @@ class ProductAttributes extends StatelessWidget {
                 child: Text(
                   value,
                   style: theme.textTheme.bodyMedium!.copyWith(
-                    color: Colors.black87,
-                    fontSize: 12,
+                    color: primaryColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold
                   ),
                   textAlign: TextAlign.center,
                 ),

@@ -6,7 +6,8 @@ import '../../../../constants.dart';
 import '../../../../services/api_service.dart';
 
 class Categories extends StatefulWidget {
-  const Categories({super.key});
+  final Map<String, dynamic>? initialDrawerData;
+  const Categories({super.key, this.initialDrawerData});
 
   @override
   State<Categories> createState() => _CategoriesState();
@@ -23,21 +24,32 @@ class _CategoriesState extends State<Categories> {
     super.didChangeDependencies();
 
     final newLocale = Localizations.localeOf(context).languageCode;
-
     if (_currentLocale != newLocale) {
       _currentLocale = newLocale;
 
+      // ✅ If splash preloaded categories, use them
+      if (widget.initialDrawerData != null &&
+          widget.initialDrawerData!['categories'] != null) {
+
+        final categoryMap = widget.initialDrawerData!['categories'] as Map<String, dynamic>;
+        final preloaded = categoryMap.values.toList();
+
+        categories = preloaded.map((c) => CategoryModel.fromJson(c)).toList();
+        _cachedByLocale[newLocale] = categories;
+        isLoading = false;
+        setState(() {});
+        return;
+      }
+
+      // Otherwise, normal cache/API logic
       if (_cachedByLocale.containsKey(newLocale)) {
-        setState(() {
-          categories = _cachedByLocale[newLocale]!;
-          isLoading = false;
-        });
+        categories = _cachedByLocale[newLocale]!;
+        isLoading = false;
       } else {
         fetchCategories(newLocale);
       }
     }
   }
-
   Future<void> fetchCategories(String locale) async {
     if (!mounted) return;
     setState(() => isLoading = true);

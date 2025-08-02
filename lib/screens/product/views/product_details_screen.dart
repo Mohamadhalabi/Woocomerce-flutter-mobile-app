@@ -8,20 +8,26 @@ import 'package:shop/screens/product/views/components/product_attributes.dart';
 import '../../../components/product/related_products.dart';
 import '../../../services/api_service.dart';
 import '../../../services/cart_service.dart';
+import '../../../services/alert_service.dart';
+import '../../../components/common/app_bar.dart';
+import '../../../components/common/drawer.dart';
+import '../../../entry_point.dart';
+
 import 'components/expandable_section.dart';
 import 'components/product_images.dart';
 import 'components/product_info.dart';
-import '../../../services/alert_service.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
   const ProductDetailsScreen({
     super.key,
     required this.productId,
     required this.onLocaleChange,
+    required this.onTabChange,
   });
 
   final int productId;
   final Function(String) onLocaleChange;
+  final Function(int) onTabChange;
 
   @override
   State<ProductDetailsScreen> createState() => _ProductDetailsScreenState();
@@ -36,6 +42,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   int quantity = 1;
   bool isInStock = true;
   String currencySymbol = '₺';
+  int currentIndex = 2;
 
   @override
   void didChangeDependencies() {
@@ -94,6 +101,19 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     }
   }
 
+  void _onSearchTap() {
+    widget.onTabChange(1);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EntryPoint(
+          onLocaleChange: widget.onLocaleChange,
+          initialIndex: 1,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -105,26 +125,19 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(product!['title'])),
+      backgroundColor: Colors.white,
+      drawer: const CustomDrawer(),
+      appBar: CustomSearchAppBar(
+        controller: TextEditingController(),
+        onSearchTap: _onSearchTap,
+        onBellTap: () {},
+        onSearchSubmitted: (value) {},
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: fetchProductDetails,
           child: CustomScrollView(
             slivers: [
-              SliverAppBar(
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                automaticallyImplyLeading: false,
-                floating: true,
-                actions: [
-                  IconButton(
-                    onPressed: () {},
-                    icon: SvgPicture.asset(
-                      "assets/icons/Bookmark.svg",
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
-                    ),
-                  ),
-                ],
-              ),
               ProductImages(
                 images: (product!['gallery'] as List<dynamic>?)
                     ?.map((e) => e.toString())
@@ -178,7 +191,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           ),
                         ),
                       const SizedBox(height: 16),
-
                       Row(
                         children: [
                           Container(
@@ -251,18 +263,20 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   ),
                 ),
               ),
-              if ((product!['attributes'] ?? {}).isNotEmpty)
+              if ((product!['attributes'] ?? []).isNotEmpty)
                 ExpandableSection(
                   title: "Özellikler",
                   initiallyExpanded: true,
                   leadingIcon: Icons.category,
+                  iconColor: primaryColor,
                   child: ProductAttributes(
-                    attributes: (product!['attributes'] as Map<String, dynamic>),
+                    attributes: Map<String, List<String>>.from(product!['attributes']),
                   ),
                 ),
               ExpandableSection(
                 title: "Açıklama",
                 leadingIcon: Icons.description,
+                iconColor: primaryColor,
                 child: Html(
                   data: product!['description'] ?? "<p>No description available.</p>",
                   style: {
@@ -279,6 +293,32 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.white,
+        currentIndex: currentIndex,
+        onTap: (index) {
+          widget.onTabChange(index);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EntryPoint(
+                onLocaleChange: widget.onLocaleChange,
+                initialIndex: index,
+              ),
+            ),
+          );
+        },
+        selectedItemColor: primaryColor,
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Anasayfa"),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
+          BottomNavigationBarItem(icon: Icon(Icons.store), label: "Mağaza"),
+          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
+        ],
       ),
     );
   }
