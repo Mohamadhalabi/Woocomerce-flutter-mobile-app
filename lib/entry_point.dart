@@ -102,7 +102,7 @@ class _EntryPointState extends State<EntryPoint> {
         onViewAllEmulators: () {
           setState(() {
             _currentIndex = 2;
-            const int emulatorCategoryId = 62; // ✅ your emulator category ID
+            const int emulatorCategoryId = 62;
             if (_storeScreen == null) {
               _storeScreen = StoreScreen(
                 key: _storeKey,

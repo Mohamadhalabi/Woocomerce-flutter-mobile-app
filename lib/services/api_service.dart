@@ -248,14 +248,15 @@ class ApiService {
 
   static Future<List<ProductModel>> fetchRelatedProductsWoo(String locale, int productId) async {
     final currency = await getSelectedCurrency();
-    await dotenv.load(); // Make sure this is included if not already called
+    await dotenv.load(); // Make sure env variables are loaded
     final baseUrl = dotenv.env['API_BASE_URL_PRODUCTS']!;
     final consumerKey = dotenv.env['CONSUMER_KEY']!;
     final consumerSecret = dotenv.env['CONSUMER_SECRET']!;
 
     try {
       // 1. Fetch main product to get related_ids
-      final productUrl = '$baseUrl/$currency?product_id=$productId&consumer_key=$consumerKey&consumer_secret=$consumerSecret';
+      final productUrl =
+          '$baseUrl/$currency?product_id=$productId&consumer_key=$consumerKey&consumer_secret=$consumerSecret';
       final productRes = await http.get(
         Uri.parse(productUrl),
         headers: {
@@ -273,8 +274,10 @@ class ApiService {
 
       if (relatedIds.isEmpty) return [];
 
-      // 2. Fetch related products by IDs
-      final relatedUrl = '$baseUrl/$currency?include=${relatedIds.join(",")}&orderby=date&order=desc&per_page=5&consumer_key=$consumerKey&consumer_secret=$consumerSecret';
+      // 2. Fetch related products by IDs (LIMIT to 5 products)
+      final relatedUrl =
+          '$baseUrl/$currency?include=${relatedIds.join(",")}&orderby=date&order=desc&per_page=5&consumer_key=$consumerKey&consumer_secret=$consumerSecret';
+
       final relatedRes = await http.get(
         Uri.parse(relatedUrl),
         headers: {

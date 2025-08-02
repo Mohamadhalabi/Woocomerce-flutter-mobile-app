@@ -86,13 +86,9 @@ class WishListService {
   }
 
   static Future<void> addToUserWishlist(int productId) async {
-    print("TESTTTT");
 
     final token = await getToken();
     final userId = await getUserId(); // ✅ NOW STATIC
-
-    print(token);
-    print(userId);
 
     if (token == null || userId == null) return;
 
@@ -107,8 +103,6 @@ class WishListService {
         'user_id': userId,
       }),
     );
-
-    print('Add to wishlist response: ${response.body}');
 
     if (response.statusCode != 200) {
       throw Exception('Add to wishlist failed: ${response.body}');

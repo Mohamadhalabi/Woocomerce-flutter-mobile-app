@@ -243,6 +243,7 @@ class ProductCard extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+// Inside the Row -> Column for the price
                           FutureBuilder<String?>(
                             future: SharedPreferences.getInstance().then((prefs) => prefs.getString('auth_token')),
                             builder: (context, snapshot) {
@@ -254,13 +255,12 @@ class ProductCard extends StatelessWidget {
                               final isLoggedIn = token != null && !JwtDecoder.isExpired(token);
 
                               if (!isLoggedIn) {
-                                return const Text(
-                                  '',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                );
+                                return const SizedBox.shrink(); // ❌ No text if not logged in
+                              }
+
+                              // ✅ Hide price if 0
+                              if ((salePrice ?? price) <= 0) {
+                                return const SizedBox.shrink();
                               }
 
                               return Column(
