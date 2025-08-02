@@ -240,8 +240,6 @@ class ApiService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
 
-      print("moh");
-      print(data);
       return ProductModel.fromJson(data);
     } else {
       throw Exception('Failed to load product: ${response.statusCode}');

@@ -10,14 +10,14 @@ class EntryPoint extends StatefulWidget {
   final Function(String) onLocaleChange;
   final int initialIndex;
   final Map<String, dynamic>? initialDrawerData;
-  final Map<String, dynamic>? initialUserData; // ✅
+  final Map<String, dynamic>? initialUserData;
 
   const EntryPoint({
     super.key,
     required this.onLocaleChange,
     this.initialIndex = 0,
     this.initialDrawerData,
-    this.initialUserData, // ✅
+    this.initialUserData,
   });
 
   @override
@@ -28,12 +28,15 @@ class _EntryPointState extends State<EntryPoint> {
   late int _currentIndex;
   final TextEditingController _searchController = TextEditingController();
 
-  // 🔑 Keys for refreshing tabs
+  // Keys for refresh actions
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
   final GlobalKey<DiscoverScreenState> _discoverKey = GlobalKey<DiscoverScreenState>();
   final GlobalKey<StoreScreenState> _storeKey = GlobalKey<StoreScreenState>();
   final GlobalKey<CartScreenState> _cartKey = GlobalKey<CartScreenState>();
   final GlobalKey<ProfileScreenState> _profileKey = GlobalKey<ProfileScreenState>();
+
+  // 🆕 Lazy-loaded screens
+  Widget? _cartScreen;
 
   @override
   void initState() {
@@ -70,7 +73,10 @@ class _EntryPointState extends State<EntryPoint> {
       ),
       DiscoverScreen(key: _discoverKey),
       StoreScreen(key: _storeKey),
-      CartScreen(key: _cartKey),
+
+      // 🆕 Only create CartScreen when needed
+      _cartScreen ?? const SizedBox(),
+
       ProfileScreen(
         key: _profileKey,
         onLocaleChange: widget.onLocaleChange,
@@ -79,7 +85,7 @@ class _EntryPointState extends State<EntryPoint> {
           _refreshTab(index);
         },
         searchController: _searchController,
-        initialUserData: widget.initialUserData, // ✅ pass preloaded user data
+        initialUserData: widget.initialUserData,
       ),
     ];
 
@@ -99,7 +105,15 @@ class _EntryPointState extends State<EntryPoint> {
       ),
       currentIndex: _currentIndex,
       onTabChange: (index) {
-        setState(() => _currentIndex = index);
+        setState(() {
+          _currentIndex = index;
+
+          // 🆕 Create CartScreen only when user first goes to index 3
+          if (index == 3 && _cartScreen == null) {
+            _cartScreen = CartScreen(key: _cartKey);
+          }
+        });
+
         _refreshTab(index);
       },
       onSearchTap: () {
@@ -109,9 +123,14 @@ class _EntryPointState extends State<EntryPoint> {
       searchController: _searchController,
       showAppBar: _currentIndex != 1,
       drawer: CustomDrawer(
-        initialData: widget.initialDrawerData, // ✅ pass preloaded drawer data
+        initialData: widget.initialDrawerData,
         onNavigateToIndex: (index) {
-          setState(() => _currentIndex = index);
+          setState(() {
+            _currentIndex = index;
+            if (index == 3 && _cartScreen == null) {
+              _cartScreen = CartScreen(key: _cartKey);
+            }
+          });
           _refreshTab(index);
           Navigator.pop(context);
         },
