@@ -111,7 +111,8 @@ class _AddToCartModalState extends State<AddToCartModal> {
       borderRadius: BorderRadius.circular(6),
     );
 
-    return SizedBox(
+    return Container(
+      color: Colors.white, // ✅ White background
       height: MediaQuery.of(context).size.height * 0.85,
       child: Padding(
         padding: EdgeInsets.only(
@@ -304,7 +305,9 @@ class _AddToCartModalState extends State<AddToCartModal> {
                     onPressed: widget.isInStock ? _handleAddToCart : null,
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: widget.isInStock ? Colors.grey.shade200 : Colors.grey.shade300,
+                      backgroundColor: widget.isInStock
+                          ? Colors.grey.shade200
+                          : Colors.grey.shade300,
                     ),
                     child: Text(
                       widget.isInStock ? "SEPETE EKLE" : "STOKTA YOK",
