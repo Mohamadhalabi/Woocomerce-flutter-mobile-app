@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shop/entry_point.dart';
-import 'package:shop/screens/store/views/store_screen.dart';
 
-import '../models/product_model.dart';
 import '../screens/category/category_products_screen.dart';
 import '../screens/wishlist/wishlist_screen.dart';
 import 'screen_export.dart';

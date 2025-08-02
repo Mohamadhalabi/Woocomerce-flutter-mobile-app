@@ -28,15 +28,17 @@ class _EntryPointState extends State<EntryPoint> {
   late int _currentIndex;
   final TextEditingController _searchController = TextEditingController();
 
-  // Keys for refresh actions
+  // Keys for refresh/load actions
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
   final GlobalKey<DiscoverScreenState> _discoverKey = GlobalKey<DiscoverScreenState>();
   final GlobalKey<StoreScreenState> _storeKey = GlobalKey<StoreScreenState>();
   final GlobalKey<CartScreenState> _cartKey = GlobalKey<CartScreenState>();
   final GlobalKey<ProfileScreenState> _profileKey = GlobalKey<ProfileScreenState>();
 
-  // 🆕 Lazy-loaded screens
+  // Lazy-loaded screens
+  Widget? _storeScreen;
   Widget? _cartScreen;
+  Widget? _profileScreen;
 
   @override
   void initState() {
@@ -67,26 +69,70 @@ class _EntryPointState extends State<EntryPoint> {
   @override
   Widget build(BuildContext context) {
     final pages = [
+      // Home
       HomeScreen(
         key: _homeKey,
         initialDrawerData: widget.initialDrawerData,
+        onViewAllNewArrival: () {
+          setState(() {
+            _currentIndex = 2;
+            if (_storeScreen == null) {
+              _storeScreen = StoreScreen(key: _storeKey);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _storeKey.currentState?.loadStoreData();
+              });
+            } else {
+              _storeKey.currentState?.switchMode(onSale: false, categoryId: null);
+            }
+          });
+        },
+        onViewAllFlashSale: () {
+          setState(() {
+            _currentIndex = 2;
+            if (_storeScreen == null) {
+              _storeScreen = StoreScreen(key: _storeKey, onSale: true);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _storeKey.currentState?.loadStoreData();
+              });
+            } else {
+              _storeKey.currentState?.switchMode(onSale: true, categoryId: null);
+            }
+          });
+        },
+        onViewAllEmulators: () {
+          setState(() {
+            _currentIndex = 2;
+            const int emulatorCategoryId = 62; // ✅ your emulator category ID
+            if (_storeScreen == null) {
+              _storeScreen = StoreScreen(
+                key: _storeKey,
+                onSale: false, // explicitly set onSale to false
+                categoryId: emulatorCategoryId,
+              );
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _storeKey.currentState?.loadStoreData();
+              });
+            } else {
+              _storeKey.currentState?.switchMode(
+                onSale: false, // explicitly set to false for emulators
+                categoryId: emulatorCategoryId,
+              );
+            }
+          });
+        },
       ),
-      DiscoverScreen(key: _discoverKey),
-      StoreScreen(key: _storeKey),
 
-      // 🆕 Only create CartScreen when needed
+      // Discover
+      DiscoverScreen(key: _discoverKey),
+
+      // Store (lazy)
+      _storeScreen ?? const SizedBox(),
+
+      // Cart (lazy)
       _cartScreen ?? const SizedBox(),
 
-      ProfileScreen(
-        key: _profileKey,
-        onLocaleChange: widget.onLocaleChange,
-        onTabChange: (index) {
-          setState(() => _currentIndex = index);
-          _refreshTab(index);
-        },
-        searchController: _searchController,
-        initialUserData: widget.initialUserData,
-      ),
+      // Profile (lazy)
+      _profileScreen ?? const SizedBox(),
     ];
 
     return MainScaffold(
@@ -104,18 +150,44 @@ class _EntryPointState extends State<EntryPoint> {
         ),
       ),
       currentIndex: _currentIndex,
-      onTabChange: (index) {
-        setState(() {
-          _currentIndex = index;
+        onTabChange: (index) {
+          setState(() {
+            _currentIndex = index;
 
-          // 🆕 Create CartScreen only when user first goes to index 3
-          if (index == 3 && _cartScreen == null) {
-            _cartScreen = CartScreen(key: _cartKey);
-          }
-        });
+            if (index == 2) {
+              if (_storeScreen == null) {
+                _storeScreen = StoreScreen(key: _storeKey);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _storeKey.currentState?.loadStoreData();
+                });
+              }
+              else if ((_storeScreen as StoreScreen).onSale ||
+                  (_storeScreen as StoreScreen).categoryId != null) {
+                _storeKey.currentState?.switchMode(onSale: false, categoryId: null);
+              }
+            }
 
-        _refreshTab(index);
-      },
+
+            if (index == 3 && _cartScreen == null) {
+              _cartScreen = CartScreen(key: _cartKey);
+            }
+
+            if (index == 4 && _profileScreen == null) {
+              _profileScreen = ProfileScreen(
+                key: _profileKey,
+                onLocaleChange: widget.onLocaleChange,
+                onTabChange: (newIndex) {
+                  setState(() => _currentIndex = newIndex);
+                  _refreshTab(newIndex);
+                },
+                searchController: _searchController,
+                initialUserData: widget.initialUserData,
+              );
+            }
+          });
+
+          _refreshTab(index);
+          },
       onSearchTap: () {
         setState(() => _currentIndex = 1);
         _refreshTab(1);
@@ -127,8 +199,27 @@ class _EntryPointState extends State<EntryPoint> {
         onNavigateToIndex: (index) {
           setState(() {
             _currentIndex = index;
+
+            if (index == 2 && _storeScreen == null) {
+              _storeScreen = StoreScreen(key: _storeKey);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _storeKey.currentState?.loadStoreData();
+              });
+            }
             if (index == 3 && _cartScreen == null) {
               _cartScreen = CartScreen(key: _cartKey);
+            }
+            if (index == 4 && _profileScreen == null) {
+              _profileScreen = ProfileScreen(
+                key: _profileKey,
+                onLocaleChange: widget.onLocaleChange,
+                onTabChange: (newIndex) {
+                  setState(() => _currentIndex = newIndex);
+                  _refreshTab(newIndex);
+                },
+                searchController: _searchController,
+                initialUserData: widget.initialUserData,
+              );
             }
           });
           _refreshTab(index);

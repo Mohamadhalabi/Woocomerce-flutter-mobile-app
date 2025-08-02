@@ -12,7 +12,13 @@ import 'package:shop/providers/currency_provider.dart';
 
 class FlashSaleProducts extends StatefulWidget {
   final int refreshCounter;
-  const FlashSaleProducts({super.key, required this.refreshCounter});
+  final VoidCallback? onViewAll;
+
+  const FlashSaleProducts({
+    super.key,
+    required this.refreshCounter,
+    this.onViewAll,
+  });
 
   @override
   State<FlashSaleProducts> createState() => _FlashSaleProductsState();
@@ -109,7 +115,7 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
               children: [
                 Text(t.specialOffer, style: Theme.of(context).textTheme.titleSmall),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: widget.onViewAll,
                   child: Text(t.viewAll),
                 ),
               ],

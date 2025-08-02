@@ -548,16 +548,15 @@ class ApiService {
 
   static Future<List<ProductModel>> fetchFilteredProducts({
     required int id,
-    required String filterType, // 'category', 'brand', 'manufacturer'
+    required String filterType,
     required int page,
     required int perPage,
     required Map<String, List<String>> selectedFilters,
     String sort = 'new_to_old',
+    bool onSale = false, // ✅ New param
   }) async {
-    // ✅ Load currency dynamically
-    final currency = await getSelectedCurrency(); // e.g. 'TRY' or 'USD'
+    final currency = await getSelectedCurrency();
 
-    // ✅ Map sort
     String orderBy = 'date';
     String order = 'desc';
 
@@ -573,34 +572,29 @@ class ApiService {
         orderBy = 'price';
         order = 'desc';
         break;
-      case 'new_to_old':
-      default:
-        orderBy = 'date';
-        order = 'desc';
     }
 
-    // ✅ Encode filters
     final filtersJson = jsonEncode(selectedFilters);
 
-    // ✅ Build API URL
-    final uri = Uri.parse(
-      'https://www.aanahtar.com.tr/wp-json/woocs/v3/products/$currency'
-          '?${filterType.toLowerCase()}=$id'
-          '&page=$page'
-          '&per_page=$perPage'
-          '&orderby=$orderBy'
-          '&order=$order'
-          '&attributes=${Uri.encodeComponent(filtersJson)}',
-    );
+    String url =
+        'https://www.aanahtar.com.tr/wp-json/woocs/v3/products/$currency'
+        '?${filterType.toLowerCase()}=$id'
+        '&page=$page'
+        '&per_page=$perPage'
+        '&orderby=$orderBy'
+        '&order=$order'
+        '&attributes=${Uri.encodeComponent(filtersJson)}';
+
+    if (onSale) {
+      url += '&on_sale=true'; // ✅ Add this
+    }
+
+    final uri = Uri.parse(url);
 
     final response = await http.get(uri);
 
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
-
-      print("----");
-      print(data);
-
       return data.map((json) => ProductModel.fromJson(json)).toList();
     } else {
       throw Exception('Failed to fetch filtered products: ${response.body}');

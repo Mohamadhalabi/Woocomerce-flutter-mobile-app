@@ -8,22 +8,27 @@ import '../../../route/route_constants.dart';
 import '../../search/views/global_search_screen.dart';
 
 class StoreScreen extends StatefulWidget {
-  const StoreScreen({super.key});
+  final bool onSale;
+  final int? categoryId;
+
+  const StoreScreen({super.key, this.onSale = false, this.categoryId});
 
   @override
   State<StoreScreen> createState() => StoreScreenState();
 }
 
 class StoreScreenState extends State<StoreScreen> {
+  bool _onSale = false;
+  int? _categoryId;
   List<ProductModel> products = [];
   Map<String, List<String>> filters = {};
   Map<String, List<String>> selectedTermsByAttribute = {};
   int currentPage = 1;
   bool isLoading = false;
   bool hasMore = true;
+  bool _hasFetchedOnce = false;
   final int perPage = 8;
   String selectedSort = '';
-  String searchQuery = '';
   final ScrollController _scrollController = ScrollController();
   final TextEditingController searchController = TextEditingController();
 
@@ -37,6 +42,9 @@ class StoreScreenState extends State<StoreScreen> {
   @override
   void initState() {
     super.initState();
+    _onSale = widget.onSale;
+    _categoryId = widget.categoryId;
+
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
           _scrollController.position.maxScrollExtent - 200 &&
@@ -45,8 +53,28 @@ class StoreScreenState extends State<StoreScreen> {
         fetchProducts();
       }
     });
+  }
+
+  /// Called only once for first load
+  void loadStoreData() {
+    if (_hasFetchedOnce) return;
     fetchFilters();
     fetchProducts();
+    _hasFetchedOnce = true;
+  }
+
+  /// Allows changing both onSale & categoryId
+  void switchMode({required bool onSale, int? categoryId}) {
+    setState(() {
+      _onSale = onSale;
+      _categoryId = categoryId;
+      _hasFetchedOnce = false;
+      products.clear();
+      currentPage = 1;
+      hasMore = true;
+    });
+    fetchFilters();
+    fetchProducts(isRefresh: true);
   }
 
   Future<void> refresh() async {
@@ -56,8 +84,8 @@ class StoreScreenState extends State<StoreScreen> {
   Future<void> fetchFilters() async {
     try {
       final result = await ApiService.fetchFiltersForEntry(
-        id: 0,
-        filterType: 'all',
+        id: _categoryId ?? 0,
+        filterType: _categoryId != null ? 'category' : 'all',
       );
       if (mounted) {
         setState(() => filters = result);
@@ -71,39 +99,34 @@ class StoreScreenState extends State<StoreScreen> {
     if (isLoading || (!hasMore && !isRefresh)) return;
 
     if (isRefresh) {
-      if (mounted) {
-        setState(() {
-          currentPage = 1;
-          hasMore = true;
-          products.clear();
-        });
-      }
+      setState(() {
+        currentPage = 1;
+        hasMore = true;
+        products.clear();
+      });
     }
 
-    if (mounted) setState(() => isLoading = true);
+    setState(() => isLoading = true);
 
     try {
       final response = await ApiService.fetchFilteredProducts(
-        id: 0,
-        filterType: 'all',
+        id: _categoryId ?? 0,
+        filterType: _categoryId != null ? 'category' : 'all',
         page: currentPage,
         perPage: perPage,
         selectedFilters: selectedTermsByAttribute,
         sort: selectedSort,
+        onSale: _onSale,
       );
 
-      if (mounted) {
-        setState(() {
-          products.addAll(response);
-          currentPage++;
-          isLoading = false;
-          if (response.length < perPage) hasMore = false;
-        });
-      }
+      setState(() {
+        products.addAll(response);
+        currentPage++;
+        isLoading = false;
+        if (response.length < perPage) hasMore = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+      setState(() => isLoading = false);
       debugPrint('Error fetching store products: $e');
     }
   }
@@ -111,6 +134,7 @@ class StoreScreenState extends State<StoreScreen> {
   void applyFilters() {
     fetchProducts(isRefresh: true);
   }
+
   void openFilterModal() {
     showModalBottomSheet(
       context: context,
@@ -126,19 +150,16 @@ class StoreScreenState extends State<StoreScreen> {
               padding: MediaQuery.of(context).viewInsets,
               child: Column(
                 children: [
-                  // Header Row
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Close button
                         IconButton(
                           icon: const Icon(Icons.close),
                           onPressed: () => Navigator.pop(context),
                         ),
                         const Text('Filtrele', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        // Clear filters
                         TextButton(
                           onPressed: () {
                             setModalState(() {
@@ -151,10 +172,7 @@ class StoreScreenState extends State<StoreScreen> {
                       ],
                     ),
                   ),
-
                   const Divider(height: 0),
-
-                  // Body
                   Expanded(
                     child: DraggableScrollableSheet(
                       expand: true,
@@ -220,15 +238,13 @@ class StoreScreenState extends State<StoreScreen> {
                                   ],
                                 );
                               }).toList(),
-                              const SizedBox(height: 80), // Padding for fixed button space
+                              const SizedBox(height: 80),
                             ],
                           ),
                         );
                       },
                     ),
                   ),
-
-                  // Apply Button Fixed at Bottom
                   Container(
                     padding: const EdgeInsets.all(16),
                     color: Colors.white,
@@ -273,7 +289,7 @@ class StoreScreenState extends State<StoreScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Tüm Ürünler"),
-        backgroundColor: Colors.white, // force white background
+        backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
         scrolledUnderElevation: 0,

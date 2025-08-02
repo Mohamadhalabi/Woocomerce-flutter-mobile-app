@@ -12,7 +12,13 @@ import 'package:shop/providers/currency_provider.dart';
 
 class EmulatorProducts extends StatefulWidget {
   final int refreshCounter;
-  const EmulatorProducts({super.key, required this.refreshCounter});
+  final VoidCallback? onViewAll;
+
+  const EmulatorProducts({
+    super.key,
+    required this.refreshCounter,
+    this.onViewAll,
+  });
 
   @override
   State<EmulatorProducts> createState() => _EmulatorProductsState();
@@ -115,9 +121,7 @@ class _EmulatorProductsState extends State<EmulatorProducts> {
               children: [
                 Text("Emülatörler", style: Theme.of(context).textTheme.titleSmall),
                 TextButton(
-                  onPressed: () {
-                    // Future navigation to emulators screen
-                  },
+                  onPressed: widget.onViewAll,
                   child: Text(t.viewAll),
                 ),
               ],

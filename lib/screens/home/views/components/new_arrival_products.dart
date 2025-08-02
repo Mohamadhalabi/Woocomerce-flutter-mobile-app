@@ -12,7 +12,13 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 class NewArrivalProducts extends StatefulWidget {
   final int refreshCounter;
-  const NewArrivalProducts({super.key, required this.refreshCounter});
+  final VoidCallback? onViewAll;
+
+  const NewArrivalProducts({
+    super.key,
+    required this.refreshCounter,
+    this.onViewAll,
+  });
 
   @override
   State<NewArrivalProducts> createState() => _NewArrivalProductsState();
@@ -105,11 +111,12 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(t.newArrival, style: Theme.of(context).textTheme.titleSmall),
+                Text(
+                  t.newArrival,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
                 TextButton(
-                  onPressed: () {
-                    // future navigation
-                  },
+                  onPressed: widget.onViewAll,
                   child: Text(t.viewAll),
                 ),
               ],

@@ -7,7 +7,17 @@ import 'components/emulators.dart';
 
 class HomeScreen extends StatefulWidget {
   final Map<String, dynamic>? initialDrawerData;
-  const HomeScreen({super.key, this.initialDrawerData});
+  final VoidCallback? onViewAllNewArrival;
+  final VoidCallback? onViewAllFlashSale;
+  final VoidCallback? onViewAllEmulators;
+
+  const HomeScreen({
+    super.key,
+    this.initialDrawerData,
+    this.onViewAllNewArrival,
+    this.onViewAllFlashSale,
+    this.onViewAllEmulators,
+  });
 
   @override
   State<HomeScreen> createState() => HomeScreenState();
@@ -23,7 +33,7 @@ class HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMix
   }
 
   @override
-  bool get wantKeepAlive => true; // ✅ preserves state when tab is not visible
+  bool get wantKeepAlive => true;
 
   @override
   Widget build(BuildContext context) {
@@ -41,13 +51,22 @@ class HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMix
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                 OffersCarouselAndCategories(
+                OffersCarouselAndCategories(
                   initialDrawerData: widget.initialDrawerData,
                 ),
-                NewArrivalProducts(refreshCounter: refreshCounter),
+                NewArrivalProducts(
+                  refreshCounter: refreshCounter,
+                  onViewAll: widget.onViewAllNewArrival ?? () {},
+                ),
                 const HomePageBanner1(),
-                FlashSaleProducts(refreshCounter: refreshCounter),
-                EmulatorProducts(refreshCounter: refreshCounter),
+                FlashSaleProducts(
+                  refreshCounter: refreshCounter,
+                  onViewAll: widget.onViewAllFlashSale ?? () {},
+                ),
+                EmulatorProducts(
+                  refreshCounter: refreshCounter,
+                  onViewAll: widget.onViewAllEmulators ?? () {},
+                ),
               ],
             ),
           ),

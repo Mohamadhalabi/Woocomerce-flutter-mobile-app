@@ -79,17 +79,16 @@ class ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ If splash preloaded user data, show instantly
+    // ✅ If splash preloaded user data, show instantly and skip API calls entirely
     if (widget.initialUserData != null) {
       return _buildLoggedInView(widget.initialUserData!);
     }
 
-    // Otherwise, check token and fetch
+    // ✅ Otherwise, check token and fetch
     return FutureBuilder<String?>(
       future: _getToken(),
       builder: (context, snapshot) {
-        final token = snapshot.data;
-
+        // While checking token
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const ColoredBox(
             color: Color(0xFFF5F5F5),
@@ -97,10 +96,14 @@ class ProfileScreenState extends State<ProfileScreen> {
           );
         }
 
+        final token = snapshot.data;
+
+        // No token or expired → Guest View
         if (token == null || token.isEmpty || JwtDecoder.isExpired(token)) {
           return _buildGuestView();
         }
 
+        // ✅ Fetch user data only if not already loaded
         return FutureBuilder<Map<String, dynamic>>(
           future: ApiService.fetchUserInfo(),
           builder: (context, userSnapshot) {
