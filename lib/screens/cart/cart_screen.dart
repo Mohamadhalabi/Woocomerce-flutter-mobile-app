@@ -8,6 +8,7 @@ import 'package:shop/components/skleton/skelton.dart';
 import '../../../services/alert_service.dart';
 import 'dart:async';
 import '../../route/route_constants.dart';
+import '../checkout/views/checkout_screen.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -39,29 +40,58 @@ class CartScreenState extends State<CartScreen> {
     super.dispose();
   }
 
+  void refreshWithSkeleton() {
+    setState(() {
+      isLoading = true; // triggers skeleton
+    });
+    loadCart();
+  }
+  /// Load cart with instant total + parallel product fetch
   Future<List<Map<String, dynamic>>> loadCart([List<Map<String, dynamic>>? overrideItems]) async {
+    setState(() {
+      isLoading = true; // ✅ Show skeleton while loading
+    });
+
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     isLoggedIn = token != null;
 
     try {
+      // 1️⃣ Get raw cart items (Woo or Guest)
       final items = overrideItems ??
           (isLoggedIn
               ? await CartService.fetchWooCart(token!)
               : await CartService.getGuestCart());
 
-      if (isLoggedIn) {
-        for (var item in items) {
-          final productId = int.tryParse(item['id'].toString());
-          if (productId != null) {
-            final product = await ApiService.fetchProductCardById(productId, 'tr');
-            item['image'] = product.image;
-            item['title'] = product.title;
-            item['category'] = product.category;
-            item['price'] = product.salePrice ?? product.price;
-            item['product_id'] = product.id ?? productId;
-            item['key'] = item['key'];
-            item['currency_symbol'] = product.currencySymbol;
+      // 2️⃣ Instant total update (before product details fetch)
+      setState(() {
+        total = _calculateTotal(items);
+        cartItems = items;
+      });
+
+      // 3️⃣ Fetch product details in batch for logged-in users
+      if (isLoggedIn && items.isNotEmpty) {
+        final productIds = items
+            .map((item) => int.tryParse(item['id'].toString()))
+            .where((id) => id != null)
+            .cast<int>()
+            .toList();
+
+        if (productIds.isNotEmpty) {
+          final products = await ApiService.fetchProductsCardByIds(productIds, 'tr');
+          final productMap = {for (var p in products) p.id!: p};
+
+          for (var item in items) {
+            final pid = int.tryParse(item['id'].toString());
+            if (pid != null && productMap.containsKey(pid)) {
+              final product = productMap[pid]!;
+              item['image'] = product.image;
+              item['title'] = product.title;
+              item['category'] = product.category;
+              item['price'] = product.salePrice ?? product.price;
+              item['product_id'] = product.id ?? pid;
+              item['currency_symbol'] = product.currencySymbol;
+            }
           }
         }
       } else {
@@ -73,9 +103,10 @@ class CartScreenState extends State<CartScreen> {
         }
       }
 
+      // 4️⃣ Final state update with full details
       setState(() {
         cartItems = items;
-        total = _calculateTotal(items);
+        total = _calculateTotal(items); // recalc after details fetched
         isLoading = false;
       });
 
@@ -91,7 +122,6 @@ class CartScreenState extends State<CartScreen> {
       return [];
     }
   }
-
 
   double _calculateTotal(List<Map<String, dynamic>> items) {
     return items.fold(0.0, (sum, item) {
@@ -236,33 +266,7 @@ class CartScreenState extends State<CartScreen> {
         ],
       ),
       body: isLoading
-          ? ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: 6,
-        itemBuilder: (context, index) {
-          return const Padding(
-            padding: EdgeInsets.only(bottom: 16),
-            child: Row(
-              children: [
-                Skeleton(width: 100, height: 100, radious: 8),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Skeleton(width: double.infinity, height: 14),
-                      SizedBox(height: 8),
-                      Skeleton(width: 120, height: 14),
-                      SizedBox(height: 8),
-                      Skeleton(width: 80, height: 14),
-                    ],
-                  ),
-                )
-              ],
-            ),
-          );
-        },
-      )
+          ? _buildSkeleton()
           : cartItems.isEmpty
           ? const Center(child: Text('Sepetiniz boş'))
           : RefreshIndicator(
@@ -272,292 +276,332 @@ class CartScreenState extends State<CartScreen> {
           padding: const EdgeInsets.all(12),
           itemBuilder: (context, index) {
             final item = cartItems[index];
-
-            final priceRaw = item['sale_price'] ?? item['price'];
-            double price = 0.0;
-
-            if (priceRaw is Map<String, dynamic>) {
-              price = double.tryParse(priceRaw['raw'].toString()) ?? 0.0;
-            } else if (priceRaw is num) {
-              price = priceRaw.toDouble();
-            } else if (priceRaw is String) {
-              price = double.tryParse(priceRaw) ?? 0.0;
-            }
-
-            final rawQty = item['quantity'];
-            final quantity = rawQty is int
-                ? rawQty
-                : rawQty is Map && rawQty['value'] != null
-                ? int.tryParse(rawQty['value'].toString()) ?? 1
-                : int.tryParse(rawQty.toString()) ?? 1;
-
-            return Slidable(
-              key: ValueKey(item['product_id'] ?? item['sku']),
-              endActionPane: ActionPane(
-                motion: const ScrollMotion(),
-                extentRatio: 0.25,
-                children: [
-                  SlidableAction(
-                    onPressed: (_) => _removeItem(index),
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                    icon: Icons.delete,
-                    label: 'Sil',
-                  ),
-                ],
-              ),
-              child: InkWell(
-                onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    productDetailsScreenRoute,
-                    arguments: item['product_id'] ?? item['id'],
-                  );
-                },
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Theme.of(context).brightness == Brightness.dark
-                        ? Border.all(color: Colors.white24, width: 1)
-                        : null,
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color.fromRGBO(0, 0, 0, 0.05),
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      )
-                    ],
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Product Image
-                      Container(
-                        margin: const EdgeInsets.only(top: 10),
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white24
-                                : Colors.grey.shade400,
-                            width: 1,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: item['image'] != null &&
-                            item['image'].toString().isNotEmpty
-                            ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            item['image'],
-                            fit: BoxFit.cover,
-                            width: 100,
-                            height: 100,
-                            errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.broken_image),
-                          ),
-                        )
-                            : const Icon(Icons.image_not_supported),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      // Product Info
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Title
-                            Text(
-                              item['title'] ?? 'Ürün',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).textTheme.bodyLarge?.color,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-
-                            // Category
-                            Text(
-                              item['category'] ?? '',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.color
-                                    ?.withOpacity(0.6),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-
-                            // Price
-                            if (isLoggedIn)
-                              Text(
-                                '${item['currency_symbol'] ?? '₺'}${price.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: blueColor,
-                                ),
-                              )
-                            else
-                              const SizedBox.shrink(),
-
-                            const SizedBox(height: 12),
-
-                            // Quantity Controls
-                            Row(
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey, width: 1.2),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.remove,
-                                          color: quantity <= 1
-                                              ? Colors.grey
-                                              : blueColor,
-                                        ),
-                                        onPressed: quantity <= 1
-                                            ? null
-                                            : () => _changeQuantity(index, -1),
-                                      ),
-                                      SizedBox(
-                                        width: 40,
-                                        height: 25,
-                                        child: TextField(
-                                          controller: TextEditingController(
-                                              text: quantity.toString()),
-                                          keyboardType: TextInputType.number,
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: blueColor,
-                                          ),
-                                          decoration: const InputDecoration(
-                                            border: InputBorder.none,
-                                            isDense: true,
-                                            contentPadding: EdgeInsets.zero,
-                                          ),
-                                          onChanged: (val) {
-                                            if (debounceTimer?.isActive ?? false) {
-                                              debounceTimer!.cancel();
-                                            }
-                                            debounceTimer = Timer(
-                                              const Duration(milliseconds: 500),
-                                                  () async {
-                                                final newQty =
-                                                    int.tryParse(val) ?? quantity;
-                                                if (newQty > 0 && newQty != quantity) {
-                                                  final diff = newQty - quantity;
-                                                  await _changeQuantity(index, diff);
-                                                }
-                                              },
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.add, color: blueColor),
-                                        onPressed: () => _changeQuantity(index, 1),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Spacer(),
-                                if (isLoggedIn)
-                                  Text(
-                                    '₺${(price * quantity).toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.red,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-
+            return _buildCartItem(context, item, index);
           },
         ),
       ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          boxShadow: [
-            BoxShadow(
-              color: theme.shadowColor.withOpacity(0.1),
-              blurRadius: 4,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // 🏷 Total
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Toplam:',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      bottomNavigationBar: _buildBottomBar(theme),
+    );
+  }
+
+  Widget _buildSkeleton() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 6,
+      itemBuilder: (context, index) {
+        return const Padding(
+          padding: EdgeInsets.only(bottom: 16),
+          child: Row(
+            children: [
+              Skeleton(width: 100, height: 100, radious: 8),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Skeleton(width: double.infinity, height: 14),
+                    SizedBox(height: 8),
+                    Skeleton(width: 120, height: 14),
+                    SizedBox(height: 8),
+                    Skeleton(width: 80, height: 14),
+                  ],
                 ),
-                Text(
-                  isLoggedIn
-                      ? '${cartItems.isNotEmpty ? (cartItems.first['currency_symbol'] ?? '₺') : '₺'}${total.toStringAsFixed(2)}'
-                      : '-',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
+              )
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCartItem(BuildContext context, Map<String, dynamic> item, int index) {
+    final priceRaw = item['sale_price'] ?? item['price'];
+    double price = 0.0;
+
+    if (priceRaw is Map<String, dynamic>) {
+      price = double.tryParse(priceRaw['raw'].toString()) ?? 0.0;
+    } else if (priceRaw is num) {
+      price = priceRaw.toDouble();
+    } else if (priceRaw is String) {
+      price = double.tryParse(priceRaw) ?? 0.0;
+    }
+
+    final rawQty = item['quantity'];
+    final quantity = rawQty is int
+        ? rawQty
+        : rawQty is Map && rawQty['value'] != null
+        ? int.tryParse(rawQty['value'].toString()) ?? 1
+        : int.tryParse(rawQty.toString()) ?? 1;
+
+    return Slidable(
+      key: ValueKey(item['product_id'] ?? item['sku']),
+      endActionPane: ActionPane(
+        motion: const ScrollMotion(),
+        extentRatio: 0.25,
+        children: [
+          SlidableAction(
+            onPressed: (_) => _removeItem(index),
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            icon: Icons.delete,
+            label: 'Sil',
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            productDetailsScreenRoute,
+            arguments: item['product_id'] ?? item['id'],
+          );
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Theme.of(context).brightness == Brightness.dark
+                ? Border.all(color: Colors.white24, width: 1)
+                : null,
+            boxShadow: const [
+              BoxShadow(
+                color: Color.fromRGBO(0, 0, 0, 0.05),
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              )
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Product Image
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white24
+                        : Colors.grey.shade400,
+                    width: 1,
                   ),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ],
-            ),
-            // 🛒 Checkout Button
-            if (isLoggedIn)
-              SizedBox(
-                width: 200,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: blueColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                child: item['image'] != null &&
+                    item['image'].toString().isNotEmpty
+                    ? ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    item['image'],
+                    fit: BoxFit.cover,
+                    width: 100,
+                    height: 100,
+                    errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.broken_image),
+                  ),
+                )
+                    : const Icon(Icons.image_not_supported),
+              ),
+
+              const SizedBox(width: 12),
+
+              // Product Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Text(
+                      item['title'] ?? 'Ürün',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                  onPressed: () {
-                    Navigator.pushNamed(context, checkoutScreenRoute);
-                  },
-                  child: const Text(
-                    "Ödeme sayfasına git",
-                    style:
-                    TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
+                    const SizedBox(height: 4),
+
+                    // Category
+                    Text(
+                      item['category'] ?? '',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.color
+                            ?.withOpacity(0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Price
+                    if (isLoggedIn)
+                      Text(
+                        '${item['currency_symbol'] ?? '₺'}${price.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: blueColor,
+                        ),
+                      )
+                    else
+                      const SizedBox.shrink(),
+
+                    const SizedBox(height: 12),
+
+                    // Quantity Controls
+                    Row(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey, width: 1.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.remove,
+                                  color: quantity <= 1
+                                      ? Colors.grey
+                                      : blueColor,
+                                ),
+                                onPressed: quantity <= 1
+                                    ? null
+                                    : () => _changeQuantity(index, -1),
+                              ),
+                              SizedBox(
+                                width: 40,
+                                height: 25,
+                                child: TextField(
+                                  controller: TextEditingController(
+                                      text: quantity.toString()),
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: blueColor,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                  onChanged: (val) {
+                                    if (debounceTimer?.isActive ?? false) {
+                                      debounceTimer!.cancel();
+                                    }
+                                    debounceTimer = Timer(
+                                      const Duration(milliseconds: 500),
+                                          () async {
+                                        final newQty =
+                                            int.tryParse(val) ?? quantity;
+                                        if (newQty > 0 && newQty != quantity) {
+                                          final diff = newQty - quantity;
+                                          await _changeQuantity(index, diff);
+                                        }
+                                      },
+                                    );
+                                  },
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.add, color: blueColor),
+                                onPressed: () => _changeQuantity(index, 1),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        if (isLoggedIn)
+                          Text(
+                            '₺${(price * quantity).toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withOpacity(0.1),
+            blurRadius: 4,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // 🏷 Total
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Toplam:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                isLoggedIn
+                    ? '${cartItems.isNotEmpty ? (cartItems.first['currency_symbol'] ?? '₺') : '₺'}${total.toStringAsFixed(2)}'
+                    : '-',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
+          // 🛒 Checkout Button
+          if (isLoggedIn)
+            SizedBox(
+              width: 200,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: blueColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CheckoutScreen(cartItems: cartItems),
+                    ),
+                  );
+                },
+                child: const Text(
+                  "Ödeme sayfasına git",
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ),
+            )
+        ],
       ),
     );
   }

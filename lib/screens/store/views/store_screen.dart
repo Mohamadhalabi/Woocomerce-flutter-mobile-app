@@ -333,7 +333,7 @@ class StoreScreenState extends State<StoreScreen> {
                   crossAxisCount: 2,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  childAspectRatio: 0.60,
+                  childAspectRatio: 0.58,
                 ),
                 itemBuilder: (context, index) {
                   if (index >= products.length) {

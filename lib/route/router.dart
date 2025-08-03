@@ -3,6 +3,7 @@ import 'package:shop/entry_point.dart';
 
 import '../screens/category/category_products_screen.dart';
 import '../screens/checkout/views/checkout_screen.dart';
+import '../screens/order/views/order_succesfull_screen.dart';
 import '../screens/wishlist/wishlist_screen.dart';
 import 'screen_export.dart';
 import "package:shop/controllers/locale_controller.dart";
@@ -313,8 +314,9 @@ Route<dynamic> generateRoute(RouteSettings settings) {
     //     builder: (context) => const CheckoutCartScreen(),
     //   );
     case checkoutScreenRoute:
+      final args = settings.arguments as List<Map<String, dynamic>>?;
       return MaterialPageRoute(
-        builder: (context) => const CheckoutScreen(),
+        builder: (context) => CheckoutScreen(cartItems: args ?? []),
       );
     case '/login':
       return MaterialPageRoute(builder: (context) => const LoginScreen());
@@ -322,13 +324,18 @@ Route<dynamic> generateRoute(RouteSettings settings) {
     case '/register':
       return MaterialPageRoute(builder: (context) => const RegisterScreen());
 
+    case '/order-success':
+      final orderId = settings.arguments as int;
+      return MaterialPageRoute(
+        builder: (context) => OrderSuccessScreen(orderId: orderId),
+      );
     case '/wishlist':
       return MaterialPageRoute(builder: (context) => const WishlistScreen());
 
     case '/orders':
-      final orders = settings.arguments as List<Map<String, dynamic>>;
+      final orders = settings.arguments as List<Map<String, dynamic>>?;
       return MaterialPageRoute(
-        builder: (context) => OrdersScreen(orders: orders),
+        builder: (context) => OrdersScreen(orders: orders ?? []),
       );
   // case paymentMethodScreenRoute:
     //   return MaterialPageRoute(

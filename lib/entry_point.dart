@@ -201,8 +201,11 @@ class _EntryPointState extends State<EntryPoint> {
 
 
             if (index == 3) {
-              // Always create a new CartScreen so it refetches fresh cart
-              _cartScreen = CartScreen(key: _cartKey);
+              if (_cartKey.currentState != null) {
+                _cartKey.currentState!.refreshWithSkeleton();
+              } else {
+                _cartScreen = CartScreen(key: _cartKey);
+              }
             }
 
             if (index == 4 && _profileScreen == null) {
@@ -240,8 +243,11 @@ class _EntryPointState extends State<EntryPoint> {
               });
             }
             if (index == 3) {
-              // Always create a new CartScreen so it refetches fresh cart
-              _cartScreen = CartScreen(key: _cartKey);
+              if (_cartKey.currentState != null) {
+                _cartKey.currentState!.refreshWithSkeleton();
+              } else {
+                _cartScreen = CartScreen(key: _cartKey);
+              }
             }
             if (index == 4 && _profileScreen == null) {
               _profileScreen = ProfileScreen(

@@ -185,7 +185,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     final theme = Theme.of(context);
 
     return Drawer(
-      backgroundColor: theme.scaffoldBackgroundColor, // ✅ Theme-aware background
+      backgroundColor: theme.scaffoldBackgroundColor,
       child: ListView(
         padding: EdgeInsets.zero,
         children: [

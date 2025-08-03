@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/product_model.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/category_model.dart';
+import 'cart_service.dart';
 
 class ApiService {
 
@@ -11,16 +13,6 @@ class ApiService {
   static Future<String> getSelectedCurrency() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('selected_currency') ?? 'TRY'; // Default to TRY
-  }
-  static Future<Map<String, String>> _buildHeaders(String locale, String apiKey, String secretKey) async {
-    return {
-      'Accept-Language': locale,
-      'Content-Type': 'application/json',
-      'currency': await getSelectedCurrency(),
-      'Accept': 'application/json',
-      'secret-key': secretKey,
-      'api-key': apiKey,
-    };
   }
   // Home Page API
   static Future<List<CategoryModel>> fetchCategories(String locale) async {
@@ -277,6 +269,154 @@ class ApiService {
     }
   }
 
+  static Future<List<ProductModel>> fetchProductsCardByIds(
+      List<int> ids, String locale) async {
+    if (ids.isEmpty) return [];
+
+    final currency = await getSelectedCurrency();
+    await dotenv.load();
+
+    final baseUrl = dotenv.env['API_BASE_URL_PRODUCTS']!;
+    final consumerKey = dotenv.env['CONSUMER_KEY']!;
+    final consumerSecret = dotenv.env['CONSUMER_SECRET']!;
+
+    final url = Uri.parse(
+      '$baseUrl/$currency?include=${ids.join(',')}&consumer_key=$consumerKey&consumer_secret=$consumerSecret&context=card',
+    );
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Accept': 'application/json',
+        'Accept-Language': locale,
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((json) => ProductModel.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load products: ${response.statusCode}');
+    }
+  }
+
+  // update user info
+  static Future<void> updateUserProfile({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    String? password,
+  }) async {
+    await dotenv.load();
+
+    final baseUrl = dotenv.env['API_BASE_URL']!;
+    final consumerKey = dotenv.env['CONSUMER_KEY']!;
+    final consumerSecret = dotenv.env['CONSUMER_SECRET']!;
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    if (token == null) throw Exception('Not authenticated');
+
+    final url = Uri.parse(
+      "$baseUrl/customers/me"
+          "?consumer_key=$consumerKey"
+          "&consumer_secret=$consumerSecret",
+    );
+
+    final body = {
+      "first_name": firstName,
+      "last_name": lastName,
+      "email": email,
+      "billing": {
+        "phone": phone,
+      },
+      if (password != null && password.isNotEmpty) "password": password,
+    };
+
+    final response = await http.post(
+      url,
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception("Failed to update profile: ${response.body}");
+    }
+  }
+  // update user address
+  static Future<void> updateUserAddress({
+    required String address1,
+    required String city,
+    required String state,
+    required String postcode,
+  }) async {
+    await dotenv.load();
+
+    final baseUrl = dotenv.env['API_BASE_URL']!;
+    final consumerKey = dotenv.env['CONSUMER_KEY']!;
+    final consumerSecret = dotenv.env['CONSUMER_SECRET']!;
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    if (token == null) throw Exception('Not authenticated');
+
+    // 1️⃣ Get the current user data so we don't wipe it
+    final currentUser = await ApiService.fetchUserInfo();
+
+    final url = Uri.parse(
+      "$baseUrl/customers/me?consumer_key=$consumerKey&consumer_secret=$consumerSecret",
+    );
+
+    // 2️⃣ Merge the new address fields with existing info
+    final body = {
+      "first_name": currentUser['first_name'] ?? "",
+      "last_name": currentUser['last_name'] ?? "",
+      "email": currentUser['email'] ?? "",
+      "phone": currentUser['phone'] ?? "222",
+      "billing": {
+        "first_name": currentUser['billing']?['first_name'] ?? currentUser['first_name'] ?? "",
+        "last_name": currentUser['billing']?['last_name'] ?? currentUser['last_name'] ?? "",
+        "email": currentUser['billing']?['email'] ?? currentUser['email'] ?? "",
+        "billing_phone": currentUser['billing']?['phone'] ?? "",
+        "address_1": address1,
+        "city": city,
+        "state": state,
+        "postcode": postcode,
+        "country": currentUser['billing']?['country'] ?? "TR",
+      },
+      "shipping": {
+        "first_name": currentUser['shipping']?['first_name'] ?? currentUser['first_name'] ?? "",
+        "last_name": currentUser['shipping']?['last_name'] ?? currentUser['last_name'] ?? "",
+        "address_1": address1,
+        "city": city,
+        "state": state,
+        "postcode": postcode,
+        "country": currentUser['shipping']?['country'] ?? "TR",
+      }
+    };
+
+    // 3️⃣ Send the full payload so Woo doesn't wipe fields
+    final response = await http.post(
+      url,
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception("Failed to update address: ${response.body}");
+    }
+  }
+
   static Future<List<ProductModel>> fetchRelatedProductsWoo(String locale, int productId) async {
     final currency = await getSelectedCurrency();
     await dotenv.load(); // Make sure env variables are loaded
@@ -392,6 +532,69 @@ class ApiService {
     return json;
   }
 
+  static Future<Map<String, dynamic>> createOrder({
+    required Map<String, dynamic> billing,
+    required Map<String, dynamic> shipping,
+    required List<Map<String, dynamic>> cartItems,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('user_id'); // Saved at login
+    final baseUrl = "https://www.aanahtar.com.tr/wp-json/wc/v3";
+    final consumerKey = dotenv.env['CONSUMER_KEY']!;
+    final consumerSecret = dotenv.env['CONSUMER_SECRET']!;
+
+    // 🔹 Build line items with TRY prices
+    final lineItems = cartItems.map((item) {
+      double price = 0.0;
+      if (item['price'] is num) {
+        price = (item['price'] as num).toDouble();
+      } else if (item['price'] is String) {
+        price = double.tryParse(item['price']) ?? 0.0;
+      }
+      int qty = int.tryParse(item['quantity'].toString()) ?? 1;
+
+      // Calculate totals
+      final subtotal = price * qty;
+      final total = subtotal;
+
+      return {
+        "product_id": item['product_id'] ?? item['id'],
+        "quantity": qty,
+        "subtotal": subtotal.toStringAsFixed(2),
+        "total": total.toStringAsFixed(2),
+      };
+    }).toList();
+
+    final orderData = {
+      "customer_id": userId,
+      "payment_method": "bacs",
+      "payment_method_title": "Banka Havalesi",
+      "set_paid": false,
+      "billing": billing,
+      "shipping": shipping,
+      "line_items": lineItems,
+      "currency": "TRY"
+    };
+
+    print("📦 Order Data: $orderData");
+
+    final response = await http.post(
+      Uri.parse("$baseUrl/orders"
+          "?consumer_key=$consumerKey"
+          "&consumer_secret=$consumerSecret"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(orderData),
+    );
+
+    final json = jsonDecode(response.body);
+
+    if (response.statusCode != 201) {
+      throw Exception(json['message'] ?? 'Sipariş oluşturulamadı.');
+    }
+
+    return json;
+  }
+
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
@@ -470,13 +673,12 @@ class ApiService {
       throw Exception("Kullanıcı girişi yapılmamış.");
     }
 
-    // Step 1: Get user ID first
+    // 1️⃣ Get user ID first
     final userResponse = await http.get(
       Uri.parse('https://www.aanahtar.com.tr/wp-json/wp/v2/users/me'),
       headers: {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
       },
     );
 
@@ -487,10 +689,14 @@ class ApiService {
     final userData = jsonDecode(userResponse.body);
     final userId = userData['id'];
 
-    // Step 2: Fetch orders for that user
+    print(userId);
+
+    // 2️⃣ Fetch orders for that user & force TRY
     final ordersUrl = Uri.parse(
-      'https://www.aanahtar.com.tr/wp-json/wc/v3/orders?customer=$userId',
+        'https://www.aanahtar.com.tr/wp-json/wc/v3/orders?customer=$userId&status=any&currency=TRY'
     );
+
+
 
     final ordersResponse = await http.get(
       ordersUrl,
@@ -501,6 +707,9 @@ class ApiService {
     );
 
     if (ordersResponse.statusCode == 200) {
+
+      print(jsonDecode(ordersResponse.body));
+
       return List<Map<String, dynamic>>.from(jsonDecode(ordersResponse.body));
     } else {
       throw Exception('Siparişler alınamadı: ${ordersResponse.body}');
@@ -770,6 +979,32 @@ class ApiService {
       return jsonDecode(response.body); // Return Map<String, dynamic>
     } else {
       throw Exception('Failed to fetch drawer data');
+    }
+  }
+
+  //fetch order details
+  static Future<Map<String, dynamic>> fetchOrderDetails(int orderId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    if (token == null || token.isEmpty) {
+      throw Exception("Kullanıcı girişi yapılmamış.");
+    }
+
+    final url = Uri.parse("https://www.aanahtar.com.tr/wp-json/wc/v3/orders/$orderId");
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Sipariş detayları alınamadı: ${response.body}');
     }
   }
 

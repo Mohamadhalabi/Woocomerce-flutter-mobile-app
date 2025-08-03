@@ -11,44 +11,57 @@ class AppTheme {
   static ThemeData lightTheme(BuildContext context) {
     return ThemeData(
       brightness: Brightness.light,
-      fontFamily: "Poppins",
+      fontFamily: 'Poppins',
       primarySwatch: primaryMaterialColor,
       primaryColor: primaryColor,
       scaffoldBackgroundColor: Colors.white,
       iconTheme: const IconThemeData(color: Colors.black87),
+
       textTheme: const TextTheme(
         bodyMedium: TextStyle(color: Colors.black87),
       ),
-      elevatedButtonTheme: elevatedButtonThemeData,
-      textButtonTheme: textButtonThemeData,
-      outlinedButtonTheme: outlinedButtonTheme(),
-      inputDecorationTheme: lightInputDecorationTheme,
-      checkboxTheme: checkboxThemeData.copyWith(
-        side: const BorderSide(color: Colors.black45),
-      ),
+
+      // ✅ AppBar stays pure white
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
+        surfaceTintColor: Colors.white,
       ),
+
+      // ✅ Bottom Navigation stays pure white
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Colors.white,
-        selectedItemColor: Colors.black,
+        selectedItemColor: primaryColor,
         unselectedItemColor: Colors.black54,
+        elevation: 0,
       ),
-      scrollbarTheme: scrollbarThemeData,
-      dataTableTheme: dataTableLightThemeData,
+
+      // ✅ Drawer stays pure white
+      drawerTheme: const DrawerThemeData(
+        backgroundColor: Colors.white,
+      ),
+
+      // ✅ Buttons
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+        ),
+      ),
     );
   }
 
   // ✅ Dark Theme
   static ThemeData darkTheme(BuildContext context) {
+    const darkBg = Color(0xFF1E1E1E); // Unified background for header + screen
+
     return ThemeData(
       brightness: Brightness.dark,
       fontFamily: "Poppins",
       primarySwatch: primaryMaterialColor,
       primaryColor: primaryColor,
-      scaffoldBackgroundColor: const Color(0xFF121212),
+      scaffoldBackgroundColor: darkBg, // same as header
       iconTheme: const IconThemeData(color: Colors.white),
       textTheme: const TextTheme(
         bodyMedium: TextStyle(color: Colors.white70),
@@ -57,19 +70,19 @@ class AppTheme {
       textButtonTheme: textButtonThemeData,
       outlinedButtonTheme: outlinedButtonTheme(),
       inputDecorationTheme: lightInputDecorationTheme.copyWith(
-        fillColor: const Color(0xFF1E1E1E),
+        fillColor: const Color(0xFF2A2A2A), // slightly lighter for fields
         hintStyle: const TextStyle(color: Colors.white54),
       ),
       checkboxTheme: checkboxThemeData.copyWith(
         side: const BorderSide(color: Colors.white54),
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1E1E1E),
+        backgroundColor: darkBg, // same as screen
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Color(0xFF1E1E1E),
+        backgroundColor: darkBg, // match app bar
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white70,
       ),
