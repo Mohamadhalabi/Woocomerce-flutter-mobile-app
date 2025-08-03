@@ -246,6 +246,37 @@ class ApiService {
     }
   }
 
+  // fetch card product by id
+
+  static Future<ProductModel> fetchProductCardById(int id, String locale) async {
+    final currency = await getSelectedCurrency();
+    await dotenv.load();
+
+    final baseUrl = dotenv.env['API_BASE_URL_PRODUCTS']!;
+    final consumerKey = dotenv.env['CONSUMER_KEY']!;
+    final consumerSecret = dotenv.env['CONSUMER_SECRET']!;
+
+    final url = Uri.parse(
+      '$baseUrl/$currency?product_id=$id&consumer_key=$consumerKey&consumer_secret=$consumerSecret&context=card',
+    );
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Accept': 'application/json',
+        'Accept-Language': locale,
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return ProductModel.fromJson(data);
+    } else {
+      throw Exception('Failed to load product card: ${response.statusCode}');
+    }
+  }
+
   static Future<List<ProductModel>> fetchRelatedProductsWoo(String locale, int productId) async {
     final currency = await getSelectedCurrency();
     await dotenv.load(); // Make sure env variables are loaded

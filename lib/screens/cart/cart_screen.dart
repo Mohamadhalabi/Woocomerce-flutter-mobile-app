@@ -54,7 +54,7 @@ class CartScreenState extends State<CartScreen> {
         for (var item in items) {
           final productId = int.tryParse(item['id'].toString());
           if (productId != null) {
-            final product = await ApiService.fetchProductById(productId, 'tr');
+            final product = await ApiService.fetchProductCardById(productId, 'tr');
             item['image'] = product.image;
             item['title'] = product.title;
             item['category'] = product.category;

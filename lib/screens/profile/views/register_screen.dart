@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shop/route/screen_export.dart';
 import '../../../entry_point.dart';
 import '../../../services/api_service.dart';
 import 'login_screen.dart';
@@ -16,6 +17,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final phoneController = TextEditingController();
+  static const int homeIndex = 0;
+  static const int searchIndex = 1;
+  static const int storeIndex = 2;
+  static const int cartIndex = 3;
+  static const int profileIndex = 4;
 
   bool isLoading = false;
   final primaryColor = const Color(0xFF2D83B0);
@@ -50,6 +56,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: primaryColor,
@@ -115,34 +122,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: theme.bottomNavigationBarTheme.backgroundColor ??
+              theme.cardColor,
           boxShadow: [
             BoxShadow(
-              color: Colors.black12,
-              offset: Offset(0, -2),
+              color: theme.brightness == Brightness.dark
+                  ? Colors.black54
+                  : Colors.black12,
+              offset: const Offset(0, -2),
               blurRadius: 6,
             ),
           ],
         ),
         child: BottomNavigationBar(
-          backgroundColor: Colors.white,
-          currentIndex: 4,
+          backgroundColor: theme.bottomNavigationBarTheme.backgroundColor ??
+              theme.cardColor,
+          currentIndex: profileIndex,
           onTap: (index) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => EntryPoint(onLocaleChange: (_) {})),
+              MaterialPageRoute(
+                builder: (_) => EntryPoint(
+                  onLocaleChange: (_) {}, // 🔹 Dummy no-op function
+                  initialIndex: index,
+                ),
+              ),
             );
           },
           selectedItemColor: primaryColor,
-          unselectedItemColor: Colors.grey,
+          unselectedItemColor: theme.unselectedWidgetColor,
           type: BottomNavigationBarType.fixed,
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Anasayfa"),
-            BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
-            BottomNavigationBarItem(icon: Icon(Icons.store), label: "Mağaza"),
-            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.home), label: "Anasayfa"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.search), label: "Keşfet"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.store), label: "Mağaza"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.shopping_bag), label: "Sepet"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.person), label: "Profil"),
           ],
         ),
       ),

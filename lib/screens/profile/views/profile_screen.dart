@@ -6,7 +6,7 @@ import '../../../services/api_service.dart';
 import '../../../services/alert_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shop/providers/currency_provider.dart';
-import '../../../main.dart'; // ✅ Needed for MyApp.of(context)?.toggleTheme()
+import '../../../main.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Function(String) onLocaleChange;
@@ -186,7 +186,7 @@ class ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 8),
             _cardItem(Icons.favorite_border, 'İstek Listem',
-                onTap: () => Navigator.pushNamed(context, '/login')),
+                onTap: () => Navigator.pushNamed(context, '/wishlist')),
           ],
 
           // Logged-in only

@@ -23,13 +23,14 @@ class _WishlistScreenState extends State<WishlistScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final wishListProvider = Provider.of<WishlistProvider>(context);
     final wishList = wishListProvider.wishList;
     final currency = Provider.of<CurrencyProvider>(context).selectedCurrency;
     final currencySymbol = getCurrencySymbol(currency);
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade200,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('İstek Listem'),
         backgroundColor: primaryColor,
@@ -60,7 +61,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
           );
         },
         selectedItemColor: primaryColor,
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: theme.unselectedWidgetColor,
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Anasayfa"),
@@ -77,9 +78,19 @@ class _WishlistScreenState extends State<WishlistScreen> {
             : wishList.isEmpty
             ? ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            SizedBox(height: 300),
-            Center(child: Text('İstek listeniz boş')),
+          children: [
+            SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+            Icon(Icons.favorite_border,
+                size: 64, color: theme.disabledColor),
+            const SizedBox(height: 12),
+            Text(
+              'İstek listeniz boş',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.textTheme.bodyMedium?.color,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         )
             : ListView.builder(
@@ -89,7 +100,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
             final product = wishList[index];
             final double salePrice = parseWooPrice(product['sale_price']);
             final double price = parseWooPrice(product['regular_price']);
-            final double displayPrice = (salePrice > 0 && salePrice < price) ? salePrice : price;
+            final double displayPrice =
+            (salePrice > 0 && salePrice < price) ? salePrice : price;
             final double rating = parseWooPrice(product['average_rating']);
             final image = product['images']?[0]?['src'] ?? '';
             final category = product['categories']?[0]?['name'] ?? '';
@@ -129,14 +141,19 @@ class _WishlistScreenState extends State<WishlistScreen> {
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: theme.cardColor,
                           borderRadius: BorderRadius.circular(12),
+                          border: theme.brightness == Brightness.dark
+                              ? Border.all(
+                              color: Colors.grey.shade700, width: 1)
+                              : null,
                           boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
+                            if (theme.brightness == Brightness.light)
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
                           ],
                         ),
                         padding: const EdgeInsets.all(12),
@@ -145,39 +162,47 @@ class _WishlistScreenState extends State<WishlistScreen> {
                           children: [
                             Container(
                               decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: theme.dividerColor),
+                                borderRadius:
+                                BorderRadius.circular(8),
                               ),
                               child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius:
+                                BorderRadius.circular(8),
                                 child: Image.network(
                                   image,
                                   height: 80,
                                   width: 80,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Icon(Icons.image),
+                                  errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.image),
                                 ),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     title,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
+                                    style: theme.textTheme.bodyMedium
+                                        ?.copyWith(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
                                     ),
                                   ),
                                   Text(
                                     category,
-                                    style: const TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 12,
+                                    style: theme.textTheme.bodySmall
+                                        ?.copyWith(
+                                      color: theme
+                                          .textTheme.bodySmall?.color
+                                          ?.withOpacity(0.7),
                                     ),
                                   ),
                                   const SizedBox(height: 6),
@@ -185,20 +210,28 @@ class _WishlistScreenState extends State<WishlistScreen> {
                                     children: [
                                       Text(
                                         '$currencySymbol${displayPrice.toStringAsFixed(2)}',
-                                        style: const TextStyle(
+                                        style: theme
+                                            .textTheme.titleMedium
+                                            ?.copyWith(
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 16,
                                           color: blueColor,
                                         ),
                                       ),
-                                      if (salePrice > 0 && salePrice < price) ...[
+                                      if (salePrice > 0 &&
+                                          salePrice < price) ...[
                                         const SizedBox(width: 8),
                                         Text(
                                           '$currencySymbol${price.toStringAsFixed(2)}',
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.grey,
-                                            decoration: TextDecoration.lineThrough,
+                                          style: theme
+                                              .textTheme.bodySmall
+                                              ?.copyWith(
+                                            decoration: TextDecoration
+                                                .lineThrough,
+                                            color: theme
+                                                .textTheme
+                                                .bodySmall
+                                                ?.color
+                                                ?.withOpacity(0.6),
                                           ),
                                         ),
                                       ]
@@ -208,11 +241,19 @@ class _WishlistScreenState extends State<WishlistScreen> {
                                   Row(
                                     children: List.generate(5, (i) {
                                       if (i < rating.floor()) {
-                                        return const Icon(Icons.star, size: 14, color: Colors.amber);
+                                        return const Icon(Icons.star,
+                                            size: 14,
+                                            color: Colors.amber);
                                       } else if (i < rating) {
-                                        return const Icon(Icons.star_half, size: 14, color: Colors.amber);
+                                        return const Icon(
+                                            Icons.star_half,
+                                            size: 14,
+                                            color: Colors.amber);
                                       } else {
-                                        return const Icon(Icons.star_border, size: 14, color: Colors.amber);
+                                        return const Icon(
+                                            Icons.star_border,
+                                            size: 14,
+                                            color: Colors.amber);
                                       }
                                     }),
                                   ),
@@ -230,7 +271,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
                             showModalBottomSheet(
                               context: context,
                               shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(16)),
                               ),
                               isScrollControlled: true,
                               builder: (context) => AddToCartModal(
@@ -253,7 +295,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
+                                  color:
+                                  Colors.black.withOpacity(0.1),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 )

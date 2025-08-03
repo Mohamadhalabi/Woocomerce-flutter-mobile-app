@@ -4,7 +4,6 @@ import 'package:shop/constants.dart';
 import 'package:shop/route/screen_export.dart';
 import 'components/common/drawer.dart';
 import 'components/common/main_scaffold.dart';
-import 'screens/cart/cart_screen.dart';
 
 class EntryPoint extends StatefulWidget {
   final Function(String) onLocaleChange;

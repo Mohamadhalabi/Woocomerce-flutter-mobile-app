@@ -56,8 +56,7 @@ class MainScaffold extends StatelessWidget {
               theme.scaffoldBackgroundColor,
           currentIndex: currentIndex,
           onTap: onTabChange,
-          selectedItemColor:
-          theme.bottomNavigationBarTheme.selectedItemColor ?? primaryColor,
+          selectedItemColor: primaryColor,
           unselectedItemColor: theme.bottomNavigationBarTheme.unselectedItemColor ??
               Colors.grey,
           type: BottomNavigationBarType.fixed,
