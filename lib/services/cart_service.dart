@@ -154,7 +154,9 @@ class CartService {
       cart[existingIndex]['quantity'] += quantity;
     } else {
       cart.add({
-        'productId': productId,
+        'id': productId,           // match logged-in cart format
+        'product_id': productId,   // ✅ key that CartScreen is expecting
+        'productId': productId,    // keep old key for compatibility
         'title': title,
         'image': image,
         'quantity': quantity,

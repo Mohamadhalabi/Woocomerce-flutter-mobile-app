@@ -26,6 +26,7 @@ const String discoverScreenRoute = "discover";
 const String onSaleScreenRoute = "on_sale";
 const String kidsScreenRoute = "kids";
 const String searchScreenRoute = "search";
+const String checkoutScreenRoute = "checkout";
 const String searchHistoryScreenRoute = "search_history";
 const String bookmarkScreenRoute = "store";
 const String entryPointScreenRoute = "entry_point";

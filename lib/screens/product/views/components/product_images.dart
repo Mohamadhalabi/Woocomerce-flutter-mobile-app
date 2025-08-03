@@ -24,7 +24,7 @@ class _ProductImagesState extends State<ProductImages> {
 
   @override
   void initState() {
-    _controller = PageController(viewportFraction: 0.9, initialPage: _currentPage);
+    _controller = PageController(viewportFraction: 1, initialPage: _currentPage);
     super.initState();
   }
 

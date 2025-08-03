@@ -24,6 +24,8 @@ class MainScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: showAppBar
           ? CustomSearchAppBar(
@@ -35,10 +37,13 @@ class MainScaffold extends StatelessWidget {
           : null,
       drawer: drawer,
       body: body,
+
+      // ✅ Make BottomNavigationBar theme-aware
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
+        decoration: BoxDecoration(
+          color: theme.bottomNavigationBarTheme.backgroundColor ??
+              theme.scaffoldBackgroundColor, // ✅ theme-based background
+          boxShadow: const [
             BoxShadow(
               color: Colors.black12,
               offset: Offset(0, -2),
@@ -47,11 +52,14 @@ class MainScaffold extends StatelessWidget {
           ],
         ),
         child: BottomNavigationBar(
-          backgroundColor: Colors.white,
+          backgroundColor: theme.bottomNavigationBarTheme.backgroundColor ??
+              theme.scaffoldBackgroundColor,
           currentIndex: currentIndex,
           onTap: onTabChange,
-          selectedItemColor: primaryColor,
-          unselectedItemColor: Colors.grey,
+          selectedItemColor:
+          theme.bottomNavigationBarTheme.selectedItemColor ?? primaryColor,
+          unselectedItemColor: theme.bottomNavigationBarTheme.unselectedItemColor ??
+              Colors.grey,
           type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Anasayfa"),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shop/entry_point.dart';
 
 import '../screens/category/category_products_screen.dart';
+import '../screens/checkout/views/checkout_screen.dart';
 import '../screens/wishlist/wishlist_screen.dart';
 import 'screen_export.dart';
 import "package:shop/controllers/locale_controller.dart";
@@ -307,9 +308,13 @@ Route<dynamic> generateRoute(RouteSettings settings) {
       return MaterialPageRoute(
         builder: (context) => const WalletScreen(),
       );
-    case cartScreenRoute:
+    // case cartScreenRoute:
+    //   return MaterialPageRoute(
+    //     builder: (context) => const CheckoutCartScreen(),
+    //   );
+    case checkoutScreenRoute:
       return MaterialPageRoute(
-        builder: (context) => const CheckoutCartScreen(),
+        builder: (context) => const CheckoutScreen(),
       );
     case '/login':
       return MaterialPageRoute(builder: (context) => const LoginScreen());

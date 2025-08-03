@@ -3,8 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../constants.dart';
 import 'add_to_cart_modal.dart';
 
-// ... (imports remain unchanged)
-
 class ProductCardHorizontal extends StatelessWidget {
   const ProductCardHorizontal({
     super.key,
@@ -41,6 +39,7 @@ class ProductCardHorizontal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context); // ✅ theme-aware colors
     final double finalPrice = salePrice ?? price;
     final bool hasDiscount = salePrice != null && salePrice! < price;
     final symbol = currencySymbol ?? "₺";
@@ -53,11 +52,14 @@ class ProductCardHorizontal extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          color: Colors.white,
+          color: theme.cardColor,
+          border: theme.brightness == Brightness.dark
+              ? Border.all(color: Colors.white, width: 2)
+              : null,
           boxShadow: [
             BoxShadow(
               blurRadius: 6,
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.06),
               offset: const Offset(0, 2),
             )
           ],
@@ -76,11 +78,12 @@ class ProductCardHorizontal extends StatelessWidget {
                     padding: const EdgeInsets.all(4),
                     child: Image.network(
                       image,
-                      width: 125,
+                      width: 125, // keep the fixed width for left column
                       height: double.infinity,
-                      fit: BoxFit.contain,
+                      fit: BoxFit.cover, // ✅ fills width and height
+                      alignment: Alignment.center, // centers crop
                       errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.broken_image),
+                          Icon(Icons.broken_image, color: theme.iconTheme.color),
                     ),
                   ),
                   if (dicountpercent != null)
@@ -88,7 +91,8 @@ class ProductCardHorizontal extends StatelessWidget {
                       top: 6,
                       left: 6,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.red,
                           borderRadius: BorderRadius.circular(8),
@@ -110,29 +114,35 @@ class ProductCardHorizontal extends StatelessWidget {
             // 📄 Info
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Category
                     Text(
                       category,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                      ),
                     ),
                     const SizedBox(height: 4),
+                    // Title
                     Text(
                       title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
-                        color: const Color(0xFF222222),
                       ),
                     ),
                     const Spacer(),
 
+                    // Price Section
                     FutureBuilder<bool>(
                       future: isLoggedIn(),
                       builder: (context, snapshot) {
@@ -141,7 +151,7 @@ class ProductCardHorizontal extends StatelessWidget {
                         return Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // 🏷 Price Section
+                            // 🏷 Price
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: loggedIn
@@ -157,25 +167,28 @@ class ProductCardHorizontal extends StatelessWidget {
                                 if (hasDiscount)
                                   Text(
                                     "$symbol${price.toStringAsFixed(2)}",
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey,
-                                      decoration: TextDecoration.lineThrough,
+                                      color: theme.textTheme.bodySmall
+                                          ?.color
+                                          ?.withOpacity(0.6),
+                                      decoration:
+                                      TextDecoration.lineThrough,
                                     ),
                                   ),
                               ]
                                   : [
-                                const Text(
+                                Text(
                                   "",
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey,
+                                    color: theme.textTheme.bodySmall?.color,
                                   ),
                                 ),
                               ],
                             ),
 
-                            // 🛒 Cart Icon
+                            // 🛒 Cart Button
                             GestureDetector(
                               onTap: () {
                                 showModalBottomSheet(

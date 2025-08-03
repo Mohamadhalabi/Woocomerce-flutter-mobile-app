@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:provider/provider.dart';
@@ -6,14 +7,13 @@ import 'package:shop/constants.dart';
 import 'package:shop/screens/product/views/components/product_attributes.dart';
 import '../../../components/product/related_products.dart';
 import '../../../components/skleton/product/product_details_skeleton.dart';
+import '../../../entry_point.dart';
 import '../../../services/api_service.dart';
 import '../../../services/cart_service.dart';
 import '../../../services/alert_service.dart';
 import '../../../components/common/app_bar.dart';
 import '../../../components/common/drawer.dart';
-import '../../../entry_point.dart';
 import '../../../providers/wishlist_provider.dart';
-
 import 'components/expandable_section.dart';
 import 'components/product_images.dart';
 import 'components/product_info.dart';
@@ -30,6 +30,12 @@ class ProductDetailsScreen extends StatefulWidget {
   final Function(String) onLocaleChange;
   final Function(int) onTabChange;
 
+  static const int homeIndex = 0;
+  static const int searchIndex = 1;
+  static const int storeIndex = 2;
+  static const int cartIndex = 3;
+  static const int profileIndex = 4;
+
   @override
   State<ProductDetailsScreen> createState() => _ProductDetailsScreenState();
 }
@@ -43,8 +49,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   int quantity = 1;
   bool isInStock = true;
   String currencySymbol = '₺';
-  int currentIndex = 2;
   bool _hasFetchedOnce = false;
+
+  final TextEditingController _qtyController =
+  TextEditingController(text: '1');
 
   @override
   void didChangeDependencies() {
@@ -59,8 +67,60 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _qtyController.dispose();
+    super.dispose();
+  }
+
+  /// ✅ Save to recently viewed products in SharedPreferences
+  Future<void> saveRecentlyViewedProduct() async {
+    if (product == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    List<String> recentProducts =
+        prefs.getStringList('recently_viewed') ?? [];
+
+    Map<String, dynamic> productData = {
+      'id': widget.productId,
+      'image': (product?['gallery'] as List).isNotEmpty
+          ? product!['gallery'][0]
+          : '',
+      'category': product?['category'] ?? '',
+      'title': product?['title'] ?? '',
+      'price': price,
+      'salePrice': salePrice,
+      'discountPercent': product?['discount_percent'],
+      'sku': product?['sku'] ?? '',
+      'rating': product?['rating'] ?? 0,
+      'discount': product?['discount'],
+      'freeShipping': product?['free_shipping'],
+      'isNew': product?['is_new'] ?? false,
+      'isInStock': isInStock,
+      'currencySymbol': currencySymbol
+    };
+
+    String productJson = jsonEncode(productData);
+
+    // Remove duplicates by ID
+    recentProducts.removeWhere((item) {
+      final decoded = jsonDecode(item);
+      return decoded['id'] == widget.productId;
+    });
+
+    // Add at start
+    recentProducts.insert(0, productJson);
+
+    // Keep only 10
+    if (recentProducts.length > 10) {
+      recentProducts = recentProducts.sublist(0, 10);
+    }
+
+    await prefs.setStringList('recently_viewed', recentProducts);
+  }
+
   Future<void> fetchProductDetails({bool isRefresh = false}) async {
-    if (_hasFetchedOnce && !isRefresh) return; // prevent re-fetch
+    if (_hasFetchedOnce && !isRefresh) return;
     if (_currentLocale == null) return;
 
     setState(() => isLoading = true);
@@ -80,7 +140,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         isLoading = false;
         _hasFetchedOnce = true;
       });
-    } catch (e) {
+
+      /// ✅ Save to recently viewed when loaded
+      await saveRecentlyViewedProduct();
+    } catch (_) {
       setState(() => isLoading = false);
     }
   }
@@ -107,350 +170,297 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           category: product?['category'] ?? '',
         );
       }
-
       AlertService.showTopAlert(context, 'Ürün sepete eklendi',
           isError: false);
-    } catch (e) {
-      AlertService.showTopAlert(
-          context, 'Sepete ekleme başarısız', isError: true);
+    } catch (_) {
+      AlertService.showTopAlert(context, 'Sepete ekleme başarısız',
+          isError: true);
     }
   }
 
-  void _onSearchTap() {
-    widget.onTabChange(1);
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => EntryPoint(
-          onLocaleChange: widget.onLocaleChange,
-          initialIndex: 1,
-        ),
-      ),
-    );
+  void _updateQuantity(int change) {
+    final newQty = (quantity + change).clamp(1, 999);
+    setState(() {
+      quantity = newQty;
+      _qtyController.text = newQty.toString();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     if (isLoading) return const ProductDetailsSkeleton();
     if (product == null) {
-      return const Scaffold(
-          body: Center(child: Text("Product not found.")));
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Center(
+          child: Text("Product not found.", style: theme.textTheme.bodyMedium),
+        ),
+      );
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       drawer: const CustomDrawer(),
       appBar: CustomSearchAppBar(
         controller: TextEditingController(),
-        onSearchTap: _onSearchTap,
-        onBellTap: () {},
-        onSearchSubmitted: (value) {},
-      ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            RefreshIndicator(
-              onRefresh: () => fetchProductDetails(isRefresh: true),
-              child: CustomScrollView(
-                slivers: [
-                  // Product Images + Wishlist Heart
-                  SliverToBoxAdapter(
-                    child: Stack(
-                      children: [
-                        ProductImages(
-                          images: (product?['gallery'] as List<dynamic>?)
-                              ?.map((e) => e.toString())
-                              .toList() ??
-                              [],
-                          isBestSeller:
-                          product?['is_best_seller'] == 1,
-                        ),
-                        // Back button
-                        Positioned(
-                          top: 16,
-                          left: 16,
-                          child: CircleAvatar(
-                            backgroundColor: Colors.white70,
-                            child: IconButton(
-                              icon: const Icon(Icons.arrow_back,
-                                  color: Colors.black),
-                              onPressed: () => Navigator.pop(context),
-                            ),
-                          ),
-                        ),
-                        // Wishlist Heart
-                        Positioned(
-                          top: 16,
-                          right: 16,
-                          child: Consumer<WishlistProvider>(
-                            builder: (context, wishlistProvider, _) {
-                              final isInWishlist = wishlistProvider
-                                  .isInWishlist(widget.productId);
-
-                              return CircleAvatar(
-                                backgroundColor: Colors.white70,
-                                child: IconButton(
-                                  icon: Icon(
-                                    isInWishlist
-                                        ? Icons.favorite
-                                        : Icons.favorite_border,
-                                    color: isInWishlist
-                                        ? Colors.red
-                                        : Colors.black,
-                                  ),
-                                  onPressed: () {
-                                    final productData = {
-                                      'id': widget.productId,
-                                      'title':
-                                      product?['title'] ?? '',
-                                      'image': (product?['gallery']
-                                      as List)
-                                          .isNotEmpty
-                                          ? product!['gallery'][0]
-                                          : '',
-                                      'price': price,
-                                      'sale_price': salePrice,
-                                      'sku': product?['sku'] ?? '',
-                                      'category':
-                                      product?['category'] ?? '',
-                                    };
-                                    wishlistProvider
-                                        .toggleWishlist(productData);
-                                  },
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Product Info
-                  ProductInfo(
-                    category: product?['category'] ?? "Unknown Category",
-                    sku: product?['sku'] ?? "Unknown SKU",
-                    title: product?['title'] ?? "Unknown Title",
-                    summaryName: product?['summary_name'] ?? "",
-                    rating: (product?['rating'] as num?)?.toDouble() ?? 0.0,
-                    numOfReviews: product?['num_of_reviews'] ?? 0,
-                  ),
-
-                  // Price + Quantity + Add to Cart
-                  if (price > 0)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (salePrice != null && salePrice! < price)
-                              Row(
-                                children: [
-                                  Text(
-                                    "$currencySymbol${price.toStringAsFixed(2)}",
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey,
-                                      decoration: TextDecoration
-                                          .lineThrough,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    "$currencySymbol${salePrice!.toStringAsFixed(2)}",
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      color: primaryColor,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              )
-                            else
-                              Text(
-                                "$currencySymbol${price.toStringAsFixed(2)}",
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  color: primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                        color: Colors.grey.shade400),
-                                    borderRadius:
-                                    BorderRadius.circular(8),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 4),
-                                  child: Row(
-                                    children: [
-                                      IconButton(
-                                        onPressed: () {
-                                          setState(() => quantity =
-                                              (quantity - 1)
-                                                  .clamp(1, 999));
-                                        },
-                                        icon: const Icon(Icons.remove,
-                                            color: primaryColor),
-                                        visualDensity:
-                                        VisualDensity.compact,
-                                      ),
-                                      SizedBox(
-                                        width: 50,
-                                        child: TextFormField(
-                                          initialValue:
-                                          quantity.toString(),
-                                          textAlign: TextAlign.center,
-                                          keyboardType:
-                                          TextInputType.number,
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: primaryColor,
-                                          ),
-                                          decoration:
-                                          const InputDecoration(
-                                            contentPadding:
-                                            EdgeInsets.symmetric(
-                                                vertical: 8),
-                                            isDense: true,
-                                            border: InputBorder.none,
-                                          ),
-                                          onChanged: (value) {
-                                            final intValue =
-                                            int.tryParse(value);
-                                            if (intValue != null &&
-                                                intValue > 0) {
-                                              setState(() => quantity =
-                                                  intValue.clamp(
-                                                      1, 999));
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                      IconButton(
-                                        onPressed: () {
-                                          setState(() => quantity += 1);
-                                        },
-                                        icon: const Icon(Icons.add,
-                                            color: primaryColor),
-                                        visualDensity:
-                                        VisualDensity.compact,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: isInStock
-                                        ? _handleAddToCart
-                                        : null,
-                                    icon: const Icon(Icons.shopping_cart),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: isInStock
-                                          ? primaryColor
-                                          : Colors.grey,
-                                      padding:
-                                      const EdgeInsets.symmetric(
-                                          vertical: 16),
-                                    ),
-                                    label: Text(
-                                      isInStock
-                                          ? "Sepete Ekle"
-                                          : "Stokta Yok",
-                                      style:
-                                      const TextStyle(fontSize: 16),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                  // Attributes
-                  if ((product?['attributes'] ?? []).isNotEmpty)
-                    ExpandableSection(
-                      title: "Özellikler",
-                      initiallyExpanded: true,
-                      leadingIcon: Icons.category,
-                      iconColor: primaryColor,
-                      child: ProductAttributes(
-                        attributes: Map<String, List<String>>.from(
-                            product?['attributes']),
-                      ),
-                    ),
-
-                  // Description
-                  ExpandableSection(
-                    title: "Açıklama",
-                    leadingIcon: Icons.description,
-                    iconColor: primaryColor,
-                    child: Html(
-                      data: product?['description'] ??
-                          "<p>No description available.</p>",
-                      style: {
-                        "body": Style(
-                            fontSize: FontSize(13.0),
-                            lineHeight: const LineHeight(1.6)),
-                        "p": Style(color: Colors.black87),
-                        "li": Style(color: Colors.black87),
-                        "ul": Style(
-                            padding: HtmlPaddings.only(left: 25)),
-                      },
-                    ),
-                  ),
-
-                  // Related Products
-                  SliverToBoxAdapter(
-                    child: RelatedProducts(productId: widget.productId),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.white,
-        currentIndex: currentIndex,
-        onTap: (index) {
-          widget.onTabChange(index);
+        onSearchTap: () {
+          widget.onTabChange(ProductDetailsScreen.searchIndex);
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (_) => EntryPoint(
                 onLocaleChange: widget.onLocaleChange,
-                initialIndex: index,
+                initialIndex: ProductDetailsScreen.searchIndex,
               ),
             ),
           );
         },
-        selectedItemColor: primaryColor,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home), label: "Anasayfa"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.search), label: "Keşfet"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.store), label: "Mağaza"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_bag), label: "Sepet"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person), label: "Profil"),
-        ],
+        onBellTap: () {},
+        onSearchSubmitted: (_) {},
+      ),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: () => fetchProductDetails(isRefresh: true),
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Stack(
+                  children: [
+                    ProductImages(
+                      images: (product?['gallery'] as List<dynamic>?)
+                          ?.map((e) => e.toString())
+                          .toList() ??
+                          [],
+                      isBestSeller: product?['is_best_seller'] == 1,
+                    ),
+                    Positioned(
+                      top: 16,
+                      left: 16,
+                      child: CircleAvatar(
+                        backgroundColor:
+                        theme.cardColor.withOpacity(0.8),
+                        child: IconButton(
+                          icon: Icon(Icons.arrow_back,
+                              color: theme.iconTheme.color),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 16,
+                      right: 16,
+                      child: Consumer<WishlistProvider>(
+                        builder: (context, wishlistProvider, _) {
+                          final isInWishlist =
+                          wishlistProvider.isInWishlist(widget.productId);
+                          return CircleAvatar(
+                            backgroundColor:
+                            theme.cardColor.withOpacity(0.8),
+                            child: IconButton(
+                              icon: Icon(
+                                isInWishlist
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: isInWishlist
+                                    ? Colors.red
+                                    : theme.iconTheme.color,
+                              ),
+                              onPressed: () {
+                                final productData = {
+                                  'id': widget.productId,
+                                  'title': product?['title'] ?? '',
+                                  'image': (product?['gallery'] as List)
+                                      .isNotEmpty
+                                      ? product!['gallery'][0]
+                                      : '',
+                                  'price': price,
+                                  'sale_price': salePrice,
+                                  'sku': product?['sku'] ?? '',
+                                  'category': product?['category'] ?? '',
+                                };
+                                wishlistProvider
+                                    .toggleWishlist(productData);
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ProductInfo(
+                category: product?['category'] ?? "",
+                sku: product?['sku'] ?? "",
+                title: product?['title'] ?? "",
+                summaryName: product?['summary_name'] ?? "",
+                rating: (product?['rating'] as num?)?.toDouble() ?? 0.0,
+                numOfReviews: product?['num_of_reviews'] ?? 0,
+              ),
+              if (price > 0)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (salePrice != null && salePrice! < price)
+                          Row(
+                            children: [
+                              Text(
+                                "$currencySymbol${price.toStringAsFixed(2)}",
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  decoration: TextDecoration.lineThrough,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                "$currencySymbol${salePrice!.toStringAsFixed(2)}",
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  color: primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          Text(
+                            "$currencySymbol${price.toStringAsFixed(2)}",
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: primaryColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: theme.dividerColor),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    onPressed: () => _updateQuantity(-1),
+                                    icon: Icon(Icons.remove,
+                                        color: primaryColor),
+                                  ),
+                                  SizedBox(
+                                    width: 50,
+                                    child: TextField(
+                                      controller: _qtyController,
+                                      textAlign: TextAlign.center,
+                                      keyboardType: TextInputType.number,
+                                      onChanged: (value) {
+                                        final val = int.tryParse(value);
+                                        if (val != null && val > 0) {
+                                          setState(() => quantity = val);
+                                        }
+                                      },
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    onPressed: () => _updateQuantity(1),
+                                    icon: Icon(Icons.add,
+                                        color: primaryColor),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed:
+                                isInStock ? _handleAddToCart : null,
+                                icon: const Icon(Icons.shopping_cart),
+                                label: Text(isInStock
+                                    ? "Sepete Ekle"
+                                    : "Stokta Yok"),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if ((product?['attributes'] ?? []).isNotEmpty)
+                ExpandableSection(
+                  title: "Özellikler",
+                  leadingIcon: Icons.category,
+                  iconColor: primaryColor,
+                  child: ProductAttributes(
+                    attributes: Map<String, List<String>>.from(
+                        product?['attributes']),
+                  ),
+                ),
+              ExpandableSection(
+                title: "Açıklama",
+                leadingIcon: Icons.description,
+                iconColor: primaryColor,
+                child: Html(
+                    data:
+                    product?['description'] ?? "<p>Bilgi yok</p>"),
+              ),
+              SliverToBoxAdapter(
+                child: RelatedProducts(productId: widget.productId),
+              ),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: theme.bottomNavigationBarTheme.backgroundColor ??
+              theme.cardColor,
+          boxShadow: [
+            BoxShadow(
+              color: theme.brightness == Brightness.dark
+                  ? Colors.black54
+                  : Colors.black12,
+              offset: const Offset(0, -2),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: theme.bottomNavigationBarTheme.backgroundColor ??
+              theme.cardColor,
+          currentIndex: ProductDetailsScreen.storeIndex,
+          onTap: (index) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => EntryPoint(
+                  onLocaleChange: widget.onLocaleChange,
+                  initialIndex: index,
+                ),
+              ),
+            );
+          },
+          selectedItemColor: primaryColor,
+          unselectedItemColor: theme.unselectedWidgetColor,
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(
+                icon: Icon(Icons.home), label: "Anasayfa"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.search), label: "Keşfet"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.store), label: "Mağaza"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.shopping_bag), label: "Sepet"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.person), label: "Profil"),
+          ],
+        ),
       ),
     );
   }

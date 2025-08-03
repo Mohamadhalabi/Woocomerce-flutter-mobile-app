@@ -59,6 +59,7 @@ flutter:
     - assets/screens/
     - assets/splash/splash.png
     - .env
+    - assets/locksmith_mapping.json
 
   fonts:
     - family: Plus Jakarta

@@ -55,7 +55,6 @@ class StoreScreenState extends State<StoreScreen> {
     });
   }
 
-  /// Called only once for first load
   void loadStoreData() {
     if (_hasFetchedOnce) return;
     fetchFilters();
@@ -63,7 +62,6 @@ class StoreScreenState extends State<StoreScreen> {
     _hasFetchedOnce = true;
   }
 
-  /// Allows changing both onSale & categoryId
   void switchMode({required bool onSale, int? categoryId}) {
     setState(() {
       _onSale = onSale;
@@ -136,10 +134,11 @@ class StoreScreenState extends State<StoreScreen> {
   }
 
   void openFilterModal() {
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -151,15 +150,21 @@ class StoreScreenState extends State<StoreScreen> {
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.close),
+                          icon: Icon(Icons.close,
+                              color: theme.iconTheme.color),
                           onPressed: () => Navigator.pop(context),
                         ),
-                        const Text('Filtrele', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text(
+                          'Filtrele',
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
                         TextButton(
                           onPressed: () {
                             setModalState(() {
@@ -167,12 +172,13 @@ class StoreScreenState extends State<StoreScreen> {
                               selectedSort = '';
                             });
                           },
-                          child: const Text('Temizle', style: TextStyle(color: Colors.blue)),
+                          child: Text('Temizle',
+                              style: TextStyle(color: theme.colorScheme.primary)),
                         ),
                       ],
                     ),
                   ),
-                  const Divider(height: 0),
+                  Divider(height: 0, color: theme.dividerColor),
                   Expanded(
                     child: DraggableScrollableSheet(
                       expand: true,
@@ -186,40 +192,51 @@ class StoreScreenState extends State<StoreScreen> {
                             controller: scrollController,
                             children: [
                               const SizedBox(height: 8),
-                              const Text('Sırala', style: TextStyle(fontWeight: FontWeight.w600)),
+                              Text('Sırala',
+                                  style: theme.textTheme.titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 8),
                               Wrap(
                                 spacing: 8,
                                 children: sortOptions.map((option) {
                                   return ChoiceChip(
-                                    label: Text(option['label']!),
+                                    label: Text(option['label']!,
+                                        style: theme.textTheme.bodyMedium),
                                     selected: selectedSort == option['key'],
                                     onSelected: (_) {
-                                      setModalState(() => selectedSort = option['key']!);
+                                      setModalState(
+                                              () => selectedSort = option['key']!);
                                     },
                                   );
                                 }).toList(),
                               ),
                               const SizedBox(height: 24),
-                              const Text('Filtreler', style: TextStyle(fontWeight: FontWeight.w600)),
+                              Text('Filtreler',
+                                  style: theme.textTheme.titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 8),
                               ...filters.entries.map((entry) {
                                 final attrKey = entry.key;
                                 final terms = entry.value;
-                                final selected = selectedTermsByAttribute.putIfAbsent(attrKey, () => []);
+                                final selected = selectedTermsByAttribute
+                                    .putIfAbsent(attrKey, () => []);
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(attrKey.replaceFirst("pa_", ""),
-                                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                            fontWeight: FontWeight.w600)),
                                     const SizedBox(height: 8),
                                     Wrap(
                                       spacing: 8,
                                       runSpacing: 8,
                                       children: terms.map((term) {
-                                        final isSelected = selected.contains(term);
+                                        final isSelected =
+                                        selected.contains(term);
                                         return FilterChip(
-                                          label: Text(term),
+                                          label: Text(term,
+                                              style: theme.textTheme.bodyMedium),
                                           selected: isSelected,
                                           onSelected: (selectedState) {
                                             setModalState(() {
@@ -228,7 +245,9 @@ class StoreScreenState extends State<StoreScreen> {
                                               } else {
                                                 selected.remove(term);
                                               }
-                                              selectedTermsByAttribute[attrKey] = List<String>.from(selected);
+                                              selectedTermsByAttribute[
+                                              attrKey] =
+                                              List<String>.from(selected);
                                             });
                                           },
                                         );
@@ -247,7 +266,7 @@ class StoreScreenState extends State<StoreScreen> {
                   ),
                   Container(
                     padding: const EdgeInsets.all(16),
-                    color: Colors.white,
+                    color: theme.cardColor,
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
@@ -278,22 +297,18 @@ class StoreScreenState extends State<StoreScreen> {
   }
 
   @override
-  void dispose() {
-    _scrollController.dispose();
-    searchController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text("Tüm Ürünler"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: theme.appBarTheme.backgroundColor ?? theme.cardColor,
+        foregroundColor: theme.appBarTheme.foregroundColor ??
+            theme.colorScheme.onSurface,
         elevation: 0.5,
         scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.white,
+        surfaceTintColor: theme.appBarTheme.backgroundColor ?? theme.cardColor,
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_alt_outlined),
@@ -310,13 +325,15 @@ class StoreScreenState extends State<StoreScreen> {
                   ? const ProductCategorySkelton()
                   : GridView.builder(
                 controller: _scrollController,
-                itemCount: hasMore ? products.length + 4 : products.length,
+                itemCount:
+                hasMore ? products.length + 4 : products.length,
                 padding: const EdgeInsets.all(12),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  childAspectRatio: 0.7,
+                  childAspectRatio: 0.60,
                 ),
                 itemBuilder: (context, index) {
                   if (index >= products.length) {
@@ -325,9 +342,11 @@ class StoreScreenState extends State<StoreScreen> {
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
                       shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: 0.6,
-                      children: List.generate(4, (_) => const ProductCardSkelton()),
+                      physics:
+                      const NeverScrollableScrollPhysics(),
+                      childAspectRatio: 0.60,
+                      children: List.generate(
+                          4, (_) => const ProductCardSkelton()),
                     );
                   }
 

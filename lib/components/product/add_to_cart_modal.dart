@@ -64,10 +64,8 @@ class _AddToCartModalState extends State<AddToCartModal> {
 
     try {
       if (token != null) {
-        // Logged-in user
         await CartService.addToWooCart(token, widget.productId, quantity);
       } else {
-        // Guest cart
         await CartService.addItemToGuestCart(
           productId: widget.productId,
           title: widget.title,
@@ -97,12 +95,13 @@ class _AddToCartModalState extends State<AddToCartModal> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context); // ✅ theme-aware
     final double finalPrice = widget.salePrice ?? widget.price;
     final bool hasDiscount =
         widget.salePrice != null && widget.salePrice! < widget.price;
 
     final outlineBorder = OutlineInputBorder(
-      borderSide: const BorderSide(color: Colors.grey),
+      borderSide: BorderSide(color: theme.dividerColor),
       borderRadius: BorderRadius.circular(6),
     );
 
@@ -111,8 +110,7 @@ class _AddToCartModalState extends State<AddToCartModal> {
       borderRadius: BorderRadius.circular(6),
     );
 
-    return Container(
-      color: Colors.white, // ✅ White background
+    return SizedBox(
       height: MediaQuery.of(context).size.height * 0.85,
       child: Padding(
         padding: EdgeInsets.only(
@@ -133,15 +131,13 @@ class _AddToCartModalState extends State<AddToCartModal> {
                     widget.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 18,
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
                     ),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: Icon(Icons.close, color: theme.iconTheme.color),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -176,9 +172,9 @@ class _AddToCartModalState extends State<AddToCartModal> {
                 ),
                 Text(
                   "${widget.currencySymbol}${widget.price.toStringAsFixed(2)}",
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey,
+                    color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
                     decoration: TextDecoration.lineThrough,
                   ),
                 ),
@@ -192,12 +188,11 @@ class _AddToCartModalState extends State<AddToCartModal> {
                 color: Colors.red,
               ),
             )
-                : const Text(
+                : Text(
               "Fiyatları görmek için giriş yapın",
-              style: TextStyle(
-                fontSize: 14,
+              style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.grey,
+                color: theme.textTheme.bodySmall?.color,
               ),
             ),
 
@@ -209,9 +204,10 @@ class _AddToCartModalState extends State<AddToCartModal> {
                 Text(
                   "Stok Kodu: ${widget.sku}",
                   style: const TextStyle(
-                      color: blueColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold),
+                    color: blueColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Text(
@@ -226,8 +222,8 @@ class _AddToCartModalState extends State<AddToCartModal> {
             ),
 
             const SizedBox(height: 24),
-            const Text("Adet Seçiniz:",
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text("Adet Seçiniz:",
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
 
             // Quantity Selector
@@ -235,7 +231,7 @@ class _AddToCartModalState extends State<AddToCartModal> {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
+                    color: theme.dividerColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: IconButton(
@@ -251,12 +247,11 @@ class _AddToCartModalState extends State<AddToCartModal> {
                     controller: _controller,
                     keyboardType: TextInputType.number,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(height: 1.2),
+                    style: theme.textTheme.bodyMedium,
                     decoration: InputDecoration(
                       border: outlineBorder,
                       focusedBorder: focusedBorder,
-                      contentPadding:
-                      const EdgeInsets.symmetric(vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                     onChanged: (value) {
                       final parsed = int.tryParse(value);
@@ -273,7 +268,7 @@ class _AddToCartModalState extends State<AddToCartModal> {
                 const SizedBox(width: 8),
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
+                    color: theme.dividerColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: IconButton(
@@ -306,12 +301,16 @@ class _AddToCartModalState extends State<AddToCartModal> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       backgroundColor: widget.isInStock
-                          ? Colors.grey.shade200
-                          : Colors.grey.shade300,
+                          ? theme.dividerColor.withOpacity(0.1)
+                          : theme.disabledColor.withOpacity(0.2),
                     ),
                     child: Text(
                       widget.isInStock ? "SEPETE EKLE" : "STOKTA YOK",
-                      style: const TextStyle(color: Colors.black54),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: widget.isInStock
+                            ? theme.textTheme.bodyMedium?.color
+                            : theme.disabledColor,
+                      ),
                     ),
                   ),
                 ),

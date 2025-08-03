@@ -44,8 +44,41 @@ class _EntryPointState extends State<EntryPoint> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+
+    // Make sure the correct tab is initialized when starting directly there
+    _initializeTab(_currentIndex);
   }
 
+  void _initializeTab(int index) {
+    switch (index) {
+      case 2:
+        if (_storeScreen == null) {
+          _storeScreen = StoreScreen(key: _storeKey);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _storeKey.currentState?.loadStoreData();
+          });
+        }
+        break;
+      case 3:
+        _cartScreen = CartScreen(key: _cartKey);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _cartKey.currentState?.loadCart();
+        });
+        break;
+      case 4:
+        _profileScreen = ProfileScreen(
+          key: _profileKey,
+          onLocaleChange: widget.onLocaleChange,
+          onTabChange: (newIndex) {
+            setState(() => _currentIndex = newIndex);
+            _refreshTab(newIndex);
+          },
+          searchController: _searchController,
+          initialUserData: widget.initialUserData,
+        );
+        break;
+    }
+  }
   void _refreshTab(int index) {
     switch (index) {
       case 0:
@@ -168,7 +201,8 @@ class _EntryPointState extends State<EntryPoint> {
             }
 
 
-            if (index == 3 && _cartScreen == null) {
+            if (index == 3) {
+              // Always create a new CartScreen so it refetches fresh cart
               _cartScreen = CartScreen(key: _cartKey);
             }
 
@@ -206,7 +240,8 @@ class _EntryPointState extends State<EntryPoint> {
                 _storeKey.currentState?.loadStoreData();
               });
             }
-            if (index == 3 && _cartScreen == null) {
+            if (index == 3) {
+              // Always create a new CartScreen so it refetches fresh cart
               _cartScreen = CartScreen(key: _cartKey);
             }
             if (index == 4 && _profileScreen == null) {

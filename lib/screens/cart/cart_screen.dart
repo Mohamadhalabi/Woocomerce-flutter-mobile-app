@@ -9,7 +9,6 @@ import '../../../services/alert_service.dart';
 import 'dart:async';
 import '../../route/route_constants.dart';
 
-
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
 
@@ -32,6 +31,7 @@ class CartScreenState extends State<CartScreen> {
       loadCart();
     };
   }
+
   @override
   void dispose() {
     CartService.onGuestCartUpdated = null;
@@ -59,9 +59,16 @@ class CartScreenState extends State<CartScreen> {
             item['title'] = product.title;
             item['category'] = product.category;
             item['price'] = product.salePrice ?? product.price;
-            item['product_id'] = product.id;
+            item['product_id'] = product.id ?? productId;
             item['key'] = item['key'];
             item['currency_symbol'] = product.currencySymbol;
+          }
+        }
+      } else {
+        // ✅ Ensure guest cart has product_id set
+        for (var item in items) {
+          if (item['id'] != null) {
+            item['product_id'] = item['id'];
           }
         }
       }
@@ -84,6 +91,7 @@ class CartScreenState extends State<CartScreen> {
       return [];
     }
   }
+
 
   double _calculateTotal(List<Map<String, dynamic>> items) {
     return items.fold(0.0, (sum, item) {
@@ -127,7 +135,6 @@ class CartScreenState extends State<CartScreen> {
       return;
     }
 
-    // 🟢 Optimistically update UI first
     setState(() {
       cartItems[index]['quantity'] = newQty;
       total = _calculateTotal(cartItems);
@@ -136,7 +143,6 @@ class CartScreenState extends State<CartScreen> {
     final cartItemKey = item['key']?.toString();
 
     if (token != null && cartItemKey != null) {
-      // 🔁 Update server in background
       try {
         await CartService.setWooCartQuantity(
           token,
@@ -144,16 +150,12 @@ class CartScreenState extends State<CartScreen> {
           newQty,
           productId: item['product_id'] ?? item['id'],
         );
-
       } catch (e) {
         if (!mounted) return;
-
-        // 🔴 If update failed, revert change and show error
         setState(() {
           cartItems[index]['quantity'] = currentQty;
           total = _calculateTotal(cartItems);
         });
-
         AlertService.showTopAlert(
           context,
           'Miktar güncellenemedi: ${e.toString()}',
@@ -161,7 +163,6 @@ class CartScreenState extends State<CartScreen> {
         );
       }
     } else {
-      // 👤 Guest cart (local)
       await CartService.saveGuestCartList(cartItems);
     }
   }
@@ -178,7 +179,6 @@ class CartScreenState extends State<CartScreen> {
         await CartService.removeWooCartItem(token, cartItemKey);
       } catch (e) {
         if (!mounted) return;
-
         AlertService.showTopAlert(
           context,
           'Ürün silinirken hata oluştu: ${e.toString()}',
@@ -220,8 +220,10 @@ class CartScreenState extends State<CartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade200,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Sepetim', style: TextStyle(color: Colors.white)),
         backgroundColor: blueColor,
@@ -282,15 +284,12 @@ class CartScreenState extends State<CartScreen> {
               price = double.tryParse(priceRaw) ?? 0.0;
             }
 
-
             final rawQty = item['quantity'];
             final quantity = rawQty is int
                 ? rawQty
                 : rawQty is Map && rawQty['value'] != null
                 ? int.tryParse(rawQty['value'].toString()) ?? 1
                 : int.tryParse(rawQty.toString()) ?? 1;
-
-// -- Snippet inside ListView.builder itemBuilder --
 
             return Slidable(
               key: ValueKey(item['product_id'] ?? item['sku']),
@@ -307,195 +306,256 @@ class CartScreenState extends State<CartScreen> {
                   ),
                 ],
               ),
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color.fromRGBO(0, 0, 0, 0.05),
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    )
-                  ],
-                ),
-                child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                    GestureDetector(
-                    onTap: () {
-              Navigator.pushNamed(
-              context,
-              productDetailsScreenRoute,
-              arguments: item['product_id'] ?? item['id'],
-              );
-              },
+              child: InkWell(
+                onTap: () {
+                  Navigator.pushNamed(
+                    context,
+                    productDetailsScreenRoute,
+                    arguments: item['product_id'] ?? item['id'],
+                  );
+                },
                 child: Container(
-                  margin: const EdgeInsets.only(top: 10),
-                  width: 100,
-                  height: 100,
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade400, width: 1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Theme.of(context).brightness == Brightness.dark
+                        ? Border.all(color: Colors.white24, width: 1)
+                        : null,
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color.fromRGBO(0, 0, 0, 0.05),
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      )
+                    ],
                   ),
-                  child: item['image'] != null && item['image'].toString().isNotEmpty
-                      ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      item['image'],
-                      fit: BoxFit.cover,
-                      width: 100,
-                      height: 100,
-                      errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.broken_image),
-                    ),
-                  )
-                      : const Icon(Icons.image_not_supported),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.pushNamed(
-                      context,
-                      productDetailsScreenRoute,
-                      arguments: item['product_id'] ?? item['id'],
-                    );
-                  },
-                  child: Column(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        item['title'] ?? 'Ürün',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                          fontSize: 14,
+                      // Product Image
+                      Container(
+                        margin: const EdgeInsets.only(top: 10),
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white24
+                                : Colors.grey.shade400,
+                            width: 1,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item['category'] ?? '',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (isLoggedIn)
-                        Text(
-                          '${item['currency_symbol'] ?? '₺'}${price.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: blueColor,
+                        child: item['image'] != null &&
+                            item['image'].toString().isNotEmpty
+                            ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            item['image'],
+                            fit: BoxFit.cover,
+                            width: 100,
+                            height: 100,
+                            errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.broken_image),
                           ),
                         )
-                      else
+                            : const Icon(Icons.image_not_supported),
+                      ),
 
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey, width: 1.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(Icons.remove, color: quantity <= 1 ? Colors.grey : blueColor),
-                                      onPressed: quantity <= 1 ? null : () => _changeQuantity(index, -1),
-                                    ),
-                                    SizedBox(
-                                      width: 40,
-                                      height: 25,
-                                      child: TextField(
-                                        controller: TextEditingController(text: quantity.toString()),
-                                        keyboardType: TextInputType.number,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: blueColor,
-                                        ),
-                                        decoration: const InputDecoration(
-                                          border: InputBorder.none,
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.zero,
-                                        ),
-                                        onChanged: (val) {
-                                          if (debounceTimer?.isActive ?? false) debounceTimer!.cancel();
+                      const SizedBox(width: 12),
 
-                                          debounceTimer = Timer(const Duration(milliseconds: 500), () async {
-                                            final newQty = int.tryParse(val) ?? quantity;
-                                            if (newQty > 0 && newQty != quantity) {
-                                              final diff = newQty - quantity;
-                                              await _changeQuantity(index, diff);
-                                            }
-                                          });
-                                        },
-                                      ),
-                                    ),
-
-                                    IconButton(
-                                      icon: const Icon(Icons.add, color: blueColor),
-                                      onPressed: () => _changeQuantity(index, 1),
-                                    ),
-                                  ],
-                                ),
+                      // Product Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Title
+                            Text(
+                              item['title'] ?? 'Ürün',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).textTheme.bodyLarge?.color,
+                                fontSize: 14,
                               ),
-                              const Spacer(),
-                              if (isLoggedIn)
-                                Text(
-                                  '₺${(price * quantity).toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.red
+                            ),
+                            const SizedBox(height: 4),
+
+                            // Category
+                            Text(
+                              item['category'] ?? '',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.color
+                                    ?.withOpacity(0.6),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Price
+                            if (isLoggedIn)
+                              Text(
+                                '${item['currency_symbol'] ?? '₺'}${price.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: blueColor,
+                                ),
+                              )
+                            else
+                              const SizedBox.shrink(),
+
+                            const SizedBox(height: 12),
+
+                            // Quantity Controls
+                            Row(
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey, width: 1.2),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.remove,
+                                          color: quantity <= 1
+                                              ? Colors.grey
+                                              : blueColor,
+                                        ),
+                                        onPressed: quantity <= 1
+                                            ? null
+                                            : () => _changeQuantity(index, -1),
+                                      ),
+                                      SizedBox(
+                                        width: 40,
+                                        height: 25,
+                                        child: TextField(
+                                          controller: TextEditingController(
+                                              text: quantity.toString()),
+                                          keyboardType: TextInputType.number,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: blueColor,
+                                          ),
+                                          decoration: const InputDecoration(
+                                            border: InputBorder.none,
+                                            isDense: true,
+                                            contentPadding: EdgeInsets.zero,
+                                          ),
+                                          onChanged: (val) {
+                                            if (debounceTimer?.isActive ?? false) {
+                                              debounceTimer!.cancel();
+                                            }
+                                            debounceTimer = Timer(
+                                              const Duration(milliseconds: 500),
+                                                  () async {
+                                                final newQty =
+                                                    int.tryParse(val) ?? quantity;
+                                                if (newQty > 0 && newQty != quantity) {
+                                                  final diff = newQty - quantity;
+                                                  await _changeQuantity(index, diff);
+                                                }
+                                              },
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.add, color: blueColor),
+                                        onPressed: () => _changeQuantity(index, 1),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                            ],
-                          ),
-                        ],
+                                const Spacer(),
+                                if (isLoggedIn)
+                                  Text(
+                                    '₺${(price * quantity).toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  )],
+                    ],
+                  ),
                 ),
               ),
             );
+
           },
         ),
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
           boxShadow: [
-            BoxShadow(color: Color.fromRGBO(0, 0, 0, 0.1), blurRadius: 4),
+            BoxShadow(
+              color: theme.shadowColor.withOpacity(0.1),
+              blurRadius: 4,
+            ),
           ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Toplam:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            // 🏷 Total
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Toplam:',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  isLoggedIn
+                      ? '${cartItems.isNotEmpty ? (cartItems.first['currency_symbol'] ?? '₺') : '₺'}${total.toStringAsFixed(2)}'
+                      : '-',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
             ),
-            Text(
-              isLoggedIn
-                  ? '${cartItems.isNotEmpty ? (cartItems.first['currency_symbol'] ?? '₺') : '₺'}${total.toStringAsFixed(2)}'
-                  : '-',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
+            // 🛒 Checkout Button
+            if (isLoggedIn)
+              SizedBox(
+                width: 200,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: blueColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pushNamed(context, checkoutScreenRoute);
+                  },
+                  child: const Text(
+                    "Ödeme sayfasına git",
+                    style:
+                    TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),

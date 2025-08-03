@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../constants.dart';
 
 class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -21,15 +20,18 @@ class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget 
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return AppBar(
-      backgroundColor: const Color(0xFFFFFFFF), // Pure white
+      // ✅ Use theme colors instead of hardcoded white
+      backgroundColor: theme.appBarTheme.backgroundColor,
+      foregroundColor: theme.appBarTheme.foregroundColor,
       elevation: 4,
-      scrolledUnderElevation: 1, // Prevent elevation on scroll
-      surfaceTintColor: Colors.white, // Prevent default Material3 behavior
+      scrolledUnderElevation: 1,
       shadowColor: Colors.black38,
       leading: Builder(
         builder: (context) => IconButton(
-          icon: const Icon(Icons.menu, color: Colors.black,),
+          icon: Icon(Icons.menu, color: theme.iconTheme.color),
           onPressed: () => Scaffold.of(context).openDrawer(),
         ),
       ),
@@ -38,20 +40,28 @@ class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget 
         child: Container(
           height: 42,
           decoration: BoxDecoration(
-            color: Colors.white70,
+            // ✅ Theme‑aware background for search box
+            color: theme.brightness == Brightness.dark
+                ? Colors.grey[800]
+                : Colors.white70,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(
+              color: theme.dividerColor.withOpacity(0.3),
+            ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.search, size: 20, color: primaryColor,),
-              SizedBox(width: 8),
+              const Icon(Icons.search, size: 20, color: primaryColor),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   "Ürün ara...",
                   style: TextStyle(
-                    fontSize: 14, color: Colors.grey,
+                    fontSize: 14,
+                    color: theme.brightness == Brightness.dark
+                        ? Colors.white70
+                        : Colors.grey,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -62,7 +72,7 @@ class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget 
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.notifications_none, color: primaryColor,),
+          icon: const Icon(Icons.notifications_none, color: primaryColor),
           onPressed: onBellTap,
         ),
       ],

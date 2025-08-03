@@ -130,9 +130,11 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
             )
           else
             SizedBox(
-              height: 290,
+              height: 300,
               child: Container(
-                color: const Color(0xFFEAF2F4),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Theme.of(context).cardColor.withOpacity(0.1)
+                    : const Color(0xFFEAF2F4),
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,

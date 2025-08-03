@@ -138,7 +138,9 @@ class _EmulatorProductsState extends State<EmulatorProducts> {
             SizedBox(
               height: 325,
               child: Container(
-                color: const Color(0xFFEAF2F4),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Theme.of(context).cardColor.withOpacity(0.1)
+                    : const Color(0xFFEAF2F4),
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,

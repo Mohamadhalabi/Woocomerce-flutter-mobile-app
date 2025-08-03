@@ -41,8 +41,34 @@ class _SplashScreenState extends State<SplashScreen> {
       final token = prefs.getString('auth_token');
 
       if (token != null && token.isNotEmpty && !JwtDecoder.isExpired(token)) {
+        // 1️⃣ Fetch basic user info
         final user = await ApiService.fetchUserInfo();
         _userData = user;
+
+        final prefs = await SharedPreferences.getInstance();
+        prefs.setInt('user_id', user['id']);
+
+        // 2️⃣ Fetch billing info from WooCommerce
+        try {
+          final billingData = await ApiService.fetchUserBilling(); // This returns full WooCommerce customer data
+          if (billingData['billing'] != null) {
+            _userData!['billing'] = billingData['billing'];
+
+            // 3️⃣ Save billing info to SharedPreferences for CheckoutScreen
+            final billing = billingData['billing'];
+            prefs.setString('billing_first_name', billing['first_name'] ?? '');
+            prefs.setString('billing_last_name', billing['last_name'] ?? '');
+            prefs.setString('billing_address_1', billing['address_1'] ?? '');
+            prefs.setString('billing_postcode', billing['postcode'] ?? '');
+            prefs.setString('billing_city', billing['city'] ?? '');
+            prefs.setString('billing_country', billing['country'] ?? 'Türkiye');
+            prefs.setString('billing_phone', billing['phone'] ?? '');
+            prefs.setString('billing_email', billing['email'] ?? '');
+          }
+        } catch (e) {
+          debugPrint("❌ Failed to fetch billing info: $e");
+        }
+
         debugPrint("✅ Splash fetched user data: $_userData");
       } else {
         debugPrint("ℹ️ No valid login token, skipping user fetch");

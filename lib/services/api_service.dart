@@ -392,6 +392,43 @@ class ApiService {
       throw Exception("Kullanıcı bilgileri alınamadı: ${response.body}");
     }
   }
+
+  static Future<Map<String, dynamic>> fetchUserBilling() async {
+    await dotenv.load(); // ✅ Load .env
+
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('user_id'); // Save this at login
+
+    if (userId == null) {
+      throw Exception("Not logged in");
+    }
+
+    final consumerKey = dotenv.env['CONSUMER_KEY'] ?? '';
+    final consumerSecret = dotenv.env['CONSUMER_SECRET'] ?? '';
+
+    if (consumerKey.isEmpty || consumerSecret.isEmpty) {
+      throw Exception("WooCommerce API keys are missing from .env");
+    }
+
+    final url = Uri.parse(
+      'https://www.aanahtar.com.tr/wp-json/wc/v3/customers/$userId'
+          '?consumer_key=$consumerKey&consumer_secret=$consumerSecret',
+    );
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception("Failed to fetch billing: ${response.body}");
+    }
+  }
   // fetch order history
 
   static Future<List<Map<String, dynamic>>> fetchUserOrders() async {

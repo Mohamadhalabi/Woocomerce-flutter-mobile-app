@@ -23,6 +23,12 @@ class CategoryProductsScreen extends StatefulWidget {
     required this.filterType,
   });
 
+  static const int homeIndex = 0;
+  static const int searchIndex = 1;
+  static const int storeIndex = 2;
+  static const int cartIndex = 3;
+  static const int profileIndex = 4;
+
   @override
   State<CategoryProductsScreen> createState() => _CategoryProductsScreenState();
 }
@@ -286,16 +292,16 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      drawer: const CustomDrawer(), // 👈 Your drawer
+      backgroundColor: theme.scaffoldBackgroundColor,
+      drawer: const CustomDrawer(),
       appBar: CustomSearchAppBar(
         controller: TextEditingController(),
-        onBellTap: () {
-          // Optional: Add logic for notifications
-        },
+        onBellTap: () {},
         onSearchTap: () {
-          setState(() => currentIndex = 1); // Discover tab
+          setState(() => currentIndex = 1);
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -313,43 +319,39 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardColor,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04), // subtle shadow
+                  color: theme.brightness == Brightness.dark
+                      ? Colors.black.withOpacity(0.4)
+                      : Colors.black.withOpacity(0.04),
                   blurRadius: 6,
-                  offset: const Offset(0, 1), // downward shadow
+                  offset: const Offset(0, 1),
                 ),
               ],
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Back button
                 IconButton(
                   icon: const Icon(Icons.arrow_back),
-                  color: primaryColor,
+                  color: theme.iconTheme.color,
                   onPressed: () => Navigator.pop(context),
                 ),
-
-                // Title centered
                 Expanded(
                   child: Center(
                     child: Text(
                       widget.title,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: theme.textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
-
-                // Filter button
                 IconButton(
                   icon: const Icon(Icons.filter_alt_outlined),
-                  color: primaryColor,
+                  color: theme.iconTheme.color,
                   onPressed: openFilterModal,
                 ),
               ],
@@ -362,13 +364,15 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                   ? const ProductCategorySkelton()
                   : GridView.builder(
                 controller: _scrollController,
-                itemCount: hasMore ? products.length + 4 : products.length,
+                itemCount:
+                hasMore ? products.length + 4 : products.length,
                 padding: const EdgeInsets.all(12),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  childAspectRatio: 0.7,
+                  childAspectRatio: 0.6,
                 ),
                 itemBuilder: (context, index) {
                   if (index >= products.length) {
@@ -379,10 +383,10 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       childAspectRatio: 0.6,
-                      children: List.generate(4, (_) => const ProductCardSkelton()),
+                      children: List.generate(
+                          4, (_) => const ProductCardSkelton()),
                     );
                   }
-
                   final product = products[index];
                   return ProductCard(
                     id: product.id,
@@ -413,36 +417,49 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
           ),
         ],
       ),
-
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: theme.bottomNavigationBarTheme.backgroundColor ??
+              theme.cardColor,
           boxShadow: [
             BoxShadow(
-              color: Colors.black12,
-              offset: Offset(0, -2),
+              color: theme.brightness == Brightness.dark
+                  ? Colors.black54
+                  : Colors.black12,
+              offset: const Offset(0, -2),
               blurRadius: 6,
             ),
           ],
         ),
         child: BottomNavigationBar(
-          backgroundColor: Colors.white,
-          currentIndex: 2,
+          backgroundColor: theme.bottomNavigationBarTheme.backgroundColor ??
+              theme.cardColor,
+          currentIndex: CategoryProductsScreen.storeIndex,
           onTap: (index) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => EntryPoint(onLocaleChange: (_) {})),
+              MaterialPageRoute(
+                builder: (_) => EntryPoint(
+                  onLocaleChange: (_) {}, // 🔹 Dummy no-op function
+                  initialIndex: index,
+                ),
+              ),
             );
           },
           selectedItemColor: primaryColor,
-          unselectedItemColor: Colors.grey,
+          unselectedItemColor: theme.unselectedWidgetColor,
           type: BottomNavigationBarType.fixed,
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Anasayfa"),
-            BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
-            BottomNavigationBarItem(icon: Icon(Icons.store), label: "Mağaza"),
-            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.home), label: "Anasayfa"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.search), label: "Keşfet"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.store), label: "Mağaza"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.shopping_bag), label: "Sepet"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.person), label: "Profil"),
           ],
         ),
       ),

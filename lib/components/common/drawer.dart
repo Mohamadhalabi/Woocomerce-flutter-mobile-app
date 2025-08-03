@@ -77,34 +77,45 @@ class _CustomDrawerState extends State<CustomDrawer> {
     }
   }
 
+  Widget buildExpansion(
+      String title,
+      List<dynamic> items,
+      bool isLoading,
+      bool isExpanded,
+      Function(bool) onExpand,
+      ) {
+    final theme = Theme.of(context);
 
-  Widget buildExpansion(String title, List<dynamic> items, bool isLoading, bool isExpanded, Function(bool) onExpand) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor, // ✅ Theme-aware background
           borderRadius: BorderRadius.circular(10),
+          border: theme.brightness == Brightness.dark
+              ? Border.all(color: Colors.white, width: 1) // ✅ White border in dark mode
+              : null,
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.11),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
+            if (theme.brightness != Brightness.dark)
+              BoxShadow(
+                color: Colors.black.withOpacity(0.11),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
           ],
         ),
         child: Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          data: theme.copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
             initiallyExpanded: isExpanded,
             onExpansionChanged: onExpand,
             tilePadding: const EdgeInsets.symmetric(horizontal: 16),
             title: Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
-                color: Colors.black54,
+                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8), // ✅ Theme-aware text
               ),
             ),
             childrenPadding: const EdgeInsets.symmetric(horizontal: 16),
@@ -126,16 +137,17 @@ class _CustomDrawerState extends State<CustomDrawer> {
                             item['name'],
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
+                              color: theme.textTheme.bodyMedium?.color, // ✅ Theme-aware
                             ),
                           ),
                           trailing: Text(
                             '${item['count']} ürün',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey,
+                              color: theme.textTheme.bodySmall?.color?.withOpacity(0.6), // ✅ Theme-aware
                             ),
                           ),
                           onTap: () {
@@ -146,15 +158,16 @@ class _CustomDrawerState extends State<CustomDrawer> {
                                 builder: (_) => CategoryProductsScreen(
                                   id: item['id'],
                                   title: item['name'],
-                                  filterType: getFilterTypeByTitle(title),                                ),
+                                  filterType: getFilterTypeByTitle(title),
+                                ),
                               ),
                             );
                           },
                         ),
-                        const Divider(
+                        Divider(
                           height: 1,
                           thickness: 2,
-                          color: Colors.black12,
+                          color: theme.dividerColor.withOpacity(0.3), // ✅ Theme-aware
                         ),
                       ],
                     );
@@ -169,19 +182,45 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Drawer(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor, // ✅ Theme-aware background
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            child: Image.asset('assets/logo/aanahtar-logo.webp', height: 48),
+            child: Image.asset(
+              'assets/logo/aanahtar-logo.webp',
+              height: 48,
+            ),
           ),
-          const Divider(height: 8),
-          buildExpansion("KATEGORİLER", categories, loadingCategories, isCategoryExpanded, (val) => setState(() => isCategoryExpanded = val)),
-          buildExpansion("MARKALAR", brands, loadingBrands, isBrandExpanded, (val) => setState(() => isBrandExpanded = val)),
-          buildExpansion("ÜRETİCİ FİRMALAR", manufacturers, loadingManufacturers, isManufacturerExpanded, (val) => setState(() => isManufacturerExpanded = val)),
+          Divider(
+            height: 8,
+            color: theme.dividerColor.withOpacity(0.3), // ✅ Theme-aware
+          ),
+          buildExpansion(
+              "KATEGORİLER",
+              categories,
+              loadingCategories,
+              isCategoryExpanded,
+                  (val) => setState(() => isCategoryExpanded = val)
+          ),
+          buildExpansion(
+              "MARKALAR",
+              brands,
+              loadingBrands,
+              isBrandExpanded,
+                  (val) => setState(() => isBrandExpanded = val)
+          ),
+          buildExpansion(
+              "ÜRETİCİ FİRMALAR",
+              manufacturers,
+              loadingManufacturers,
+              isManufacturerExpanded,
+                  (val) => setState(() => isManufacturerExpanded = val)
+          ),
         ],
       ),
     );

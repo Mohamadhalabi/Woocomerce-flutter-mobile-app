@@ -23,7 +23,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => HomeScreenState();
 }
 
-class HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
+class HomeScreenState extends State<HomeScreen>
+    with AutomaticKeepAliveClientMixin {
   int refreshCounter = 0;
 
   void refresh() {
@@ -39,8 +40,10 @@ class HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMix
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
 
+    final theme = Theme.of(context); // ✅ use theme
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor, // ✅ theme-aware
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {

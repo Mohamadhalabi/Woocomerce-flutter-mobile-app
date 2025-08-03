@@ -131,10 +131,11 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
             )
           else
             SizedBox(
-              height: 280,
+              height: 290,
               child: Container(
-                color: const Color(0xFFEAF2F4),
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Theme.of(context).cardColor.withOpacity(0.1)
+                    : const Color(0xFFEAF2F4),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: products.length,
