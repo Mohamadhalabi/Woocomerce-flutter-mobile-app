@@ -226,25 +226,50 @@ class CartScreenState extends State<CartScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
+    // Keep a copy of current items & their keys before we clear UI
+    final previousItems = List<Map<String, dynamic>>.from(cartItems);
+    final knownKeys = previousItems
+        .map((i) => i['key'])
+        .where((k) => k != null && k.toString().isNotEmpty)
+        .map((k) => k.toString())
+        .toList();
+
+    // 1) Instant UI update — feels snappy
     setState(() {
-      isLoading = true;
+      cartItems = [];
+      total = 0;
+      isLoading = false;
     });
 
-    if (token != null) {
-      await CartService.clearWooCart(token);
-    } else {
+    // 2) Persist guest cart instantly
+    if (token == null) {
       await CartService.clearGuestCart();
+      if (!mounted) return;
+      AlertService.showTopAlert(context, 'Sepet başarıyla temizlendi', isError: false);
+      return;
     }
 
-    await loadCart();
-
-    if (!mounted) return;
-    AlertService.showTopAlert(
-      context,
-      'Sepet başarıyla temizlendi',
-      isError: false,
-    );
+    // 3) Logged-in: clear on WooCommerce in background (fast path + fallback)
+    //    We "await" here but the UI is already empty, so it won’t block the user.
+    try {
+      await CartService.clearWooCart(token, knownKeys: knownKeys);
+      if (!mounted) return;
+      AlertService.showTopAlert(context, 'Sepet başarıyla temizlendi', isError: false);
+    } catch (e) {
+      // If server-side clear failed, restore previous state so user isn't out-of-sync
+      if (!mounted) return;
+      setState(() {
+        cartItems = previousItems;
+        total = _calculateTotal(previousItems);
+      });
+      AlertService.showTopAlert(
+        context,
+        'Sepet temizlenemedi: ${e.toString()}',
+        isError: true,
+      );
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -254,7 +279,7 @@ class CartScreenState extends State<CartScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Sepetim', style: TextStyle(color: Colors.white,fontSize: 20)),
-        backgroundColor: blueColor,
+        backgroundColor: primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(

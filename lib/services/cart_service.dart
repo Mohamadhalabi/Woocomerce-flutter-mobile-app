@@ -92,44 +92,78 @@ class CartService {
     }
   }
 
-  static Future<void> clearWooCart(String token) async {
-    const baseUrl = "https://www.aanahtar.com.tr";
+// CartService.dart
+  static const String _storeBase = 'https://www.aanahtar.com.tr/wp-json/wc/store';
 
-    // Step 1: Fetch the cart
-    final fetchRes = await http.get(
-      Uri.parse('$baseUrl/wp-json/wc/store/cart'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
-    );
+  static Future<void> clearWooCart(String token, {List<String>? knownKeys}) async {
+    try {
+      final bulk = await http
+          .delete(
+        Uri.parse('$_storeBase/cart/items'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      )
+          .timeout(const Duration(seconds: 8));
 
-    if (fetchRes.statusCode != 200) {
-      throw Exception('Failed to fetch cart before clearing');
+      if (bulk.statusCode == 200 || bulk.statusCode == 204) {
+        return; // done
+      }
+      // If the endpoint isn’t supported or returns 4xx/5xx, fall through to fallback.
+      debugPrint('Bulk clear not available or failed (${bulk.statusCode}). Falling back…');
+    } catch (e) {
+      debugPrint('Bulk clear error: $e — falling back to per-item deletes.');
     }
 
-    final cartData = jsonDecode(fetchRes.body);
-    final items = cartData['items'] as List;
+    // --- Fallback: delete items in PARALLEL using known keys (or fetch if needed) ---
+    List<String> keys = knownKeys ?? [];
 
-    // Step 2: Loop through and delete each item
-    for (final item in items) {
-      final key = item['key'];
-      final deleteRes = await http.delete(
-        Uri.parse('$baseUrl/wp-json/wc/store/cart/items/$key'), // ✅ correct path
+    if (keys.isEmpty) {
+      // As a last resort, fetch cart once to get keys
+      final fetchRes = await http.get(
+        Uri.parse('$_storeBase/cart'),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
         },
       );
+      if (fetchRes.statusCode != 200) {
+        throw Exception('Failed to fetch cart before clearing');
+      }
+      final cartData = jsonDecode(fetchRes.body);
+      final items = (cartData['items'] as List? ?? []);
+      keys = items
+          .map((it) => it is Map<String, dynamic> ? it['key']?.toString() : null)
+          .where((k) => k != null && k!.isNotEmpty)
+          .cast<String>()
+          .toList();
+    }
 
-      if (deleteRes.statusCode != 200 && deleteRes.statusCode != 204) {
-        debugPrint('❌ Failed to remove item $key. Status: ${deleteRes.statusCode}. Body: ${deleteRes.body}');
-        throw Exception('Failed to remove item: $key');
-      } else {
-        debugPrint('✅ Removed item $key');
+    if (keys.isEmpty) return;
+
+    // Delete all items concurrently
+    final futures = keys.map((k) {
+      return http.delete(
+        Uri.parse('$_storeBase/cart/items/$k'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+    }).toList();
+
+    final results = await Future.wait(futures);
+
+    // Validate results
+    for (final r in results) {
+      if (r.statusCode != 200 && r.statusCode != 204) {
+        debugPrint('❌ Failed to remove item. Status: ${r.statusCode}. Body: ${r.body}');
+        throw Exception('Failed to remove one or more items while clearing cart');
       }
     }
   }
+
   static Future<void> addItemToGuestCart({
     required int productId,
     required String title,
