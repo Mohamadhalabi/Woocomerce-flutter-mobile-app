@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shop/screens/category/category_products_screen.dart';
+
 import '../../constants.dart';
 import '../../services/cart_service.dart';
 import '../../services/alert_service.dart';
@@ -14,6 +17,7 @@ class AddToCartModal extends StatefulWidget {
   final String image;
   final String currencySymbol;
   final String category;
+  final int categoryId;
 
   const AddToCartModal({
     super.key,
@@ -26,6 +30,7 @@ class AddToCartModal extends StatefulWidget {
     required this.isInStock,
     required this.image,
     required this.currencySymbol,
+    required this.categoryId,
   });
 
   @override
@@ -52,10 +57,16 @@ class _AddToCartModalState extends State<AddToCartModal> {
 
   void _updateQuantity(int change) {
     final newQty = (quantity + change).clamp(1, 999);
-    setState(() {
-      quantity = newQty;
-      _controller.text = quantity.toString();
-    });
+    if (newQty != quantity) {
+      setState(() {
+        quantity = newQty;
+        _controller.text = quantity.toString();
+        _controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: _controller.text.length),
+        );
+      });
+      HapticFeedback.selectionClick();
+    }
   }
 
   Future<void> _handleAddToCart() async {
@@ -78,266 +89,454 @@ class _AddToCartModalState extends State<AddToCartModal> {
         );
       }
 
-      if (mounted) {
-        Navigator.pop(context);
-        AlertService.showTopAlert(context, 'Ürün sepete eklendi', isError: false);
-      }
+      if (!mounted) return;
+      Navigator.pop(context);
+      AlertService.showTopAlert(context, 'Ürün sepete eklendi', isError: false);
     } catch (e) {
-      if (mounted) {
-        AlertService.showTopAlert(
-          context,
-          'Sepete ekleme hatası: ${e.toString()}',
-          isError: true,
-        );
-      }
+      if (!mounted) return;
+      AlertService.showTopAlert(
+        context,
+        'Sepete ekleme hatası: ${e.toString()}',
+        isError: true,
+      );
     }
   }
 
+  String _fmt(double v) => v.toStringAsFixed(2);
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context); // ✅ theme-aware
-    final double finalPrice = widget.salePrice ?? widget.price;
-    final bool hasDiscount =
-        widget.salePrice != null && widget.salePrice! < widget.price;
+    final theme = Theme.of(context);
+    final hasDiscount = widget.salePrice != null && (widget.salePrice! < widget.price);
+    final finalPrice = hasDiscount ? widget.salePrice! : widget.price;
 
-    final outlineBorder = OutlineInputBorder(
-      borderSide: BorderSide(color: theme.dividerColor),
-      borderRadius: BorderRadius.circular(6),
-    );
-
-    final focusedBorder = OutlineInputBorder(
-      borderSide: const BorderSide(color: blueColor),
-      borderRadius: BorderRadius.circular(6),
-    );
-
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.85,
-      child: Container(
-        color: theme.brightness == Brightness.light
-            ? Colors.white
-            : theme.scaffoldBackgroundColor, // ✅ White in light mode
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 16,
-            right: 16,
-            top: 16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title & Close
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      child: Material(
+        color: theme.brightness == Brightness.light ? Colors.white : theme.scaffoldBackgroundColor,
+        child: SafeArea(
+          top: false,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final maxHeight = MediaQuery.of(context).size.height * 0.7;
+              return ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxHeight),
+                child: Column(
+                  children: [
+                    // Drag handle + close
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 8, 0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Center(
+                              child: Container(
+                                width: 36,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: theme.dividerColor.withOpacity(0.6),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Kapat',
+                            icon: Icon(Icons.close, color: theme.iconTheme.color),
+                            onPressed: () => Navigator.of(context).pop(),
+                          )
+                        ],
                       ),
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.close, color: theme.iconTheme.color),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
 
-              // Image
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  widget.image,
-                  height: 160,
-                  width: double.infinity,
-                  fit: BoxFit.contain,
-                ),
-              ),
-              const SizedBox(height: 12),
+                    const SizedBox(height: 6),
 
-              // Price
-              isLoggedIn
-                  ? hasDiscount
-                  ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "${widget.currencySymbol}${widget.salePrice!.toStringAsFixed(2)}",
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
+                    // Scrollable content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Image
+                            Container(
+                              decoration: BoxDecoration(
+                                color: theme.brightness == Brightness.light
+                                    ? Colors.white
+                                    : theme.cardColor,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                              ),
+                              padding: const EdgeInsets.all(8),
+                              child: Center(
+                                child: SizedBox(
+                                  height: 200,
+                                  width: 200,
+                                  child: Image.network(
+                                    widget.image,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, err, stack) =>
+                                        Icon(Icons.broken_image, size: 40, color: theme.iconTheme.color),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Category
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CategoryProductsScreen(
+                                      id: widget.categoryId,
+                                      title: widget.category,
+                                      filterType: "category",
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                widget.category,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                  color: blueColor,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Title
+                            Text(
+                              widget.title,
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // SKU + Stock badge
+                            Row(
+                              children: [
+                                SelectableText(
+                                  widget.sku,
+                                  style: const TextStyle(
+                                    color: primaryColor,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                _StockChip(inStock: widget.isInStock),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Price above controls
+                            if (isLoggedIn)
+                              (hasDiscount
+                                  ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    '${widget.currencySymbol}${_fmt(finalPrice)}',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${widget.currencySymbol}${_fmt(widget.price)}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                                      decoration: TextDecoration.lineThrough,
+                                    ),
+                                  ),
+                                ],
+                              )
+                                  : Text(
+                                '${widget.currencySymbol}${_fmt(widget.price)}',
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                  color: primaryColor,
+                                ),
+                              ))
+                            else
+                              Text(
+                                'Fiyatları görmek için giriş yapın',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            const SizedBox(height: 12),
+                            // --- Quantity + Sepete Ekle in the SAME ROW ---
+                            Row(
+                              children: [
+                                // Stepper expands on the left
+                                Expanded(
+                                  child: _QtyStepper(
+                                    controller: _controller,
+                                    value: quantity,
+                                    onMinus: () => _updateQuantity(-1),
+                                    onPlus: () => _updateQuantity(1),
+                                    onChanged: (val) {
+                                      final parsed = int.tryParse(val);
+                                      if (parsed != null) {
+                                        final clamped = parsed.clamp(1, 999);
+                                        setState(() => quantity = clamped);
+                                        _controller.text = clamped.toString();
+                                        _controller.selection = TextSelection.fromPosition(
+                                          TextPosition(offset: _controller.text.length),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // Button fills the remaining space, same height as stepper
+                                Expanded(
+                                  child: SizedBox(
+                                    height: 44,
+                                    child: ElevatedButton(
+                                      onPressed: widget.isInStock ? _handleAddToCart : null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: blueColor,
+                                        disabledBackgroundColor: theme.disabledColor,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.shopping_cart_outlined, size: 18, color: Colors.white),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            widget.isInStock ? 'SEPETE EKLE' : 'STOKTA YOK',
+                                            style: const TextStyle(fontWeight: FontWeight.w700),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 25),
+                            Divider(color: theme.dividerColor.withOpacity(0.6)),
+                            // Extra spacing at bottom of sheet
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  Text(
-                    "${widget.currencySymbol}${widget.price.toStringAsFixed(2)}",
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: theme.textTheme.bodySmall?.color
-                          ?.withOpacity(0.6),
-                      decoration: TextDecoration.lineThrough,
-                    ),
-                  ),
-                ],
-              )
-                  : Text(
-                "${widget.currencySymbol}${widget.price.toStringAsFixed(2)}",
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.red,
+                  ],
                 ),
-              )
-                  : Text(
-                "Fiyatları görmek için giriş yapın",
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A sleeker, segmented stepper with consistent size, rounded corners,
+/// vertical dividers, and a borderless center input.
+class _QtyStepper extends StatelessWidget {
+  const _QtyStepper({
+    required this.controller,
+    required this.value,
+    required this.onMinus,
+    required this.onPlus,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final int value;
+  final VoidCallback onMinus;
+  final VoidCallback onPlus;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bg = theme.brightness == Brightness.light ? Colors.white : theme.cardColor;
+    final border = theme.dividerColor.withOpacity(0.35);
+    final isMin = value <= 1;
+    final isMax = value >= 999;
+
+    Widget buildSegment({
+      required Widget child,
+      BorderRadius? radius,
+      bool showRightBorder = true,
+      bool showLeftBorder = false,
+    }) {
+      return Container(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          color: bg,
+          border: Border(
+            left: showLeftBorder ? BorderSide(color: border) : BorderSide.none,
+            right: showRightBorder ? BorderSide(color: border) : BorderSide.none,
+          ),
+        ),
+        child: child,
+      );
+    }
+
+    Widget tapBtn({
+      required IconData icon,
+      required VoidCallback? onTap,
+      required bool disabled,
+      BorderRadius? radius,
+      bool showRightBorder = true,
+      bool showLeftBorder = false,
+    }) {
+      return buildSegment(
+        radius: radius,
+        showRightBorder: showRightBorder,
+        showLeftBorder: showLeftBorder,
+        child: InkWell(
+          borderRadius: radius ?? BorderRadius.zero,
+          onTap: disabled ? null : onTap,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(
+              icon,
+              size: 18,
+              color: disabled ? theme.disabledColor : blueColor,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // minus
+          tapBtn(
+            icon: Icons.remove_rounded,
+            onTap: onMinus,
+            disabled: isMin,
+            radius: const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              bottomLeft: Radius.circular(12),
+            ),
+            showLeftBorder: false,
+            showRightBorder: true,
+          ),
+
+          // input (borderless, centered)
+          Expanded(
+            child: SizedBox(
+              height: 44,
+              child: TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(3),
+                ],
+                textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.textTheme.bodySmall?.color,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
                 ),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 10),
+                ),
+                onChanged: (val) {
+                  if (val.isNotEmpty) {
+                    final n = int.tryParse(val);
+                    if (n != null) {
+                      final clamped = n.clamp(1, 999);
+                      if (clamped.toString() != val) {
+                        controller.text = clamped.toString();
+                        controller.selection = TextSelection.fromPosition(
+                          TextPosition(offset: controller.text.length),
+                        );
+                      }
+                    }
+                  }
+                  onChanged(controller.text);
+                },
+                onSubmitted: (val) {
+                  final n = int.tryParse(val) ?? 1;
+                  final clamped = n.clamp(1, 999);
+                  controller.text = clamped.toString();
+                  controller.selection = TextSelection.fromPosition(
+                    TextPosition(offset: controller.text.length),
+                  );
+                  onChanged(controller.text);
+                },
               ),
-
-              const SizedBox(height: 8),
-
-              // SKU & Stock
-              Row(
-                children: [
-                  Text(
-                    "Stok Kodu: ${widget.sku}",
-                    style: const TextStyle(
-                      color: blueColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Text(
-                    widget.isInStock ? "Stokta Var" : "Stokta Yok",
-                    style: TextStyle(
-                      color: widget.isInStock ? Colors.green : Colors.red,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-              Text(
-                "Adet Seçiniz:",
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-
-              // Quantity Selector
-              Row(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: theme.brightness == Brightness.light
-                          ? Colors.white
-                          : theme.cardColor, // ✅ White in light mode
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: theme.dividerColor.withOpacity(0.3),
-                      ),
-                    ),
-                    child: IconButton(
-                      onPressed: () => _updateQuantity(-1),
-                      icon: const Icon(Icons.remove, color: blueColor),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 150,
-                    height: 40,
-                    child: TextField(
-                      controller: _controller,
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(color: theme.dividerColor),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: blueColor),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        contentPadding:
-                        const EdgeInsets.symmetric(vertical: 10),
-                        fillColor: theme.brightness == Brightness.light
-                            ? Colors.white
-                            : theme.cardColor, // ✅ White in light mode
-                        filled: true,
-                      ),
-                      onChanged: (value) {
-                        final parsed = int.tryParse(value);
-                        if (parsed != null) {
-                          setState(() => quantity = parsed < 1 ? 1 : parsed);
-                          _controller.text = quantity.toString();
-                          _controller.selection = TextSelection.fromPosition(
-                            TextPosition(offset: _controller.text.length),
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: theme.brightness == Brightness.light
-                          ? Colors.white
-                          : theme.cardColor, // ✅ White in light mode
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: theme.dividerColor.withOpacity(0.3),
-                      ),
-                    ),
-                    child: IconButton(
-                      onPressed: () => _updateQuantity(1),
-                      icon: const Icon(Icons.add, color: blueColor),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // Buttons
-              Row(
-                children: [
-                  SizedBox(
-                    width: 180, // ✅ Not full width
-                    child: ElevatedButton(
-                      onPressed: widget.isInStock ? _handleAddToCart : null,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        backgroundColor: blueColor, // ✅ Blue background
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        widget.isInStock ? "SEPETE EKLE" : "STOKTA YOK",
-                        style: const TextStyle(
-                          color: Colors.white, // ✅ White text on blue
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-
-            ],
+            ),
           ),
+          // plus
+          tapBtn(
+            icon: Icons.add_rounded,
+            onTap: onPlus,
+            disabled: isMax,
+            radius: const BorderRadius.only(
+              topRight: Radius.circular(12),
+              bottomRight: Radius.circular(12),
+            ),
+            showLeftBorder: true,
+            showRightBorder: false,
+          ),
+        ],
+      ),
+    );
+  }
+}
+class _StockChip extends StatelessWidget {
+  const _StockChip({required this.inStock});
+  final bool inStock;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = inStock ? Colors.green : Colors.red;
+    final bg = color.withOpacity(0.1);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Text(
+        inStock ? 'Stokta Var' : 'Stokta Yok',
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

@@ -392,6 +392,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                     id: product.id,
                     image: product.image,
                     category: product.category,
+                    categoryId: product.categoryId,
                     title: product.title,
                     price: product.price,
                     salePrice: product.salePrice,

@@ -179,6 +179,7 @@ class DiscoverScreenState extends State<DiscoverScreen> {
                             id: product['id'],
                             image: product['image'] ?? '',
                             category: product['category'] ?? '',
+                            categoryId: product['categoryId'],
                             title: product['title'] ?? '',
                             price: (product['price'] ?? 0).toDouble(),
                             salePrice: product['salePrice'] != null

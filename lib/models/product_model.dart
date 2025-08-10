@@ -3,6 +3,7 @@ class ProductModel {
   final String title;
   final String image;
   final String category;
+  final int? categoryId;
   final String sku;
   final double price;
   final double rating;
@@ -35,65 +36,153 @@ class ProductModel {
     required this.isInStock,
     required this.attributes,
     required this.currencySymbol,
+    this.categoryId,
   });
 
+  // ---------------- helpers ----------------
+  static String? _stringOrNull(dynamic v) {
+    if (v == null) return null;
+    if (v is String) return v;
+    if (v is num) return v.toString();
+    return null;
+  }
+
+  static double _doubleOrZero(dynamic v) {
+    final d = _doubleOrNull(v);
+    return d ?? 0.0;
+  }
+
+  static double? _doubleOrNull(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    final s = v.toString();
+    if (s.trim().isEmpty) return null;
+    return double.tryParse(s);
+  }
+
+  static bool? _boolFlexible(dynamic v) {
+    if (v is bool) return v;
+    if (v is num) return v == 1;
+    if (v is String) {
+      final s = v.toLowerCase();
+      if (s == '1' || s == 'true' || s == 'yes') return true;
+      if (s == '0' || s == 'false' || s == 'no') return false;
+    }
+    return null;
+  }
+
+  static String _resolveCurrencySymbol(dynamic currency, dynamic currencySymbol) {
+    final code = _stringOrNull(currency)?.toUpperCase();
+    if (code == 'USD') return '\$';
+    if (code == 'TRY' || code == 'TL') return '₺';
+
+    final sym = _stringOrNull(currencySymbol);
+    return (sym != null && sym.isNotEmpty) ? sym : '₺';
+  }
+  // ------------------------------------------
+
   factory ProductModel.fromJson(Map<String, dynamic> json) {
-    final DateTime createdDate = DateTime.tryParse(json['created_at'] ?? '') ?? DateTime(2000);
-    // print('📦 Product: ${json['id']} → Date Created: ${json['created_at']}');
-    final List<dynamic> metaData = json['meta_data'] ?? [];
+    final createdDate =
+        DateTime.tryParse(_stringOrNull(json['created_at']) ?? '') ??
+            DateTime(2000);
 
-    // ✅ Parse attributes into Map<String, List<String>>
-    Map<String, List<String>> attributeMap = {};
+    final List<dynamic> metaData =
+    (json['meta_data'] is List) ? json['meta_data'] as List : const [];
 
-    if (json['attributes'] != null && json['attributes'] is List) {
-      for (var attr in json['attributes']) {
-        String name = attr['name'] ?? '';
-        List<dynamic> options = attr['options'] ?? [];
-        List<String> values = options.map((e) => e.toString()).toList();
-
-        attributeMap[name] = values;
+    // attributes -> Map<String, List<String>>
+    final Map<String, List<String>> attributeMap = {};
+    if (json['attributes'] is List) {
+      for (final attr in (json['attributes'] as List)) {
+        if (attr is Map) {
+          final name = _stringOrNull(attr['name']) ?? '';
+          final opts = (attr['options'] is List) ? (attr['options'] as List) : const [];
+          final values = opts
+              .map((e) => _stringOrNull(e) ?? '')
+              .where((e) => e.isNotEmpty)
+              .toList();
+          attributeMap[name] = values;
+        }
       }
     }
 
+    // images
+    final List<String> images =
+    (json['images'] is List)
+        ? (json['images'] as List)
+        .where((e) => e is Map || e is String)
+        .map((e) {
+      if (e is Map) return _stringOrNull(e['src']) ?? '';
+      return _stringOrNull(e) ?? '';
+    })
+        .where((s) => s.isNotEmpty)
+        .toList()
+        : <String>[];
+
+    // category + categoryId
+    String category = 'Uncategorized';
+    int? categoryId;
+    if (json['categories'] is List && (json['categories'] as List).isNotEmpty) {
+      final first = (json['categories'] as List).first;
+      if (first is Map) {
+        category = _stringOrNull(first['name']) ?? category;
+        if (first['id'] is int) {
+          categoryId = first['id'] as int;
+        } else {
+          categoryId = int.tryParse(_stringOrNull(first['id']) ?? '');
+        }
+      }
+    }
+
+    // ---------- price logic ----------
+    final reg = _doubleOrNull(json['regular_price']);
+    final sale = _doubleOrNull(json['sale_price']);
+    final woocs = _doubleOrNull(json['price']) ??
+        _doubleOrNull(json['_price']) ??
+        _doubleOrNull(json['display_price']);
+    final resolvedRegular =
+    (reg == null || reg == 0.0) ? (sale ?? woocs ?? 0.0) : reg;
+    final parsedPrice = resolvedRegular;
+    final parsedSalePrice = (sale != null && sale > 0) ? sale : null;
 
     return ProductModel(
-      id: json['id'],
-      title: json['name'] ?? 'No Title',
-      image: (json['images'] != null && json['images'].isNotEmpty) ? json['images'][0]['src'] : '',
-      images: json['images'] != null
-          ? List<String>.from(json['images'].map((img) => img['src']))
-          : [],
-      description: json['description'] ?? '',
-      category: json['categories'] != null && json['categories'].isNotEmpty
-          ? json['categories'][0]['name']
-          : 'Uncategorized',
-      sku: json['sku'] ?? '',
-      price: double.tryParse(json['regular_price'].toString()) ?? 0.0,
-      salePrice: json['sale_price'] != null
-          ? double.tryParse(json['sale_price'].toString())
+      id: (json['id'] is int)
+          ? json['id'] as int
+          : int.tryParse(_stringOrNull(json['id']) ?? '0') ?? 0,
+      title: _stringOrNull(json['name']) ?? 'No Title',
+      image: images.isNotEmpty ? images.first : '',
+      images: images,
+      description: _stringOrNull(json['description']) ?? '',
+      category: category,
+      categoryId: categoryId,
+      sku: _stringOrNull(json['sku']) ?? '',
+      price: parsedPrice,
+      salePrice: parsedSalePrice,
+      discountPercent: (json['discount_percent'] is int)
+          ? json['discount_percent'] as int
+          : int.tryParse(_stringOrNull(json['discount_percent']) ?? ''),
+      discount: (json['discount'] is Map<String, dynamic>)
+          ? json['discount'] as Map<String, dynamic>
           : null,
-      discountPercent: json['discount_percent'],
-      discount: json['discount'],
-      freeShipping: json['free_shipping'] == 1,
+      freeShipping: _boolFlexible(json['free_shipping']),
       isNew: checkIsNewFromMetaData(metaData) ||
           createdDate.isAfter(DateTime.now().subtract(const Duration(days: 30))),
-      rating: double.tryParse(json['average_rating'].toString()) ?? 0.0,
+      rating: _doubleOrZero(json['average_rating']),
       attributes: attributeMap,
-      isInStock: json['stock_status'] == 'instock',
-      currencySymbol: (json['currency'] == 'USD')
-          ? '\$'
-          : (json['currency'] == 'TRY')
-          ? '₺'
-          : (json['currency_symbol'] ?? '₺'),
+      isInStock: _stringOrNull(json['stock_status']) == 'instock',
+      currencySymbol:
+      _resolveCurrencySymbol(json['currency'], json['currency_symbol']),
     );
   }
 
   static bool checkIsNewFromMetaData(List<dynamic> metaData) {
-    for (var item in metaData) {
-      if (item['key'] == '_yith_wcbm_badges' &&
+    for (final item in metaData) {
+      if (item is Map &&
+          item['key'] == '_yith_wcbm_badges' &&
           item['value'] is List &&
-          item['value'].isNotEmpty) {
-        final badgeText = item['value'][0]['text']?.toString().toLowerCase() ?? '';
+          (item['value'] as List).isNotEmpty) {
+        final first = (item['value'] as List).first;
+        final badgeText =
+        (first is Map) ? _stringOrNull(first['text'])?.toLowerCase() ?? '' : '';
         if (badgeText.contains('yeni')) return true;
       }
     }
@@ -101,17 +190,12 @@ class ProductModel {
   }
 
   Map<String, dynamic> toJson() {
-    final resolvedCurrencySymbol = (currencySymbol == 'USD')
-        ? '\$'
-        : (currencySymbol == 'TRY')
-        ? '₺'
-        : (currencySymbol ?? '₺');
-
     return {
       'id': id,
       'title': title,
       'image': image,
       'category': category,
+      'category_id': categoryId,
       'sku': sku,
       'price': price,
       'sale_price': salePrice,
@@ -125,7 +209,16 @@ class ProductModel {
       'num_of_reviews': 0,
       'attributes': attributes,
       'stock_status': isInStock ? 'instock' : 'outofstock',
-      'currency_symbol': resolvedCurrencySymbol,
+      'currency_symbol': currencySymbol ?? '₺',
     };
   }
+}
+
+// (optional) helpers for UI
+extension ProductPriceX on ProductModel {
+  double get displayPrice =>
+      (salePrice != null && salePrice! > 0) ? salePrice! : price;
+
+  bool get hasDiscount =>
+      (salePrice != null && salePrice! > 0 && salePrice! < price);
 }

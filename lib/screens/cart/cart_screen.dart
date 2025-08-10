@@ -1,12 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../constants.dart';
 import '../../../services/cart_service.dart';
 import '../../../services/api_service.dart';
 import 'package:shop/components/skleton/skelton.dart';
 import '../../../services/alert_service.dart';
-import 'dart:async';
 import '../../route/route_constants.dart';
 import '../checkout/views/checkout_screen.dart';
 
@@ -42,14 +43,15 @@ class CartScreenState extends State<CartScreen> {
 
   void refreshWithSkeleton() {
     setState(() {
-      isLoading = true; // triggers skeleton
+      isLoading = true;
     });
     loadCart();
   }
+
   /// Load cart with instant total + parallel product fetch
   Future<List<Map<String, dynamic>>> loadCart([List<Map<String, dynamic>>? overrideItems]) async {
     setState(() {
-      isLoading = true; // ✅ Show skeleton while loading
+      isLoading = true;
     });
 
     final prefs = await SharedPreferences.getInstance();
@@ -57,22 +59,22 @@ class CartScreenState extends State<CartScreen> {
     isLoggedIn = token != null;
 
     try {
-      // 1️⃣ Get raw cart items (Woo or Guest)
+      // 1) Raw items
       final items = overrideItems ??
           (isLoggedIn
               ? await CartService.fetchWooCart(token!)
               : await CartService.getGuestCart());
 
-      // 2️⃣ Instant total update (before product details fetch)
+      // 2) Instant totals
       setState(() {
         total = _calculateTotal(items);
         cartItems = items;
       });
 
-      // 3️⃣ Fetch product details in batch for logged-in users
+      // 3) Enrich for logged-in
       if (isLoggedIn && items.isNotEmpty) {
         final productIds = items
-            .map((item) => int.tryParse(item['id'].toString()))
+            .map((i) => int.tryParse(i['id'].toString()))
             .where((id) => id != null)
             .cast<int>()
             .toList();
@@ -84,29 +86,28 @@ class CartScreenState extends State<CartScreen> {
           for (var item in items) {
             final pid = int.tryParse(item['id'].toString());
             if (pid != null && productMap.containsKey(pid)) {
-              final product = productMap[pid]!;
-              item['image'] = product.image;
-              item['title'] = product.title;
-              item['category'] = product.category;
-              item['price'] = product.salePrice ?? product.price;
-              item['product_id'] = product.id ?? pid;
-              item['currency_symbol'] = product.currencySymbol;
+              final p = productMap[pid]!;
+              item['image'] = p.image;
+              item['title'] = p.title;
+              item['category'] = p.category; // not shown, but kept if needed later
+              item['price'] = p.salePrice ?? p.price;
+              item['regular_price'] = p.salePrice != null ? p.price : null;
+              item['product_id'] = p.id ?? pid;
+              item['currency_symbol'] = p.currencySymbol;
             }
           }
         }
       } else {
-        // ✅ Ensure guest cart has product_id set
+        // Ensure guest items have product_id
         for (var item in items) {
-          if (item['id'] != null) {
-            item['product_id'] = item['id'];
-          }
+          if (item['id'] != null) item['product_id'] = item['id'];
         }
       }
 
-      // 4️⃣ Final state update with full details
+      // 4) Final state
       setState(() {
         cartItems = items;
-        total = _calculateTotal(items); // recalc after details fetched
+        total = _calculateTotal(items);
         isLoading = false;
       });
 
@@ -123,27 +124,26 @@ class CartScreenState extends State<CartScreen> {
     }
   }
 
+  double _asDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? 0.0;
+    if (v is Map<String, dynamic>) {
+      // expect {raw: "..."}
+      return double.tryParse(v['raw']?.toString() ?? '') ?? 0.0;
+    }
+    return 0.0;
+  }
+
   double _calculateTotal(List<Map<String, dynamic>> items) {
     return items.fold(0.0, (sum, item) {
-      final rawPrice = item['sale_price'] ?? item['price'];
-      double price = 0.0;
-
-      if (rawPrice is Map<String, dynamic>) {
-        price = double.tryParse(rawPrice['raw'].toString()) ?? 0.0;
-      } else if (rawPrice is num) {
-        price = rawPrice.toDouble();
-      } else if (rawPrice is String) {
-        price = double.tryParse(rawPrice) ?? 0.0;
-      }
-
+      final price = _asDouble(item['sale_price'] ?? item['price']);
       final rawQty = item['quantity'];
-      final quantity = rawQty is int
+      final qty = rawQty is int
           ? rawQty
           : rawQty is Map && rawQty['value'] != null
           ? int.tryParse(rawQty['value'].toString()) ?? 1
           : int.tryParse(rawQty.toString()) ?? 1;
-
-      return sum + (price * quantity);
+      return sum + (price * qty);
     });
   }
 
@@ -153,7 +153,7 @@ class CartScreenState extends State<CartScreen> {
     final token = prefs.getString('auth_token');
 
     final rawQty = item['quantity'];
-    int currentQty = rawQty is int
+    final currentQty = rawQty is int
         ? rawQty
         : rawQty is Map && rawQty['value'] != null
         ? int.tryParse(rawQty['value'].toString()) ?? 1
@@ -201,7 +201,6 @@ class CartScreenState extends State<CartScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     final item = cartItems[index];
-
     final cartItemKey = item['key']?.toString();
 
     if (token != null && cartItemKey != null) {
@@ -240,7 +239,6 @@ class CartScreenState extends State<CartScreen> {
     await loadCart();
 
     if (!mounted) return;
-
     AlertService.showTopAlert(
       context,
       'Sepet başarıyla temizlendi',
@@ -255,7 +253,7 @@ class CartScreenState extends State<CartScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Sepetim', style: TextStyle(color: Colors.white)),
+        title: const Text('Sepetim', style: TextStyle(color: Colors.white,fontSize: 20)),
         backgroundColor: blueColor,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
@@ -271,9 +269,13 @@ class CartScreenState extends State<CartScreen> {
           ? const Center(child: Text('Sepetiniz boş'))
           : RefreshIndicator(
         onRefresh: () async => await loadCart(),
-        child: ListView.builder(
+        child: ListView.separated(
           itemCount: cartItems.length,
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+          separatorBuilder: (_, __) => Divider(
+            color: Theme.of(context).dividerColor.withOpacity(0.25),
+            height: 1,
+          ),
           itemBuilder: (context, index) {
             final item = cartItems[index];
             return _buildCartItem(context, item, index);
@@ -314,17 +316,73 @@ class CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildCartItem(BuildContext context, Map<String, dynamic> item, int index) {
-    final priceRaw = item['sale_price'] ?? item['price'];
-    double price = 0.0;
+  Widget _buildQtyPill({
+    required int quantity,
+    required VoidCallback onMinus,
+    required VoidCallback onPlus,
+  }) {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.black12),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          _roundIcon(
+            icon: Icons.remove,
+            onTap: quantity <= 1 ? null : onMinus,
+            disabled: quantity <= 1,
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 26,
+            child: Center(
+              child: Text(
+                '$quantity',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13,color: primaryColor),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          _roundIcon(icon: Icons.add, onTap: onPlus),
+        ],
+      ),
+    );
+  }
 
-    if (priceRaw is Map<String, dynamic>) {
-      price = double.tryParse(priceRaw['raw'].toString()) ?? 0.0;
-    } else if (priceRaw is num) {
-      price = priceRaw.toDouble();
-    } else if (priceRaw is String) {
-      price = double.tryParse(priceRaw) ?? 0.0;
+  Widget _roundIcon({required IconData icon, VoidCallback? onTap, bool disabled = false}) {
+    return InkWell(
+      onTap: disabled ? null : onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: disabled ? Colors.grey.shade200 : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: disabled ? Colors.grey.shade300 : Colors.black12),
+        ),
+        child: Icon(icon, size: 18, color: disabled ? Colors.grey : blueColor),
+      ),
+    );
+  }
+
+  Widget _buildCartItem(BuildContext context, Map<String, dynamic> item, int index) {
+    final theme = Theme.of(context);
+
+    final currentPrice = _asDouble(item['sale_price'] ?? item['price']);
+    // Try to detect a "regular" price to show strike-through + savings
+    double regularPrice = _asDouble(item['regular_price']);
+    if (regularPrice == 0 && item['sale_price'] != null) {
+      // Some payloads keep "price" as regular when sale_price exists.
+      // But earlier we overwrite item['price'] with final price for logged-in.
+      // If we can find something like item['price_before_discount'], use it:
+      regularPrice = _asDouble(item['price_before_discount']);
     }
+    final hasDiscount = regularPrice > currentPrice && currentPrice > 0;
 
     final rawQty = item['quantity'];
     final quantity = rawQty is int
@@ -333,8 +391,10 @@ class CartScreenState extends State<CartScreen> {
         ? int.tryParse(rawQty['value'].toString()) ?? 1
         : int.tryParse(rawQty.toString()) ?? 1;
 
+    final currency = item['currency_symbol'] ?? '₺';
+
     return Slidable(
-      key: ValueKey(item['product_id'] ?? item['sku']),
+      key: ValueKey(item['product_id'] ?? item['sku'] ?? index),
       endActionPane: ActionPane(
         motion: const ScrollMotion(),
         extentRatio: 0.25,
@@ -356,61 +416,40 @@ class CartScreenState extends State<CartScreen> {
             arguments: item['product_id'] ?? item['id'],
           );
         },
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Theme.of(context).brightness == Brightness.dark
-                ? Border.all(color: Colors.white24, width: 1)
-                : null,
-            boxShadow: Theme.of(context).brightness == Brightness.light
-                ? [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.19), // soft shadow
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              )
-            ]
-                : [],
-          ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Product Image
+              // Image
               Container(
-                margin: const EdgeInsets.only(top: 10),
-                width: 100,
-                height: 100,
+                width: 86,
+                height: 86,
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: Theme.of(context).brightness == Brightness.dark
+                    color: theme.brightness == Brightness.dark
                         ? Colors.white24
-                        : Colors.grey.shade400,
-                    width: 1,
+                        : Colors.grey.shade300,
                   ),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: item['image'] != null &&
-                    item['image'].toString().isNotEmpty
-                    ? ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    item['image'],
-                    fit: BoxFit.cover,
-                    width: 100,
-                    height: 100,
-                    errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.broken_image),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    color: Colors.white,
+                    child: item['image'] != null && item['image'].toString().isNotEmpty
+                        ? Image.network(
+                      item['image'],
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+                    )
+                        : const Icon(Icons.image_not_supported),
                   ),
-                )
-                    : const Icon(Icons.image_not_supported),
+                ),
               ),
-
               const SizedBox(width: 12),
 
-              // Product Info
+              // Title + Qty pill
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,118 +457,67 @@ class CartScreenState extends State<CartScreen> {
                     // Title
                     Text(
                       item['title'] ?? 'Ürün',
-                      maxLines: 1,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
-                        fontSize: 14,
+                        fontSize: 13,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
 
-                    // Category
-                    Text(
-                      item['category'] ?? '',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.color
-                            ?.withOpacity(0.6),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+                    // (Optional) shipping info placeholder to mimic screenshot spacing
+                    // Text(
+                    //   'Tahmini Kargoya Teslim: 2 gün',
+                    //   style: TextStyle(
+                    //     fontSize: 12,
+                    //     color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                    //   ),
+                    // ),
 
-                    // Price
-                    if (isLoggedIn)
-                      Text(
-                        '${item['currency_symbol'] ?? '₺'}${price.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: blueColor,
-                        ),
-                      )
-                    else
-                      const SizedBox.shrink(),
+                    const SizedBox(height: 8),
 
-                    const SizedBox(height: 12),
-
-                    // Quantity Controls
+                    // Qty pill aligned left; price block on the right
                     Row(
                       children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey, width: 1.2),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  Icons.remove,
-                                  color: quantity <= 1
-                                      ? Colors.grey
-                                      : blueColor,
-                                ),
-                                onPressed: quantity <= 1
-                                    ? null
-                                    : () => _changeQuantity(index, -1),
-                              ),
-                              SizedBox(
-                                width: 40,
-                                height: 25,
-                                child: TextField(
-                                  controller: TextEditingController(
-                                      text: quantity.toString()),
-                                  keyboardType: TextInputType.number,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: blueColor,
-                                  ),
-                                  decoration: const InputDecoration(
-                                    border: InputBorder.none,
-                                    isDense: true,
-                                    contentPadding: EdgeInsets.zero,
-                                  ),
-                                  onChanged: (val) {
-                                    if (debounceTimer?.isActive ?? false) {
-                                      debounceTimer!.cancel();
-                                    }
-                                    debounceTimer = Timer(
-                                      const Duration(milliseconds: 500),
-                                          () async {
-                                        final newQty =
-                                            int.tryParse(val) ?? quantity;
-                                        if (newQty > 0 && newQty != quantity) {
-                                          final diff = newQty - quantity;
-                                          await _changeQuantity(index, diff);
-                                        }
-                                      },
-                                    );
-                                  },
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.add, color: blueColor),
-                                onPressed: () => _changeQuantity(index, 1),
-                              ),
-                            ],
-                          ),
+                        _buildQtyPill(
+                          quantity: quantity,
+                          onMinus: () => _changeQuantity(index, -1),
+                          onPlus: () => _changeQuantity(index, 1),
                         ),
                         const Spacer(),
-                        if (isLoggedIn)
-                          Text(
-                            '₺${(price * quantity).toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red,
+
+                        // Price block (right-aligned)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (hasDiscount) ...[
+                              Text(
+                                'Eklediğin Fiyat: $currency${regularPrice.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: primaryColor,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                            ],
+                            Text(
+                              '$currency${(currentPrice * quantity).toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: primaryColor,
+                              ),
                             ),
-                          ),
+                            if (hasDiscount) ...[
+                              const SizedBox(height: 2),
+                              _savingsChip(
+                                currency: currency,
+                                savings: (regularPrice - currentPrice) * quantity,
+                              ),
+                            ],
+                          ],
+                        ),
                       ],
                     ),
                   ],
@@ -542,71 +530,120 @@ class CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildBottomBar(ThemeData theme) {
+  Widget _savingsChip({required String currency, required double savings}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        'Kazancınız: ${currency}${savings.toStringAsFixed(0)}',
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(ThemeData theme) {
+    final currency = cartItems.isNotEmpty
+        ? (cartItems.first['currency_symbol'] ?? '₺')
+        : '₺';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.light
+            ? Colors.white // ✅ White for light theme
+            : Theme.of(context).cardColor, // Keep dark theme card color
         boxShadow: [
           BoxShadow(
-            color: theme.shadowColor.withOpacity(0.1),
-            blurRadius: 4,
+            color: theme.shadowColor.withOpacity(0.06),
+            blurRadius: 6,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // 🏷 Total
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Toplam:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                isLoggedIn
-                    ? '${cartItems.isNotEmpty ? (cartItems.first['currency_symbol'] ?? '₺') : '₺'}${total.toStringAsFixed(2)}'
-                    : '-',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            // Total (collapsible look)
+            Expanded(
+              child: Container(
+                height: 48,
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.light
+                      ? Colors.white // ✅ White for light theme
+                      : Theme.of(context).cardColor, // Keep dark theme card color
+                  border: Border.all(color: Colors.black12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Toplam',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      isLoggedIn ? '$currency${total.toStringAsFixed(2)}' : '-',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: primaryColor,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-          if (isLoggedIn)
-            SizedBox(
-              width: 200,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: (isLoading || total <= 0)
-                      ? Colors.grey // Disabled color
-                      : blueColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            ),
+            const SizedBox(width: 12),
+
+            // Checkout button
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                    (isLoading || total <= 0) ? Colors.grey : blueColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: (isLoading || total <= 0 || !isLoggedIn)
+                      ? null
+                      : () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CheckoutScreen(cartItems: cartItems),
+                      ),
+                    );
+                  },
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Sepeti Onayla',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_rounded, color: Colors.white),
+                    ],
                   ),
                 ),
-                onPressed: (isLoading || total <= 0)
-                    ? null // ❌ Disabled
-                    : () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CheckoutScreen(cartItems: cartItems),
-                    ),
-                  );
-                },
-                child: const Text(
-                  "Ödeme sayfasına git",
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                ),
               ),
-            )
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

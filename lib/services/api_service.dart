@@ -419,33 +419,42 @@ class ApiService {
 
   static Future<List<ProductModel>> fetchRelatedProductsWoo(String locale, int productId) async {
     final currency = await getSelectedCurrency();
-    await dotenv.load(); // Make sure env variables are loaded
+    await dotenv.load();
     final baseUrl = dotenv.env['API_BASE_URL_PRODUCTS']!;
     final consumerKey = dotenv.env['CONSUMER_KEY']!;
     final consumerSecret = dotenv.env['CONSUMER_SECRET']!;
 
     try {
-      // 1. Fetch main product to get related_ids
+      // 1) Get main product (shape can be object OR [object])
       final productUrl =
           '$baseUrl/$currency?product_id=$productId&consumer_key=$consumerKey&consumer_secret=$consumerSecret';
+
       final productRes = await http.get(
         Uri.parse(productUrl),
         headers: {
           'Accept-Language': locale,
-          'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Cookie': 'woocommerce-currency=$currency',
         },
       );
+      if (productRes.statusCode != 200) {
+        throw Exception('Product fetch failed (${productRes.statusCode})');
+      }
 
-      if (productRes.statusCode != 200) throw Exception('Product fetch failed');
+      final decoded = json.decode(productRes.body);
+      final Map<String, dynamic> productJson =
+      (decoded is List && decoded.isNotEmpty) ? Map<String, dynamic>.from(decoded.first)
+          : Map<String, dynamic>.from(decoded as Map);
 
-      final productJson = json.decode(productRes.body);
-      List relatedIds = productJson['related_ids'] ?? [];
+      final List<dynamic> relatedIdsDyn = productJson['related_ids'] is List ? productJson['related_ids'] : const [];
+      final List<int> relatedIds = relatedIdsDyn
+          .map((e) => e is int ? e : int.tryParse('$e'))
+          .whereType<int>()
+          .toList();
 
       if (relatedIds.isEmpty) return [];
 
-      // 2. Fetch related products by IDs (LIMIT to 5 products)
+      // 2) Fetch related products (limit 5)
       final relatedUrl =
           '$baseUrl/$currency?include=${relatedIds.join(",")}&orderby=date&order=desc&per_page=5&consumer_key=$consumerKey&consumer_secret=$consumerSecret';
 
@@ -453,16 +462,17 @@ class ApiService {
         Uri.parse(relatedUrl),
         headers: {
           'Accept-Language': locale,
-          'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Cookie': 'woocommerce-currency=$currency',
         },
       );
+      if (relatedRes.statusCode != 200) {
+        throw Exception('Related fetch failed (${relatedRes.statusCode})');
+      }
 
-      if (relatedRes.statusCode != 200) throw Exception('Related fetch failed');
-
-      final relatedJson = json.decode(relatedRes.body) as List;
-      return relatedJson.map((p) => ProductModel.fromJson(p)).toList();
+      final relatedJson = json.decode(relatedRes.body);
+      final List list = relatedJson is List ? relatedJson : [];
+      return list.map((p) => ProductModel.fromJson(Map<String, dynamic>.from(p))).toList();
     } catch (e) {
       throw Exception("Woo Related Error: $e");
     }

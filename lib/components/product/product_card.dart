@@ -19,6 +19,7 @@ class ProductCard extends StatelessWidget {
     required this.isNew,
     required this.isInStock,
     required this.currencySymbol,
+    required this.categoryId,
     this.salePrice,
     this.dicountpercent,
     this.discount,
@@ -30,7 +31,7 @@ class ProductCard extends StatelessWidget {
   final double price, rating;
   final double? salePrice;
   final Map<String, dynamic>? discount;
-  final int? dicountpercent, id;
+  final int? dicountpercent, id, categoryId;
   final bool? freeShipping;
   final VoidCallback press;
   final bool isNew;
@@ -49,18 +50,9 @@ class ProductCard extends StatelessWidget {
         width: 150,
         margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
         decoration: BoxDecoration(
+          color: Colors.white, // always white
           borderRadius: BorderRadius.circular(12),
-          color: theme.cardColor, // ✅ theme-aware background
-          border: theme.brightness == Brightness.dark
-              ? Border.all(color: Colors.white, width: 1) // ✅ White border for dark mode
-              : null,
-          boxShadow: [
-            BoxShadow(
-              blurRadius: 6,
-              color: Colors.black.withOpacity(0.1),
-              offset: const Offset(0, 2),
-            )
-          ],
+          border: Border.all(color: Colors.grey.shade300, width: 1), // border all sides
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,14 +68,30 @@ class ProductCard extends StatelessWidget {
                   child: ColorFiltered(
                     colorFilter: isInStock
                         ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply)
-                        : ColorFilter.mode(theme.scaffoldBackgroundColor.withOpacity(0.6), BlendMode.modulate),
-                    child: Image.network(
-                      image,
-                      width: double.infinity,
-                      fit: BoxFit.cover, // ✅ fills width & height
-                      alignment: Alignment.center, // centers image
-                      errorBuilder: (context, error, stackTrace) =>
-                          Icon(Icons.broken_image, color: theme.iconTheme.color),
+                        : ColorFilter.mode(Colors.white.withOpacity(0.6), BlendMode.modulate),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Colors.grey.shade300, width: 1), // bottom border
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8), // light padding all around
+                        child: AspectRatio(
+                          aspectRatio: 1, // keeps image area square
+                          child: Container(
+                            color: Colors.white, // background behind transparent PNGs
+                            alignment: Alignment.center,
+                            child: Image.network(
+                              image,
+                              fit: BoxFit.contain, // no cropping
+                              filterQuality: FilterQuality.medium,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(Icons.broken_image, color: theme.iconTheme.color),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -106,18 +114,10 @@ class ProductCard extends StatelessWidget {
                   ),
 
                 if (isNew && isInStock)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: _buildBadge('YENİ'),
-                  ),
+                  Positioned(top: 8, left: 8, child: _buildBadge('YENİ')),
 
                 if (dicountpercent != null && isInStock)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: _buildBadge('-$dicountpercent%'),
-                  ),
+                  Positioned(top: 8, left: 8, child: _buildBadge('-$dicountpercent%')),
 
                 // ❤️ Wishlist
                 if (id != null)
@@ -133,24 +133,19 @@ class ProductCard extends StatelessWidget {
                               'id': id,
                               'name': title,
                               'sku': sku,
-                              'images': [
-                                {'src': image}
-                              ],
-                              'categories': [
-                                {'name': category}
-                              ],
+                              'images': [{'src': image}],
+                              'categories': [{'name': category}],
                               'regular_price': price,
                               'sale_price': salePrice,
                               'average_rating': rating,
                               'stock_status': isInStock ? 'instock' : 'outofstock',
                               'isNew': isNew,
                             };
-                            Provider.of<WishlistProvider>(context, listen: false)
-                                .toggleWishlist(productData);
+                            Provider.of<WishlistProvider>(context, listen: false).toggleWishlist(productData);
                           },
                           child: Container(
-                            decoration: BoxDecoration(
-                              color: theme.cardColor, // ✅ theme-aware background
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
                               shape: BoxShape.circle,
                             ),
                             padding: const EdgeInsets.all(4),
@@ -167,142 +162,123 @@ class ProductCard extends StatelessWidget {
               ],
             ),
 
-            // Product info
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Category
-                  Text(
-                    category,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: theme.textTheme.bodySmall?.color?.withOpacity(0.7)),
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Title
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
+            // Product info + bottom-anchored price & cart
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                     ),
-                  ),
-                  const SizedBox(height: 4),
+                    const SizedBox(height: 4),
 
-                  // Rating
-                  Row(
-                    children: [
-                      ...List.generate(5, (index) {
-                        if (index < rating.floor()) {
-                          return const Icon(Icons.star, color: Colors.amber, size: 14);
-                        } else if (index < rating && rating - index >= 0.5) {
-                          return const Icon(Icons.star_half, color: Colors.amber, size: 14);
-                        } else {
-                          return const Icon(Icons.star_border, color: Colors.amber, size: 14);
-                        }
-                      }),
-                      const SizedBox(width: 4),
-                      Text('(${rating.toStringAsFixed(1)})',
-                          style: theme.textTheme.bodySmall?.copyWith(fontSize: 10)),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
+                    Text(
+                      title,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                        color: Colors.black,
+                        height: 1.5, // ✅ line height multiplier
+                      ),
+                    ),
 
-                  // Price + Cart button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      FutureBuilder<String?>(
-                        future: SharedPreferences.getInstance().then((prefs) => prefs.getString('auth_token')),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState != ConnectionState.done) {
-                            return const SizedBox(height: 24);
-                          }
+                    const Spacer(), // pushes the next Row to the bottom
 
-                          final token = snapshot.data;
-                          final isLoggedIn = token != null && !JwtDecoder.isExpired(token);
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        FutureBuilder<String?>(
+                          future: SharedPreferences.getInstance()
+                              .then((prefs) => prefs.getString('auth_token')),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState != ConnectionState.done) {
+                              return const SizedBox(height: 24);
+                            }
+                            final token = snapshot.data;
+                            final isLoggedIn = token != null && !JwtDecoder.isExpired(token);
 
-                          if (!isLoggedIn || (salePrice ?? price) <= 0) {
-                            return const SizedBox.shrink();
-                          }
+                            // hide if not logged in or no price
+                            if (!isLoggedIn || finalPrice <= 0) {
+                              return const SizedBox.shrink();
+                            }
 
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "$currencySymbol${finalPrice.toStringAsFixed(2)}",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: Colors.red,
-                                ),
-                              ),
-                              if (hasDiscount)
+                            final bool hasDiscountNow =
+                                salePrice != null && salePrice! > 0 && salePrice! < price;
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 Text(
-                                  "$currencySymbol${price.toStringAsFixed(2)}",
+                                  "${currencySymbol ?? '₺'}${(hasDiscountNow ? salePrice : price)!.toStringAsFixed(2)}",
                                   style: TextStyle(
-                                    fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
-                                    decoration: TextDecoration.lineThrough,
+                                    fontSize: 15,
+                                    color: hasDiscountNow ? Colors.red : Theme.of(context).primaryColor,
                                   ),
                                 ),
-                            ],
-                          );
-                        },
-                      ),
-
-                      if ((salePrice ?? price) > 0)
-                        GestureDetector(
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                              ),
-                              isScrollControlled: true,
-                              builder: (context) => AddToCartModal(
-                                productId: id ?? 0,
-                                title: title,
-                                price: price,
-                                salePrice: salePrice,
-                                sku: sku,
-                                image: image,
-                                isInStock: isInStock,
-                                currencySymbol: currencySymbol ?? "₺",
-                                category: category,
-                              ),
+                                if (hasDiscountNow) const SizedBox(height: 2),
+                                if (hasDiscountNow)
+                                  Text(
+                                    "${currencySymbol ?? '₺'}${price.toStringAsFixed(2)}",
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey,
+                                      decoration: TextDecoration.lineThrough,
+                                    ),
+                                  ),
+                              ],
                             );
                           },
-                          child: Container(
-                            margin: const EdgeInsets.only(top: 4),
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: blueColor,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                )
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.shopping_cart_checkout_sharp,
-                              color: Colors.white,
-                              size: 14,
+                        ),
+
+                        if (finalPrice > 0)
+                          GestureDetector(
+                            onTap: () {
+                              showModalBottomSheet(
+                                context: context,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                ),
+                                isScrollControlled: true,
+                                builder: (context) => AddToCartModal(
+                                  productId: id ?? 0,
+                                  title: title,
+                                  price: price,
+                                  salePrice: salePrice,
+                                  sku: sku,
+                                  image: image,
+                                  isInStock: isInStock,
+                                  currencySymbol: currencySymbol ?? "₺",
+                                  category: category,
+                                  categoryId: categoryId ?? 0,
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                color: blueColor,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.shopping_cart_checkout_sharp,
+                                color: Colors.white,
+                                size: 14,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

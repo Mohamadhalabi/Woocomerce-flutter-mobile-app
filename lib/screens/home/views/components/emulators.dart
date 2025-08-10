@@ -136,7 +136,7 @@ class _EmulatorProductsState extends State<EmulatorProducts> {
             )
           else
             SizedBox(
-              height: 325,
+              height: 350,
               child: Container(
                 color: Theme.of(context).brightness == Brightness.dark
                     ? Theme.of(context).cardColor.withOpacity(0.1)
@@ -160,6 +160,7 @@ class _EmulatorProductsState extends State<EmulatorProducts> {
                               id: product.id,
                               image: product.image,
                               category: product.category,
+                              categoryId: product.categoryId,
                               title: product.title,
                               price: product.price,
                               salePrice: product.salePrice,

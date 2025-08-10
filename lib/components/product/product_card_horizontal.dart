@@ -9,6 +9,7 @@ class ProductCardHorizontal extends StatelessWidget {
     required this.id,
     required this.image,
     required this.category,
+    required this.categoryId,
     required this.title,
     required this.price,
     required this.rating,
@@ -26,7 +27,7 @@ class ProductCardHorizontal extends StatelessWidget {
   final double price, rating;
   final double? salePrice;
   final Map<String, dynamic>? discount;
-  final int? dicountpercent, id;
+  final int? dicountpercent, id , categoryId;
   final bool? freeShipping;
   final VoidCallback press;
   final bool isNew;
@@ -39,8 +40,7 @@ class ProductCardHorizontal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context); // ✅ theme-aware colors
-    final double finalPrice = salePrice ?? price;
+    final theme = Theme.of(context);
     final bool hasDiscount = salePrice != null && salePrice! < price;
     final symbol = currencySymbol ?? "₺";
 
@@ -48,69 +48,55 @@ class ProductCardHorizontal extends StatelessWidget {
       onTap: press,
       child: Container(
         width: MediaQuery.of(context).size.width * 0.75,
-        height: 130,
+        height: 140,
         margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          color: theme.cardColor,
-          border: theme.brightness == Brightness.dark
-              ? Border.all(color: Colors.white, width: 2)
-              : null,
-          boxShadow: [
-            BoxShadow(
-              blurRadius: 6,
-              color: Colors.black.withOpacity(0.06),
-              offset: const Offset(0, 2),
-            )
-          ],
+          color: theme.brightness == Brightness.dark
+              ? theme.cardColor
+              : Colors.white,
+          border: Border.all(
+            color: theme.brightness == Brightness.dark
+                ? Colors.grey.withOpacity(0.4)
+                : Colors.grey.withOpacity(0.3),
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
             // 🖼 Image
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                bottomLeft: Radius.circular(12),
-              ),
-              child: Stack(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Image.network(
-                      image,
-                      width: 125, // keep the fixed width for left column
-                      height: double.infinity,
-                      fit: BoxFit.cover, // ✅ fills width and height
-                      alignment: Alignment.center, // centers crop
-                      errorBuilder: (context, error, stackTrace) =>
-                          Icon(Icons.broken_image, color: theme.iconTheme.color),
-                    ),
+            SizedBox(
+              width: 120, // tweak 96–120 as you like
+              height: double.infinity,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border(
+                    right: BorderSide(color: Colors.grey.shade300, width: 1),
                   ),
-                  if (dicountpercent != null)
-                    Positioned(
-                      top: 6,
-                      left: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '-$dicountpercent%',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(8), // light breathing room
+                  child: AspectRatio(
+                    aspectRatio: 1, // stay square without expanding row width
+                    child: Container(
+                      alignment: Alignment.center,
+                      color: Colors.white, // background for transparent PNGs
+                      child: Image.network(
+                        image,
+                        fit: BoxFit.contain, // no cropping
+                        filterQuality: FilterQuality.medium,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Icon(Icons.broken_image, color: Theme.of(context).iconTheme.color),
                       ),
                     ),
-                ],
+                  ),
+                ),
               ),
             ),
-
             // 📄 Info
             Expanded(
               child: Padding(
@@ -126,14 +112,15 @@ class ProductCardHorizontal extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 11,
-                        color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                        color:
+                        theme.textTheme.bodySmall?.color?.withOpacity(0.7),
                       ),
                     ),
                     const SizedBox(height: 4),
                     // Title
                     Text(
                       title,
-                      maxLines: 2,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
@@ -157,11 +144,14 @@ class ProductCardHorizontal extends StatelessWidget {
                               children: loggedIn
                                   ? [
                                 Text(
-                                  "$symbol${finalPrice.toStringAsFixed(2)}",
-                                  style: const TextStyle(
+                                  "$symbol${(hasDiscount ? salePrice : price)!.toStringAsFixed(2)}",
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
-                                    color: Colors.red,
+                                    color: hasDiscount
+                                        ? Colors.red
+                                        : Theme.of(context)
+                                        .primaryColor,
                                   ),
                                 ),
                                 if (hasDiscount)
@@ -169,8 +159,8 @@ class ProductCardHorizontal extends StatelessWidget {
                                     "$symbol${price.toStringAsFixed(2)}",
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: theme.textTheme.bodySmall
-                                          ?.color
+                                      color: theme
+                                          .textTheme.bodySmall?.color
                                           ?.withOpacity(0.6),
                                       decoration:
                                       TextDecoration.lineThrough,
@@ -182,7 +172,8 @@ class ProductCardHorizontal extends StatelessWidget {
                                   "",
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: theme.textTheme.bodySmall?.color,
+                                    color: theme
+                                        .textTheme.bodySmall?.color,
                                   ),
                                 ),
                               ],
@@ -206,6 +197,7 @@ class ProductCardHorizontal extends StatelessWidget {
                                     salePrice: salePrice,
                                     sku: sku,
                                     category: category,
+                                    categoryId: categoryId ?? 0,
                                     isInStock: true,
                                     image: image,
                                     currencySymbol: symbol,
@@ -214,16 +206,9 @@ class ProductCardHorizontal extends StatelessWidget {
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   color: blueColor,
                                   shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    )
-                                  ],
                                 ),
                                 child: const Icon(
                                   Icons.shopping_cart_checkout_sharp,

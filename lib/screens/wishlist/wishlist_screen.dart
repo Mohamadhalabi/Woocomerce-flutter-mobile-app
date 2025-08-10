@@ -105,6 +105,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
             final double rating = parseWooPrice(product['average_rating']);
             final image = product['images']?[0]?['src'] ?? '';
             final category = product['categories']?[0]?['name'] ?? '';
+            final categoryId = product['categories']?[0]['id'] ?? 0;
             final title = product['name'] ?? '';
             final id = product['id'];
             final sku = product['sku'] ?? '';
@@ -277,6 +278,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                               isScrollControlled: true,
                               builder: (context) => AddToCartModal(
                                 productId: id,
+                                categoryId: categoryId,
                                 title: title,
                                 price: price,
                                 salePrice: salePrice,
