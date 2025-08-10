@@ -170,8 +170,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           category: product?['category'] ?? '',
         );
       }
-      AlertService.showTopAlert(context, 'Ürün sepete eklendi',
-          isError: false);
+      AlertService.showTopAlert(
+        context,
+        'Ürün sepete eklendi',
+        isError: false,
+        showGoToCart: true,
+      );
     } catch (_) {
       AlertService.showTopAlert(context, 'Sepete ekleme başarısız',
           isError: true);

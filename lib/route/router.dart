@@ -309,10 +309,10 @@ Route<dynamic> generateRoute(RouteSettings settings) {
       return MaterialPageRoute(
         builder: (context) => const WalletScreen(),
       );
-    // case cartScreenRoute:
-    //   return MaterialPageRoute(
-    //     builder: (context) => const CheckoutCartScreen(),
-    //   );
+    case cartScreenRoute:
+      return MaterialPageRoute(
+        builder: (context) => const CartScreen(),
+      );
     case checkoutScreenRoute:
       final args = settings.arguments as List<Map<String, dynamic>>?;
       return MaterialPageRoute(

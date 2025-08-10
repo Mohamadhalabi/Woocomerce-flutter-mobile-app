@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:shop/route/route_constants.dart';
 
 class AlertService {
   static void showTopAlert(
       BuildContext context,
       String message, {
         bool isError = false,
+        bool showGoToCart = false,
         Duration duration = const Duration(seconds: 5),
       }) {
     final overlay = Overlay.of(context);
-    final overlayEntry = OverlayEntry(
+    late OverlayEntry overlayEntry;
+
+    overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
         top: MediaQuery.of(context).padding.top + 16,
         left: 16,
@@ -16,11 +20,11 @@ class AlertService {
         child: Material(
           color: Colors.transparent,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: isError ? Colors.red.shade600 : Colors.green.shade600,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(
                   color: Colors.black26,
                   blurRadius: 10,
@@ -41,6 +45,47 @@ class AlertService {
                     style: const TextStyle(color: Colors.white, fontSize: 14),
                   ),
                 ),
+
+                if (showGoToCart)
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.shopping_cart_outlined, size: 16, color: Colors.white),
+                    label: const Text(
+                      "Sepete Git",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        height: 1.1,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.white.withOpacity(0.9), width: 1),
+                      // shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      backgroundColor: Colors.white.withOpacity(0.06),
+                    ).copyWith(
+                      overlayColor: WidgetStateProperty.resolveWith(
+                            (states) => Colors.white.withOpacity(0.12),
+                      ),
+                    ),
+                    onPressed: () {
+                      overlayEntry.remove();
+                      Navigator.pushNamed(context, cartScreenRoute);
+                    },
+                  ),
+
+                const SizedBox(width: 8),
+
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 18),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () {
+                    overlayEntry.remove();
+                  },
+                ),
               ],
             ),
           ),
@@ -48,12 +93,10 @@ class AlertService {
       ),
     );
 
-    // Insert the alert
     overlay.insert(overlayEntry);
 
-    // Remove after delay
     Future.delayed(duration, () {
-      overlayEntry.remove();
+      if (overlayEntry.mounted) overlayEntry.remove();
     });
   }
 

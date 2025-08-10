@@ -91,7 +91,12 @@ class _AddToCartModalState extends State<AddToCartModal> {
 
       if (!mounted) return;
       Navigator.pop(context);
-      AlertService.showTopAlert(context, 'Ürün sepete eklendi', isError: false);
+      AlertService.showTopAlert(
+        context,
+        'Ürün sepete eklendi',
+        isError: false,
+        showGoToCart: true,
+      );
     } catch (e) {
       if (!mounted) return;
       AlertService.showTopAlert(
