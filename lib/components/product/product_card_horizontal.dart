@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../constants.dart';
 import 'add_to_cart_modal.dart';
+import '../../services/alert_service.dart';
 
 class ProductCardHorizontal extends StatelessWidget {
   const ProductCardHorizontal({
@@ -15,6 +16,7 @@ class ProductCardHorizontal extends StatelessWidget {
     required this.rating,
     required this.sku,
     required this.isNew,
+    required this.isInStock,
     this.salePrice,
     this.dicountpercent,
     this.discount,
@@ -27,10 +29,10 @@ class ProductCardHorizontal extends StatelessWidget {
   final double price, rating;
   final double? salePrice;
   final Map<String, dynamic>? discount;
-  final int? dicountpercent, id , categoryId;
+  final int? dicountpercent, id, categoryId;
   final bool? freeShipping;
   final VoidCallback press;
-  final bool isNew;
+  final bool isNew, isInStock;
   final String? currencySymbol;
 
   Future<bool> isLoggedIn() async {
@@ -52,9 +54,7 @@ class ProductCardHorizontal extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          color: theme.brightness == Brightness.dark
-              ? theme.cardColor
-              : Colors.white,
+          color: theme.brightness == Brightness.dark ? theme.cardColor : Colors.white,
           border: Border.all(
             color: theme.brightness == Brightness.dark
                 ? Colors.grey.withOpacity(0.4)
@@ -64,9 +64,9 @@ class ProductCardHorizontal extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // 🖼 Image
+            // 🖼 Image (with out-of-stock overlay)
             SizedBox(
-              width: 120, // tweak 96–120 as you like
+              width: 120,
               height: double.infinity,
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -78,30 +78,59 @@ class ProductCardHorizontal extends StatelessWidget {
                     bottomLeft: Radius.circular(12),
                   ),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8), // light breathing room
-                  child: AspectRatio(
-                    aspectRatio: 1, // stay square without expanding row width
-                    child: Container(
-                      alignment: Alignment.center,
-                      color: Colors.white, // background for transparent PNGs
-                      child: Image.network(
-                        image,
-                        fit: BoxFit.contain, // no cropping
-                        filterQuality: FilterQuality.medium,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Icon(Icons.broken_image, color: Theme.of(context).iconTheme.color),
+                child: Stack(
+                  children: [
+                    // Image with reduced opacity if out of stock
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: Opacity(
+                          opacity: isInStock ? 1.0 : 0.6, // 🔹 reduce opacity
+                          child: Container(
+                            alignment: Alignment.center,
+                            color: Colors.white,
+                            child: Image.network(
+                              image,
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.medium,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(Icons.broken_image, color: Theme.of(context).iconTheme.color),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+
+                    // "STOKTA YOK" badge
+                    if (!isInStock)
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'STOKTA YOK',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
+
             // 📄 Info
             Expanded(
               child: Padding(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -112,11 +141,11 @@ class ProductCardHorizontal extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 11,
-                        color:
-                        theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                        color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
                       ),
                     ),
                     const SizedBox(height: 4),
+
                     // Title
                     Text(
                       title,
@@ -129,11 +158,12 @@ class ProductCardHorizontal extends StatelessWidget {
                     ),
                     const Spacer(),
 
-                    // Price Section
+                    // Price + Cart button
                     FutureBuilder<bool>(
                       future: isLoggedIn(),
                       builder: (context, snapshot) {
                         final loggedIn = snapshot.data ?? false;
+                        final canAdd = isInStock && loggedIn;
 
                         return Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -148,10 +178,7 @@ class ProductCardHorizontal extends StatelessWidget {
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
-                                    color: hasDiscount
-                                        ? Colors.red
-                                        : Theme.of(context)
-                                        .primaryColor,
+                                    color: hasDiscount ? Colors.red : Theme.of(context).primaryColor,
                                   ),
                                 ),
                                 if (hasDiscount)
@@ -159,11 +186,8 @@ class ProductCardHorizontal extends StatelessWidget {
                                     "$symbol${price.toStringAsFixed(2)}",
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: theme
-                                          .textTheme.bodySmall?.color
-                                          ?.withOpacity(0.6),
-                                      decoration:
-                                      TextDecoration.lineThrough,
+                                      color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
+                                      decoration: TextDecoration.lineThrough,
                                     ),
                                   ),
                               ]
@@ -172,8 +196,7 @@ class ProductCardHorizontal extends StatelessWidget {
                                   "",
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: theme
-                                        .textTheme.bodySmall?.color,
+                                    color: theme.textTheme.bodySmall?.color,
                                   ),
                                 ),
                               ],
@@ -182,12 +205,20 @@ class ProductCardHorizontal extends StatelessWidget {
                             // 🛒 Cart Button
                             GestureDetector(
                               onTap: () {
+                                if (!isInStock) {
+                                  AlertService.showTopAlert(context, 'Ürün stokta yok', isError: true);
+                                  return;
+                                }
+                                if (!loggedIn) {
+                                  AlertService.showTopAlert(
+                                      context, 'Fiyatı görmek ve sepete eklemek için giriş yapın.', isError: true);
+                                  return;
+                                }
+
                                 showModalBottomSheet(
                                   context: context,
                                   shape: const RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(16),
-                                    ),
+                                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                                   ),
                                   isScrollControlled: true,
                                   builder: (context) => AddToCartModal(
@@ -198,22 +229,25 @@ class ProductCardHorizontal extends StatelessWidget {
                                     sku: sku,
                                     category: category,
                                     categoryId: categoryId ?? 0,
-                                    isInStock: true,
+                                    isInStock: isInStock,
                                     image: image,
                                     currencySymbol: symbol,
                                   ),
                                 );
                               },
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: const BoxDecoration(
-                                  color: blueColor,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.shopping_cart_checkout_sharp,
-                                  color: Colors.white,
-                                  size: 16,
+                              child: Opacity(
+                                opacity: isInStock ? 1 : 0.5,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: isInStock ? blueColor : Colors.grey,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.shopping_cart_checkout_sharp,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                 ),
                               ),
                             ),

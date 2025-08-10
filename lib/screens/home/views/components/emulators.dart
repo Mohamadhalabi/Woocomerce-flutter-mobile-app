@@ -170,6 +170,7 @@ class _EmulatorProductsState extends State<EmulatorProducts> {
                               discount: product.discount,
                               freeShipping: product.freeShipping,
                               isNew: product.isNew,
+                              isInStock: product.isInStock,
                               currencySymbol: product.currencySymbol,
                               press: () {
                                 Navigator.pushNamed(
