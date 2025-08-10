@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../../constants.dart';
 import '../../../entry_point.dart';
 import '../../../services/api_service.dart';
-import '../../../services/alert_service.dart';
+import 'order_details_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
   final List<Map<String, dynamic>>? orders;
@@ -26,99 +27,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
-  /// Fetch order details from WooCommerce
-  Future<Map<String, dynamic>> _fetchOrderDetails(int orderId) async {
-    try {
-      return await ApiService.fetchOrderDetails(orderId);
-    } catch (e) {
-      throw Exception("Sipariş detayları alınamadı: $e");
-    }
-  }
-
-  /// Show details in modal
-  void _showOrderDetails(int orderId) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      final details = await _fetchOrderDetails(orderId);
-      Navigator.pop(context); // Close loading
-
-      showDialog(
-        context: context,
-        builder: (context) {
-          final lineItems = details['line_items'] as List<dynamic>? ?? [];
-
-          return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text("Sipariş #$orderId"),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Durum: ${details['status']}"),
-                  const SizedBox(height: 8),
-                  Text("Toplam: ${details['total']} ${details['currency_symbol'] ?? '₺'}"),
-                  const Divider(),
-                  const Text(
-                    "Ürünler:",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  ...lineItems.map((item) => ListTile(
-                    contentPadding: const EdgeInsets.symmetric(vertical: 6), // more vertical space
-                    leading: item['image'] != null
-                        ? ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        item['image']['src'],
-                        width: 60,
-                        height: 60,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                        : const Icon(Icons.image_not_supported, size: 60),
-                    title: Text(
-                      item['name'] ?? '',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                    ),
-                    subtitle: Text(
-                      "Adet: ${item['quantity']}",
-                      style: const TextStyle(fontSize: 13, color: Colors.grey),
-                    ),
-                    trailing: Text(
-                      "${item['total']} ${details['currency_symbol'] ?? '₺'}",
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
-                  )),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Kapat"),
-              )
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      Navigator.pop(context); // Close loading
-      AlertService.showTopAlert(context, e.toString(), isError: true);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isLight = theme.brightness == Brightness.light;
+    final borderColor = isLight ? Colors.grey.shade300 : Colors.grey.shade700;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -146,21 +59,161 @@ class _OrdersScreenState extends State<OrdersScreen> {
           }
 
           final orders = snapshot.data!;
-          return ListView.builder(
-            itemCount: orders.length,
-            itemBuilder: (context, index) {
-              final order = orders[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: ListTile(
-                  title: Text("Sipariş #${order['id']}"),
-                  subtitle: Text("Durum: ${order['status']}"),
-                  trailing: Text(
-                    "${order['total']} ${order['currency_symbol'] ?? '₺'}",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 600;
+
+              // ----- Narrow screens: stacked responsive “cards” (no horizontal scroll) -----
+              if (isNarrow) {
+                return ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: orders.length,
+                  itemBuilder: (context, i) {
+                    final o = orders[i];
+                    final id = o['id'];
+                    final date = (o['date_created'] ?? '').toString();
+                    final formattedDate = date.isNotEmpty
+                        ? DateFormat("d MMMM yyyy", "tr_TR").format(DateTime.parse(date))
+                        : '-';
+                    final status = (o['status'] ?? '').toString();
+                    final total = (o['total'] ?? '').toString();
+                    final currency = (o['currency_symbol'] ?? '₺').toString();
+                    final itemCount = (o['line_items'] as List?)?.length ?? 0;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: isLight ? Colors.white : theme.cardColor,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: borderColor, width: 1),
+                      ),
+                      child: Column(
+                        children: [
+                          _rowKV(context, "Sipariş", "#$id", borderColor),
+                          _rowKV(context, "Tarih", formattedDate, borderColor),
+                          _rowKV(context, "Durum", _statusLabel(status), borderColor),
+                          _rowKV(context, "Toplam", "$itemCount ürün için $total $currency", borderColor),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => OrderDetailsScreen(orderId: id),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isLight ? Colors.grey.shade200 : Colors.grey.shade800,
+                                  foregroundColor: theme.textTheme.bodyMedium?.color,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                  elevation: 0,
+                                ),
+                                icon: const Icon(Icons.visibility, size: 16),
+                                label: const Text("Görüntüle"),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              }
+
+              // ----- Wide screens: full-width table (no horizontal scroll) -----
+              return ListView(
+                padding: const EdgeInsets.all(12),
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isLight ? Colors.white : theme.cardColor,
+                      border: Border.all(color: borderColor, width: 1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Table(
+                      columnWidths: const {
+                        0: FlexColumnWidth(1.2), // Sipariş
+                        1: FlexColumnWidth(1.8), // Tarih
+                        2: FlexColumnWidth(1.6), // Durum
+                        3: FlexColumnWidth(2.4), // Toplam
+                        4: FlexColumnWidth(1.6), // Eylemler
+                      },
+                      border: TableBorder.symmetric(
+                        inside: BorderSide(color: borderColor, width: 1),
+                        outside: BorderSide.none,
+                      ),
+                      children: [
+                        TableRow(
+                          decoration: BoxDecoration(
+                            color: isLight ? Colors.grey.shade100 : Colors.black12,
+                            border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+                          ),
+                          children: [
+                            _headerCell("Sipariş"),
+                            _headerCell("Tarih"),
+                            _headerCell("Durum"),
+                            _headerCell("Toplam"),
+                            _headerCell("Eylemler"),
+                          ],
+                        ),
+                        ...orders.map((o) {
+                          final id = o['id'];
+                          final date = (o['date_created'] ?? '').toString();
+                          final formattedDate = date.isNotEmpty
+                              ? DateFormat("d MMMM yyyy", "tr_TR").format(DateTime.parse(date))
+                              : '-';
+                          final status = (o['status'] ?? '').toString();
+                          final total = (o['total'] ?? '').toString();
+                          final currency = (o['currency_symbol'] ?? '₺').toString();
+                          final itemCount = (o['line_items'] as List?)?.length ?? 0;
+
+                          return TableRow(
+                            decoration: BoxDecoration(
+                              border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+                            ),
+                            children: [
+                              _cell("#$id"),
+                              _cell(formattedDate),
+                              _cell(_statusLabel(status)),
+                              _cell("$itemCount ürün için $total $currency"),
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => OrderDetailsScreen(orderId: id),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: isLight ? Colors.grey.shade200 : Colors.grey.shade800,
+                                      foregroundColor: theme.textTheme.bodyMedium?.color,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                      elevation: 0,
+                                    ),
+                                    icon: const Icon(Icons.visibility, size: 16),
+                                    label: const Text("Görüntüle"),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                      ],
+                    ),
                   ),
-                  onTap: () => _showOrderDetails(order['id']),
-                ),
+                ],
               );
             },
           );
@@ -178,7 +231,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
           ],
         ),
         child: BottomNavigationBar(
-          currentIndex: 4, // Profile tab index
+          currentIndex: 4,
           onTap: (index) {
             Navigator.pushReplacement(
               context,
@@ -203,5 +256,73 @@ class _OrdersScreenState extends State<OrdersScreen> {
         ),
       ),
     );
+  }
+
+  // ---------- helpers ----------
+
+  Widget _rowKV(BuildContext context, String label, String value, Color borderColor) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+      ),
+      child: Row(
+        children: [
+          // label
+          Expanded(
+            flex: 4,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ),
+          // value
+          Expanded(
+            flex: 6,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Text(value, textAlign: TextAlign.right),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _headerCell(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _cell(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
+      ),
+    );
+  }
+
+  String _statusLabel(String status) {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return "Tamamlandı";
+      case "cancelled":
+        return "İptal edildi";
+      case "processing":
+        return "İşleniyor";
+      default:
+        return status;
+    }
   }
 }
