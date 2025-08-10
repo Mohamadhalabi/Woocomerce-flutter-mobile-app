@@ -37,6 +37,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
   flutter_native_splash: ^2.3.10
+  flutter_launcher_icons: ^0.13.1
 
 flutter_native_splash:
   color: "#2183b0"
@@ -45,6 +46,13 @@ flutter_native_splash:
   ios: true
   android_gravity: fill
   ios_content_mode: scaleAspectfill
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/splash/splash.png" # fallback for older Android & iOS
+  adaptive_icon_background: "#2A72B7" # exact blue background
+  adaptive_icon_foreground: "assets/splash/logo_foreground.png"
 
 flutter:
   uses-material-design: true
@@ -57,7 +65,7 @@ flutter:
     - assets/flags/
     - assets/logo/
     - assets/screens/
-    - assets/splash/splash.png
+    - assets/splash/
     - .env
     - assets/locksmith_mapping.json
 

@@ -365,13 +365,15 @@ class CartScreenState extends State<CartScreen> {
             border: Theme.of(context).brightness == Brightness.dark
                 ? Border.all(color: Colors.white24, width: 1)
                 : null,
-            boxShadow: const [
+            boxShadow: Theme.of(context).brightness == Brightness.light
+                ? [
               BoxShadow(
-                color: Color.fromRGBO(0, 0, 0, 0.05),
-                blurRadius: 4,
-                offset: Offset(0, 2),
+                color: Colors.black.withOpacity(0.19), // soft shadow
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               )
-            ],
+            ]
+                : [],
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -576,18 +578,21 @@ class CartScreenState extends State<CartScreen> {
               ),
             ],
           ),
-          // 🛒 Checkout Button
           if (isLoggedIn)
             SizedBox(
               width: 200,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: blueColor,
+                  backgroundColor: (isLoading || total <= 0)
+                      ? Colors.grey // Disabled color
+                      : blueColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: () {
+                onPressed: (isLoading || total <= 0)
+                    ? null // ❌ Disabled
+                    : () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
