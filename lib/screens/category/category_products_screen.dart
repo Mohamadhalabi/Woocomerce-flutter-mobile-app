@@ -317,42 +317,39 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
       body: Column(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: theme.cardColor,
-              boxShadow: [
-                BoxShadow(
-                  color: theme.brightness == Brightness.dark
-                      ? Colors.black.withOpacity(0.4)
-                      : Colors.black.withOpacity(0.04),
-                  blurRadius: 6,
-                  offset: const Offset(0, 1),
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: const BoxDecoration(
+              color: primaryColor, // ✅ primary background (works in light & dark)
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back),
-                  color: theme.iconTheme.color,
+                  color: Colors.white, // ✅ white back icon
                   onPressed: () => Navigator.pop(context),
+                  tooltip: 'Geri',
                 ),
                 Expanded(
                   child: Center(
                     child: Text(
                       widget.title,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        letterSpacing: .2,
+                      ),
                     ),
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.filter_alt_outlined),
-                  color: theme.iconTheme.color,
+                  color: Colors.white, // ✅ white filter icon
                   onPressed: openFilterModal,
+                  tooltip: 'Filtrele',
                 ),
               ],
             ),
@@ -372,7 +369,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                   crossAxisCount: 2,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  childAspectRatio: 0.6,
+                  childAspectRatio: 0.60,
                 ),
                 itemBuilder: (context, index) {
                   if (index >= products.length) {

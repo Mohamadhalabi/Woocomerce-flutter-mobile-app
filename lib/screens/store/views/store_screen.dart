@@ -4,6 +4,7 @@ import 'package:shop/models/product_model.dart';
 import 'package:shop/services/api_service.dart';
 import '../../../components/skleton/product/product_card_skelton.dart';
 import '../../../components/skleton/product/product_category_skelton.dart';
+import '../../../constants.dart';
 import '../../../route/route_constants.dart';
 import '../../search/views/global_search_screen.dart';
 
@@ -302,13 +303,20 @@ class StoreScreenState extends State<StoreScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Tüm Ürünler"),
-        backgroundColor: theme.appBarTheme.backgroundColor ?? theme.cardColor,
-        foregroundColor: theme.appBarTheme.foregroundColor ??
-            theme.colorScheme.onSurface,
+        backgroundColor: primaryColor,
+        title: const Text(
+          "Tüm Ürünler",
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.white,
+          ),
+        ),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0.5,
         scrolledUnderElevation: 0,
-        surfaceTintColor: theme.appBarTheme.backgroundColor ?? theme.cardColor,
+        surfaceTintColor: primaryColor,
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_alt_outlined),
@@ -333,7 +341,7 @@ class StoreScreenState extends State<StoreScreen> {
                   crossAxisCount: 2,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  childAspectRatio: 0.58,
+                  childAspectRatio: 0.6,
                 ),
                 itemBuilder: (context, index) {
                   if (index >= products.length) {
