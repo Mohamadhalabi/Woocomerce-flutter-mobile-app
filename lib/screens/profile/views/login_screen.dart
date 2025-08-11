@@ -89,10 +89,12 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } catch (e) {
+      final msg = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
       AlertService.showTopAlert(
         context,
-        e.toString(),
+        msg,
         isError: true,
+        duration: const Duration(seconds: 6),
       );
     } finally {
       setState(() => isLoading = false);

@@ -497,14 +497,45 @@ class ApiService {
     );
 
     if (response.statusCode == 403 && response.body.contains('not approved')) {
-      // User registered but not yet approved
       throw Exception('Hesabınız henüz onaylanmadı.');
     }
+
     if (response.statusCode == 200) {
       final jsonData = jsonDecode(response.body);
-      return jsonData['token']; // ✅ returns token
-    } else {
-      throw Exception('Login Error: ${response.body}');
+      return jsonData['token'];
+    }
+
+    // ❗️ Non-200: parse and throw a clean message
+    try {
+      final data = jsonDecode(response.body);
+      final code = (data['code'] ?? '').toString();
+      final msg  = (data['message'] ?? '').toString();
+
+      // Optional: map known codes to Turkish messages
+      final mapped = _mapJwtError(code, msg);
+      throw Exception(mapped);
+    } catch (_) {
+      throw Exception('Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
+    }
+  }
+
+// Map common JWT/WP codes to friendly TR messages
+  static String _mapJwtError(String code, String fallback) {
+    switch (code) {
+      case 'jwt_auth_invalid_email':
+      case 'invalid_email':
+        return 'Geçersiz e-posta adresi.';
+      case 'jwt_auth_invalid_username':
+      case 'invalid_username':
+        return 'Geçersiz kullanıcı adı.';
+      case 'jwt_auth_incorrect_password':
+        return 'Parola hatalı. Lütfen tekrar deneyin.';
+      case 'jwt_user_not_found':
+        return 'Kullanıcı bulunamadı.';
+      case 'jwt_auth':
+        return 'Giriş yapılamadı. Bilgilerinizi kontrol edin.';
+      default:
+        return fallback.isNotEmpty ? fallback : 'Giriş yapılamadı.';
     }
   }
   // check if the user is LoggeIn

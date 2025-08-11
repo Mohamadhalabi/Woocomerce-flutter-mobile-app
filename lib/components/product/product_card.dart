@@ -42,7 +42,6 @@ class ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final double finalPrice = salePrice ?? price;
-    final bool hasDiscount = salePrice != null && salePrice! < price;
 
     return GestureDetector(
       onTap: press,
@@ -53,6 +52,13 @@ class ProductCard extends StatelessWidget {
           color: Colors.white, // always white
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey.shade300, width: 1), // border all sides
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,19 +78,19 @@ class ProductCard extends StatelessWidget {
                     child: Container(
                       decoration: BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(color: Colors.grey.shade300, width: 1), // bottom border
+                          bottom: BorderSide(color: Colors.grey.shade300, width: 1),
                         ),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(8), // light padding all around
+                        padding: const EdgeInsets.all(8),
                         child: AspectRatio(
-                          aspectRatio: 1, // keeps image area square
+                          aspectRatio: 1,
                           child: Container(
-                            color: Colors.white, // background behind transparent PNGs
+                            color: Colors.white,
                             alignment: Alignment.center,
                             child: Image.network(
                               image,
-                              fit: BoxFit.contain, // no cropping
+                              fit: BoxFit.contain,
                               filterQuality: FilterQuality.medium,
                               errorBuilder: (context, error, stackTrace) =>
                                   Icon(Icons.broken_image, color: theme.iconTheme.color),
@@ -95,7 +101,6 @@ class ProductCard extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 if (!isInStock)
                   Positioned.fill(
                     child: Center(
@@ -112,14 +117,10 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                   ),
-
                 if (isNew && isInStock)
                   Positioned(top: 8, left: 8, child: _buildBadge('YENİ')),
-
                 if (dicountpercent != null && isInStock)
                   Positioned(top: 8, left: 8, child: _buildBadge('-$dicountpercent%')),
-
-                // ❤️ Wishlist
                 if (id != null)
                   Selector<WishlistProvider, bool>(
                     selector: (_, provider) => provider.isInWishlist(id!),
@@ -161,8 +162,6 @@ class ProductCard extends StatelessWidget {
                   ),
               ],
             ),
-
-            // Product info + bottom-anchored price & cart
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -176,7 +175,6 @@ class ProductCard extends StatelessWidget {
                       style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 4),
-
                     Text(
                       title,
                       maxLines: 3,
@@ -185,12 +183,10 @@ class ProductCard extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         fontSize: 11,
                         color: Colors.black,
-                        height: 1.5, // ✅ line height multiplier
+                        height: 1.5,
                       ),
                     ),
-
-                    const Spacer(), // pushes the next Row to the bottom
-
+                    const Spacer(),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -203,15 +199,11 @@ class ProductCard extends StatelessWidget {
                             }
                             final token = snapshot.data;
                             final isLoggedIn = token != null && !JwtDecoder.isExpired(token);
-
-                            // hide if not logged in or no price
                             if (!isLoggedIn || finalPrice <= 0) {
                               return const SizedBox.shrink();
                             }
-
                             final bool hasDiscountNow =
                                 salePrice != null && salePrice! > 0 && salePrice! < price;
-
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -238,7 +230,6 @@ class ProductCard extends StatelessWidget {
                             );
                           },
                         ),
-
                         if (finalPrice > 0)
                           GestureDetector(
                             onTap: () {
