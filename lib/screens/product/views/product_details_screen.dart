@@ -52,8 +52,22 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   bool isInStock = true;
   String currencySymbol = '₺';
   bool _hasFetchedOnce = false;
+  bool _isLoggedIn = false; // ✅ New state
 
   final TextEditingController _qtyController = TextEditingController(text: '1');
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus(); // ✅ Check login status at start
+  }
+
+  Future<void> _checkLoginStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isLoggedIn = prefs.getString('auth_token') != null;
+    });
+  }
 
   @override
   void didChangeDependencies() {
@@ -74,7 +88,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     super.dispose();
   }
 
-  /// ✅ Save to recently viewed products in SharedPreferences
   Future<void> saveRecentlyViewedProduct() async {
     if (product == null) return;
 
@@ -100,16 +113,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
     String productJson = jsonEncode(productData);
 
-    // Remove duplicates by ID
     recentProducts.removeWhere((item) {
       final decoded = jsonDecode(item);
       return decoded['id'] == widget.productId;
     });
 
-    // Add at start
     recentProducts.insert(0, productJson);
 
-    // Keep only 10
     if (recentProducts.length > 10) {
       recentProducts = recentProducts.sublist(0, 10);
     }
@@ -136,7 +146,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         _hasFetchedOnce = true;
       });
 
-      /// ✅ Save to recently viewed when loaded
       await saveRecentlyViewedProduct();
     } catch (_) {
       setState(() => isLoading = false);
@@ -196,7 +205,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       );
     }
 
-    // Try to get a category id from common keys we use
     final int? categoryId = (product?['category_id'] ?? product?['categoryId']) is int
         ? (product?['category_id'] ?? product?['categoryId']) as int
         : int.tryParse("${product?['category_id'] ?? product?['categoryId'] ?? ''}");
@@ -226,7 +234,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           onRefresh: () => fetchProductDetails(isRefresh: true),
           child: CustomScrollView(
             slivers: [
-// ======= Main Image (framed; no external height constraint) =======
+              // ✅ Image
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -259,8 +267,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           ),
                         ),
                       ),
-
-                      // Back
                       Positioned(
                         top: 8,
                         left: 8,
@@ -272,8 +278,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           ),
                         ),
                       ),
-
-                      // Wishlist
                       Positioned(
                         top: 8,
                         right: 10,
@@ -312,11 +316,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 ),
               ),
 
-              // ======= Category bar (with borders + link) =======
+              // ✅ Category
               SliverToBoxAdapter(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: theme.brightness == Brightness.light ? Colors.white : theme.cardColor,
+                    color: theme.brightness == Brightness.light
+                        ? Colors.white
+                        : theme.cardColor,
                     border: Border(
                       top: BorderSide(color: theme.dividerColor.withOpacity(0.35)),
                       bottom: BorderSide(color: theme.dividerColor.withOpacity(0.35)),
@@ -357,13 +363,15 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   ),
                 ),
               ),
+
               ProductInfo(
                 sku: product?['sku'] ?? "",
                 title: product?['title'] ?? "",
                 summaryName: product?['summary_name'] ?? "",
               ),
 
-              if (price > 0)
+              // ✅ Price section only if logged in
+              if (price > 0 && _isLoggedIn)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -398,8 +406,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             ),
                           ),
                         const SizedBox(height: 16),
-
-                        // Quantity + Add to Cart
                         Row(
                           children: [
                             Container(
@@ -407,7 +413,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                 color: theme.brightness == Brightness.light
                                     ? Colors.white
                                     : theme.cardColor,
-                                border: Border.all(color: theme.dividerColor.withOpacity(0.8)),
+                                border: Border.all(
+                                    color: theme.dividerColor.withOpacity(0.8)),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Row(
@@ -482,7 +489,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 title: "Açıklama",
                 leadingIcon: Icons.description,
                 iconColor: primaryColor,
-                child: Html(data: product?['description'] ?? "<p>Bilgi yok</p>"),
+                child: Html(
+                    data: product?['description'] ?? "<p>Bilgi yok</p>"),
               ),
 
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
@@ -496,18 +504,22 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: theme.bottomNavigationBarTheme.backgroundColor ?? theme.cardColor,
+          color: theme.bottomNavigationBarTheme.backgroundColor ??
+              theme.cardColor,
           boxShadow: [
             BoxShadow(
-              color:
-              theme.brightness == Brightness.dark ? Colors.black54 : Colors.black12,
+              color: theme.brightness == Brightness.dark
+                  ? Colors.black54
+                  : Colors.black12,
               offset: const Offset(0, -2),
               blurRadius: 6,
             ),
           ],
         ),
         child: BottomNavigationBar(
-          backgroundColor: theme.bottomNavigationBarTheme.backgroundColor ?? theme.cardColor,
+          backgroundColor:
+          theme.bottomNavigationBarTheme.backgroundColor ??
+              theme.cardColor,
           currentIndex: ProductDetailsScreen.storeIndex,
           onTap: (index) {
             Navigator.pushReplacement(
@@ -524,11 +536,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           unselectedItemColor: theme.unselectedWidgetColor,
           type: BottomNavigationBarType.fixed,
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Anasayfa"),
-            BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
-            BottomNavigationBarItem(icon: Icon(Icons.store), label: "Mağaza"),
-            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.home), label: "Anasayfa"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.search), label: "Keşfet"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.store), label: "Mağaza"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.shopping_bag), label: "Sepet"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.person), label: "Profil"),
           ],
         ),
       ),

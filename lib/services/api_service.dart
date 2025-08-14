@@ -30,6 +30,8 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
+      print("TESTTTT");
+      print (data);
       return data.map((json) => CategoryModel.fromJson(json)).toList();
     } else {
       throw Exception('Kategori alınamadı: ${response.body}');
@@ -592,9 +594,8 @@ class ApiService {
       } else if (item['price'] is String) {
         price = double.tryParse(item['price']) ?? 0.0;
       }
-      int qty = int.tryParse(item['quantity'].toString()) ?? 1;
+      final qty = int.tryParse(item['quantity'].toString()) ?? 1;
 
-      // Calculate totals
       final subtotal = price * qty;
       final total = subtotal;
 
@@ -614,10 +615,8 @@ class ApiService {
       "billing": billing,
       "shipping": shipping,
       "line_items": lineItems,
-      "currency": "TRY"
+      "currency": "TRY",
     };
-
-    print("📦 Order Data: $orderData");
 
     final response = await http.post(
       Uri.parse("$baseUrl/orders"
@@ -633,7 +632,15 @@ class ApiService {
       throw Exception(json['message'] ?? 'Sipariş oluşturulamadı.');
     }
 
-    return json;
+    // ✅ Order created successfully — clear carts
+    try {
+      final token = prefs.getString('auth_token'); // stored at login
+      await CartService.clearAll(token: token);
+    } catch (e) {
+      debugPrint('Cart clear after order failed: $e'); // don't block success
+    }
+
+    return json as Map<String, dynamic>;
   }
 
   static Future<bool> isLoggedIn() async {

@@ -222,7 +222,8 @@ class CartService {
 
   static Future<void> saveGuestCart(List<Map<String, dynamic>> updatedCart) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('guest_cart');
+    await prefs.setString(_cartKey, jsonEncode(updatedCart));
+    onGuestCartUpdated?.call();
   }
 
   static Future<void> clearGuestCart() async {
@@ -233,6 +234,24 @@ class CartService {
   static Future<void> saveGuestCartList(List<Map<String, dynamic>> cart) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_cartKey, jsonEncode(cart));
+  }
+
+  static Future<void> clearAll({String? token}) async {
+    // Try clearing Woo cart if we have a token (logged-in user).
+    if (token != null && token.isNotEmpty) {
+      try {
+        await clearWooCart(token);
+      } catch (e) {
+        debugPrint('clearWooCart failed: $e'); // do not block local clear
+      }
+    }
+
+    // Always clear guest/local cart too (covers mixed states / safety).
+    try {
+      await clearGuestCart();
+    } finally {
+      onGuestCartUpdated?.call();
+    }
   }
 
 }
