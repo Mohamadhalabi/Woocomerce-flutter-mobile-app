@@ -18,16 +18,6 @@ class _SplashScreenState extends State<SplashScreen> {
   Map<String, dynamic>? _drawerData;
   Map<String, dynamic>? _userData;
 
-  // 🎨 Gradient close to your artwork
-  static const _bgGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      Color(0xFF0F7DB9), // darker blue
-      Color(0xFF1BA6D6), // mid (your requested solid fallback)
-    ],
-  );
-
   @override
   void initState() {
     super.initState();
@@ -105,6 +95,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<Map<String, dynamic>> fetchDrawerData(String lang) async {
+
     final url = Uri.parse(
       'https://www.aanahtar.com.tr/wp-json/custom/v1/drawer-data?lang=$lang',
     );

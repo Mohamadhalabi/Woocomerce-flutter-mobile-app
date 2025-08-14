@@ -1,7 +1,7 @@
 class CategoryModel {
   final int id;
   final String name;
-  final String? image;
+  final String? image; // URL string or null
   final String? route;
   final int count;
 
@@ -14,12 +14,42 @@ class CategoryModel {
   });
 
   factory CategoryModel.fromJson(Map<String, dynamic> json) {
+    // ---- image can be:
+    // 1) String URL: "https://..."
+    // 2) Map: { src: "...", url: "...", thumbnail: "..." }
+    // 3) null / missing
+    String? img;
+    final rawImg = json['image'];
+
+    if (rawImg is String) {
+      img = rawImg;
+    } else if (rawImg is Map<String, dynamic>) {
+      img = (rawImg['src'] ?? rawImg['url'] ?? rawImg['thumbnail']) as String?;
+    } else {
+      img = null;
+    }
+
+    // id / count may come as String or int
+    int parseInt(dynamic v) {
+      if (v is int) return v;
+      if (v is String) return int.tryParse(v) ?? 0;
+      return 0;
+    }
+
     return CategoryModel(
-      id: json['id'] ?? 0,
-      name: json['name'] ?? '',
-      image: json['image'] != null ? json['image']['src'] : null,
+      id: parseInt(json['id']),
+      name: (json['name'] ?? '').toString(),
+      image: (img != null && img.isNotEmpty) ? img : null,
       route: null,
-      count: json['count'] ?? 0,
+      count: parseInt(json['count']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'image': image,
+    'route': route,
+    'count': count,
+  };
 }

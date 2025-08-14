@@ -30,8 +30,6 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
-      print("TESTTTT");
-      print (data);
       return data.map((json) => CategoryModel.fromJson(json)).toList();
     } else {
       throw Exception('Kategori alınamadı: ${response.body}');
