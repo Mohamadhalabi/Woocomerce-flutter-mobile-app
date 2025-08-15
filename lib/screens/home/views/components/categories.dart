@@ -24,32 +24,61 @@ class _CategoriesState extends State<Categories> {
     super.didChangeDependencies();
 
     final newLocale = Localizations.localeOf(context).languageCode;
-    if (_currentLocale != newLocale) {
-      _currentLocale = newLocale;
+    if (_currentLocale == newLocale) return;
 
-      // ✅ If splash preloaded categories, use them
-      if (widget.initialDrawerData != null &&
-          widget.initialDrawerData!['categories'] != null) {
+    _currentLocale = newLocale;
 
-        final categoryMap = widget.initialDrawerData!['categories'] as Map<String, dynamic>;
-        final preloaded = categoryMap.values.toList();
-
-        categories = preloaded.map((c) => CategoryModel.fromJson(c)).toList();
-        _cachedByLocale[newLocale] = categories;
+    // If splash preloaded categories, try to use them (handle List OR Map)
+    final pre = widget.initialDrawerData?['categories'];
+    if (pre != null) {
+      final parsed = _parseInitialCategories(pre);
+      if (parsed.isNotEmpty) {
+        categories = parsed;
+        _cachedByLocale[newLocale] = parsed;
         isLoading = false;
         setState(() {});
         return;
       }
+    }
 
-      // Otherwise, normal cache/API logic
-      if (_cachedByLocale.containsKey(newLocale)) {
-        categories = _cachedByLocale[newLocale]!;
-        isLoading = false;
-      } else {
-        fetchCategories(newLocale);
-      }
+    // Otherwise, normal cache/API logic
+    if (_cachedByLocale.containsKey(newLocale)) {
+      categories = _cachedByLocale[newLocale]!;
+      isLoading = false;
+      setState(() {});
+    } else {
+      fetchCategories(newLocale);
     }
   }
+
+  /// Accepts either:
+  /// - List<dynamic> of maps or models
+  /// - Map<String, dynamic> whose values are maps
+  List<CategoryModel> _parseInitialCategories(dynamic raw) {
+    Iterable items;
+
+    if (raw is List) {
+      items = raw;
+    } else if (raw is Map) {
+      items = (raw as Map).values;
+    } else {
+      return [];
+    }
+
+    final result = <CategoryModel>[];
+    for (final e in items) {
+      if (e is CategoryModel) {
+        result.add(e);
+      } else if (e is Map<String, dynamic>) {
+        result.add(CategoryModel.fromJson(e));
+      } else if (e is Map) {
+        // loosely typed map
+        result.add(CategoryModel.fromJson(Map<String, dynamic>.from(e)));
+      }
+    }
+    return result;
+  }
+
   Future<void> fetchCategories(String locale) async {
     if (!mounted) return;
     setState(() => isLoading = true);
@@ -64,6 +93,7 @@ class _CategoriesState extends State<Categories> {
         isLoading = false;
       });
     } catch (e) {
+      // ignore: avoid_print
       print('Kategori hatası: $e');
       if (!mounted) return;
       setState(() => isLoading = false);
@@ -84,7 +114,7 @@ class _CategoriesState extends State<Categories> {
       child: Row(
         children: categories.map((cat) {
           return Padding(
-            padding: const EdgeInsets.only(right: defaultPadding, top:16),
+            padding: const EdgeInsets.only(right: defaultPadding, top: 16),
             child: CategoryBtn(
               category: cat.name,
               image: cat.image ?? '',
@@ -130,7 +160,7 @@ class CategoryBtn extends StatelessWidget {
           Container(
             width: 90,
             height: 90,
-            padding: const EdgeInsets.all(9),
+            padding: const EdgeInsets.all(12), // was 9 → more padding now
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
@@ -146,7 +176,7 @@ class CategoryBtn extends StatelessWidget {
                 ? Image.network(image, fit: BoxFit.contain)
                 : const Icon(Icons.image_not_supported, color: Colors.grey),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           SizedBox(
             width: 90,
             child: Text(
@@ -166,3 +196,4 @@ class CategoryBtn extends StatelessWidget {
     );
   }
 }
+
