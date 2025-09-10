@@ -159,7 +159,6 @@ class _ProductImagesState extends State<ProductImages> {
                   ),
                 ),
               ),
-            const Divider(thickness: 0.1, color: Colors.grey),
           ],
         );
       },

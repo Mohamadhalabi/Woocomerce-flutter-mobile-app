@@ -1,3 +1,5 @@
+import 'brand_model.dart';
+
 class ProductModel {
   final int id;
   final String title;
@@ -18,6 +20,9 @@ class ProductModel {
   final Map<String, List<String>> attributes;
   final String? currencySymbol;
 
+  /// NEW: brands from API (YITH Brands)
+  final List<BrandModel> brands;
+
   ProductModel({
     required this.id,
     required this.title,
@@ -37,6 +42,7 @@ class ProductModel {
     required this.attributes,
     required this.currencySymbol,
     this.categoryId,
+    this.brands = const [], // NEW
   });
 
   // ---------------- helpers ----------------
@@ -144,6 +150,14 @@ class ProductModel {
     final parsedPrice = resolvedRegular;
     final parsedSalePrice = (sale != null && sale > 0) ? sale : null;
 
+    // ---------- brands ----------
+    final List<BrandModel> parsedBrands =
+        (json['brands'] as List?)
+            ?.map((e) => BrandModel.fromJson(
+            Map<String, dynamic>.from(e as Map)))
+            .toList() ??
+            const <BrandModel>[];
+
     return ProductModel(
       id: (json['id'] is int)
           ? json['id'] as int
@@ -171,6 +185,7 @@ class ProductModel {
       isInStock: _stringOrNull(json['stock_status']) == 'instock',
       currencySymbol:
       _resolveCurrencySymbol(json['currency'], json['currency_symbol']),
+      brands: parsedBrands, // NEW
     );
   }
 
@@ -210,6 +225,8 @@ class ProductModel {
       'attributes': attributes,
       'stock_status': isInStock ? 'instock' : 'outofstock',
       'currency_symbol': currencySymbol ?? '₺',
+      // NEW: expose brands so your UI can read product?['brands']
+      'brands': brands.map((b) => b.toJson()).toList(),
     };
   }
 }
