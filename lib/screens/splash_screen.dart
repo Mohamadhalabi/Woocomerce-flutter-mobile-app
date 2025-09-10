@@ -113,7 +113,7 @@ class _SplashScreenState extends State<SplashScreen> {
       body: SizedBox.expand(
         child: Image.asset(
           'assets/splash/splash.png',
-          fit: BoxFit.fill,
+          fit: BoxFit.cover,
         ),
       ),
     );

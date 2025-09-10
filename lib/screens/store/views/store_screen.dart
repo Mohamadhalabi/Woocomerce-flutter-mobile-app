@@ -67,10 +67,11 @@ class StoreScreenState extends State<StoreScreen> {
   /// Called the first time this tab is opened (from EntryPoint)
   void loadStoreData() {
     if (_hasFetchedOnce) return;
-    fetchFilters();
+    // ⚠️ Do NOT fetch filters here for /shop (filterType=all). Let modal trigger it.
     fetchProducts();
     _hasFetchedOnce = true;
   }
+
 
   /// Called by EntryPoint when tab is revisited
   void refresh() {
@@ -82,15 +83,18 @@ class StoreScreenState extends State<StoreScreen> {
     setState(() {
       _onSale = onSale;
       _categoryId = categoryId;
-      // reset state
       products.clear();
       selectedTermsByAttribute.clear();
       selectedSort = '';
       currentPage = 1;
       hasMore = true;
       _hasFetchedOnce = false;
+      filters = {}; // reset
     });
-    fetchFilters();
+
+    // Narrowed views can prefetch; /shop will lazy-load in modal
+    if (_categoryId != null) fetchFilters();
+
     fetchProducts(isRefresh: true);
   }
 
@@ -148,14 +152,80 @@ class StoreScreenState extends State<StoreScreen> {
 
   String _prettyAttr(String key) => key.startsWith('pa_') ? key.substring(3) : key;
 
-  void openFilterModal() {
-    final theme = Theme.of(context);
+  void openFilterModal() async {
+    // 1) Lazy-load filters (only if empty)
+    Future<void> _ensureFiltersLoaded() async {
+      if (filters.isNotEmpty) return;
 
-    // temp state for the modal (persist while open)
+      // small blocking loader
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      try {
+        final result = await ApiService.fetchFiltersForEntry(
+          id: _categoryId ?? 0,
+          filterType: _categoryId != null ? 'category' : 'all',
+        );
+        if (mounted) {
+          setState(() => filters = result);
+        }
+      } catch (e) {
+        debugPrint("Filter fetch error: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Filtreler yüklenemedi. Lütfen tekrar deneyin.')),
+          );
+        }
+      } finally {
+        if (mounted && Navigator.canPop(context)) {
+          Navigator.of(context).pop(); // close the loader dialog
+        }
+      }
+    }
+
+    await _ensureFiltersLoaded();
+
+    // If still empty (error or truly no filters), open a lightweight sheet with a message
+    if (filters.isEmpty) {
+      // Still show the sheet so the user understands there's nothing to select
+      // (and to keep UX consistent when tapping the filter icon)
+      if (!mounted) return;
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (_) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Text("Filtreler", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 12),
+                  Text("Gösterilecek filtre bulunamadı.", style: TextStyle(color: Colors.black54)),
+                  SizedBox(height: 12),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+      return;
+    }
+
+    // 2) Build modal with current filters
     final Map<String, List<String>> tempSelected = {
       for (final e in selectedTermsByAttribute.entries) e.key: List<String>.from(e.value),
     };
-    final Map<String, TextEditingController> searchCtrls = {
+
+    // One controller per attribute key (rebuilt fresh on each open)
+    Map<String, TextEditingController> searchCtrls = {
       for (final k in filters.keys) k: TextEditingController(),
     };
 
@@ -181,209 +251,225 @@ class StoreScreenState extends State<StoreScreen> {
       return sel.isEmpty ? "Seçim yapılmadı" : sel.join(", ");
     }
 
-    showModalBottomSheet(
+    // 3) Show the real filter sheet
+    if (!mounted) return;
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) {
+      builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 12,
-                bottom: 12 + MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: Column(
-                children: [
-                  // Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: const Icon(Icons.close),
-                      ),
-                      const Text("Filtrele", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      TextButton(
-                        onPressed: () {
-                          tempSelected.clear();
-                          for (final c in searchCtrls.values) c.clear();
-                          setModalState(() {});
-                          selectedSort = '';
-                        },
-                        child: const Text("Temizle"),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 1),
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 12,
+                  bottom: 12 + MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: Column(
+                  children: [
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: const Icon(Icons.close),
+                        ),
+                        const Text(
+                          "Filtrele",
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            tempSelected.clear();
+                            for (final c in searchCtrls.values) c.clear();
+                            setModalState(() {});
+                            // also reset sort
+                            selectedSort = '';
+                          },
+                          child: const Text("Temizle"),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 1),
 
-                  Expanded(
-                    child: Scrollbar(
-                      thumbVisibility: true,
-                      radius: const Radius.circular(8),
-                      thickness: 6,
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Sort
-                            const Text("Sırala", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              children: sortOptions.map((sort) {
-                                final isSel = selectedSort == sort['key'];
-                                return ChoiceChip(
-                                  label: Text(sort['label']!),
-                                  selected: isSel,
-                                  onSelected: (_) => setModalState(() {
-                                    selectedSort = sort['key']!;
-                                  }),
-                                );
-                              }).toList(),
-                            ),
+                    Expanded(
+                      child: Scrollbar(
+                        thumbVisibility: true,
+                        radius: const Radius.circular(8),
+                        thickness: 6,
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Sort
+                              const Text("Sırala", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                children: sortOptions.map((sort) {
+                                  final isSel = selectedSort == sort['key'];
+                                  return ChoiceChip(
+                                    label: Text(sort['label']!),
+                                    selected: isSel,
+                                    onSelected: (_) => setModalState(() {
+                                      selectedSort = sort['key']!;
+                                    }),
+                                  );
+                                }).toList(),
+                              ),
 
-                            const SizedBox(height: 16),
-                            const Divider(height: 24),
-                            const Text("Filtreler", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 8),
+                              const SizedBox(height: 16),
+                              const Divider(height: 24),
+                              const Text("Filtreler", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
 
-                            // Bordered dropdown per attribute
-                            ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: filters.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 6),
-                              itemBuilder: (_, i) {
-                                final attrKey = filters.keys.elementAt(i);
-                                final controller = searchCtrls[attrKey]!;
-                                final selected = tempSelected[attrKey] ?? <String>[];
+                              // Bordered dropdown per attribute
+                              ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: filters.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 6),
+                                itemBuilder: (_, i) {
+                                  final attrKey = filters.keys.elementAt(i);
+                                  // ensure controller exists if filters map changed
+                                  searchCtrls.putIfAbsent(attrKey, () => TextEditingController());
+                                  final controller = searchCtrls[attrKey]!;
+                                  final selected = tempSelected[attrKey] ?? <String>[];
 
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey.shade300),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  margin: const EdgeInsets.symmetric(vertical: 2),
-                                  child: Theme(
-                                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                                    child: ExpansionTile(
-                                      tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-                                      childrenPadding: const EdgeInsets.only(
-                                        bottom: 12, left: 12, right: 12,
-                                      ),
-                                      title: Text(
-                                        _prettyAttr(attrKey),
-                                        style: const TextStyle(fontWeight: FontWeight.w600),
-                                      ),
-                                      subtitle: Padding(
-                                        padding: const EdgeInsets.only(top: 2),
-                                        child: Text(
-                                          _selectedPreview(attrKey),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey.shade300),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    margin: const EdgeInsets.symmetric(vertical: 2),
+                                    child: Theme(
+                                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                                      child: ExpansionTile(
+                                        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+                                        childrenPadding: const EdgeInsets.only(
+                                          bottom: 12, left: 12, right: 12,
                                         ),
-                                      ),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
+                                        title: Text(
+                                          _prettyAttr(attrKey),
+                                          style: const TextStyle(fontWeight: FontWeight.w600),
+                                        ),
+                                        subtitle: Padding(
+                                          padding: const EdgeInsets.only(top: 2),
+                                          child: Text(
+                                            _selectedPreview(attrKey),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                          ),
+                                        ),
+                                        trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (selected.isNotEmpty)
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue.withOpacity(.12),
+                                                  borderRadius: BorderRadius.circular(999),
+                                                ),
+                                                child: Text(
+                                                  "${selected.length}",
+                                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                                ),
+                                              ),
+                                            const SizedBox(width: 6),
+                                            const Icon(Icons.keyboard_arrow_down),
+                                          ],
+                                        ),
                                         children: [
-                                          if (selected.isNotEmpty)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: Colors.blue.withOpacity(.12),
-                                                borderRadius: BorderRadius.circular(999),
-                                              ),
-                                              child: Text(
-                                                "${selected.length}",
-                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                              ),
+                                          // Search inside this attribute
+                                          TextField(
+                                            controller: controller,
+                                            decoration: InputDecoration(
+                                              hintText: "Ara...",
+                                              prefixIcon: const Icon(Icons.search),
+                                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                             ),
-                                          const SizedBox(width: 6),
-                                          const Icon(Icons.keyboard_arrow_down),
+                                            onChanged: (_) => setModalState(() {}),
+                                          ),
+                                          const SizedBox(height: 8),
+
+                                          // Options
+                                          ..._filteredTerms(attrKey).map((term) {
+                                            final checked = (tempSelected[attrKey] ?? const <String>[]).contains(term);
+                                            return CheckboxListTile(
+                                              dense: true,
+                                              contentPadding: EdgeInsets.zero,
+                                              value: checked,
+                                              onChanged: (_) => _toggleTerm(setModalState, attrKey, term),
+                                              title: Text(term, overflow: TextOverflow.ellipsis),
+                                              controlAffinity: ListTileControlAffinity.leading,
+                                            );
+                                          }).toList(),
+
+                                          // Clear this attribute
+                                          Align(
+                                            alignment: Alignment.centerRight,
+                                            child: TextButton(
+                                              onPressed: () {
+                                                tempSelected.remove(attrKey);
+                                                controller.clear();
+                                                setModalState(() {});
+                                              },
+                                              child: const Text("Bu filtreden temizle"),
+                                            ),
+                                          ),
                                         ],
                                       ),
-                                      children: [
-                                        // Search inside this attribute
-                                        TextField(
-                                          controller: controller,
-                                          decoration: InputDecoration(
-                                            hintText: "Ara...",
-                                            prefixIcon: const Icon(Icons.search),
-                                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                          ),
-                                          onChanged: (_) => setModalState(() {}),
-                                        ),
-                                        const SizedBox(height: 8),
-
-                                        // Options
-                                        ..._filteredTerms(attrKey).map((term) {
-                                          final checked = (tempSelected[attrKey] ?? const <String>[]).contains(term);
-                                          return CheckboxListTile(
-                                            dense: true,
-                                            contentPadding: EdgeInsets.zero,
-                                            value: checked,
-                                            onChanged: (_) => _toggleTerm(setModalState, attrKey, term),
-                                            title: Text(term, overflow: TextOverflow.ellipsis),
-                                            controlAffinity: ListTileControlAffinity.leading,
-                                          );
-                                        }).toList(),
-
-                                        // Clear this attribute
-                                        Align(
-                                          alignment: Alignment.centerRight,
-                                          child: TextButton(
-                                            onPressed: () {
-                                              tempSelected.remove(attrKey);
-                                              controller.clear();
-                                              setModalState(() {});
-                                            },
-                                            child: const Text("Bu filtreden temizle"),
-                                          ),
-                                        ),
-                                      ],
                                     ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
 
-                  // Apply
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          setState(() => selectedTermsByAttribute = {
-                            for (final e in tempSelected.entries) e.key: List<String>.from(e.value)
-                          });
-                          Navigator.pop(context);
-                          await fetchProducts(isRefresh: true);
-                        },
-                        child: const Text("Filtreyi Uygula"),
+                    // Apply
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            if (!mounted) return;
+                            setState(() => selectedTermsByAttribute = {
+                              for (final e in tempSelected.entries) e.key: List<String>.from(e.value)
+                            });
+                            Navigator.pop(context); // close sheet
+                            await fetchProducts(isRefresh: true);
+                          },
+                          child: const Text("Filtreyi Uygula"),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
         );
       },
-    );
+    ).whenComplete(() {
+      // 4) Dispose local controllers after the sheet is fully closed
+      for (final c in searchCtrls.values) {
+        c.dispose();
+      }
+    });
   }
 
   // --- Search routing (optional) ---
