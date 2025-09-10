@@ -88,12 +88,18 @@ class ProductCard extends StatelessWidget {
                           child: Container(
                             color: Colors.white,
                             alignment: Alignment.center,
-                            child: Image.network(
-                              image,
-                              fit: BoxFit.contain,
-                              filterQuality: FilterQuality.medium,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Icon(Icons.broken_image, color: theme.iconTheme.color),
+                            child: Directionality(
+                              textDirection: TextDirection.ltr, // ✅ force LTR for image
+                              child: Image.network(
+                                image,
+                                fit: BoxFit.contain,
+                                filterQuality: FilterQuality.medium,
+                                matchTextDirection: false, // ✅ prevent auto mirroring
+                                errorBuilder: (context, error, stackTrace) => Icon(
+                                  Icons.broken_image,
+                                  color: theme.iconTheme.color,
+                                ),
+                              ),
                             ),
                           ),
                         ),

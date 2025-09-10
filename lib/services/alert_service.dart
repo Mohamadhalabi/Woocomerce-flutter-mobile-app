@@ -10,6 +10,18 @@ class AlertService {
         Duration duration = const Duration(seconds: 5),
       }) {
     final overlay = Overlay.of(context);
+    if (overlay == null) {
+      // ✅ Fallback to SnackBar if overlay is not available
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: isError ? Colors.red.shade600 : Colors.green.shade600,
+          duration: duration,
+        ),
+      );
+      return;
+    }
+
     late OverlayEntry overlayEntry;
 
     overlayEntry = OverlayEntry(
@@ -60,7 +72,6 @@ class AlertService {
                     ),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Colors.white.withOpacity(0.9), width: 1),
-                      // shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,

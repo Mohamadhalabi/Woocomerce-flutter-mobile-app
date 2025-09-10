@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shop/constants.dart';
+import '../../../components/skleton/profile/profile_skelton.dart';
 import '../../../services/api_service.dart';
 import '../../../services/alert_service.dart';
 import 'package:provider/provider.dart';
@@ -10,7 +11,7 @@ import '../../../main.dart';
 import '../../about/hakkimizda_screen.dart';
 import '../../../entry_point.dart';
 import 'edit_profile_screen.dart';
-import 'address_edit_screen.dart'; // ✅ new screen
+import 'address_edit_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Function(String) onLocaleChange;
@@ -33,11 +34,15 @@ class ProfileScreen extends StatefulWidget {
 class ProfileScreenState extends State<ProfileScreen> {
   String _selectedCurrency = 'TRY';
 
+  /// Pure white “input” cards (dropdown & switches) as requested.
+  static const Color _inputCardBg = Colors.white;
+
   @override
   void initState() {
     super.initState();
     _loadCurrency();
   }
+
   void refresh() {
     if (mounted) setState(() {});
   }
@@ -94,87 +99,95 @@ class ProfileScreenState extends State<ProfileScreen> {
   Widget _sectionTitle(String text) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
+      padding: const EdgeInsets.fromLTRB(4, 16, 4, 6),
       child: Text(
         text,
-        style: theme.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w700,
+        style: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w800,
           color: theme.textTheme.bodyMedium?.color,
+          letterSpacing: .2,
         ),
       ),
     );
   }
 
-  BoxDecoration _cardDec(BuildContext context) {
+  BoxDecoration _cardDec(BuildContext context, {bool white = false}) {
     final theme = Theme.of(context);
     return BoxDecoration(
-      color: theme.cardColor,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: theme.dividerColor.withOpacity(0.15)),
-      boxShadow: [
-        BoxShadow(
-          color: theme.brightness == Brightness.dark
-              ? Colors.black.withOpacity(0.3)
-              : Colors.black12,
-          blurRadius: 10,
-          offset: const Offset(0, 4),
-        ),
-      ],
+      color: white ? _inputCardBg : theme.cardColor,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: theme.dividerColor.withOpacity(0.3)),
     );
   }
 
-  Widget _actionTile(IconData icon, String title, {VoidCallback? onTap, Color? iconBg}) {
+  /// Compact list tile (smaller height, denser padding)
+  Widget _actionTile(
+      IconData icon,
+      String title, {
+        VoidCallback? onTap,
+        Color? iconBg,
+      }) {
     final theme = Theme.of(context);
     return Container(
-      decoration: _cardDec(context),
-      margin: const EdgeInsets.symmetric(vertical: 6),
+      decoration: _cardDec(context, white: true),
+      margin: const EdgeInsets.symmetric(vertical: 5),
       child: ListTile(
+        dense: true,
+        visualDensity: const VisualDensity(vertical: -2, horizontal: -2),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         leading: CircleAvatar(
-          radius: 18,
-          backgroundColor: iconBg ?? primaryColor.withOpacity(0.12),
-          child: Icon(icon, color: theme.iconTheme.color),
+          radius: 16,
+          backgroundColor: (iconBg ?? primaryColor.withOpacity(0.1)),
+          child: Icon(icon, size: 18, color: theme.iconTheme.color),
         ),
         title: Text(
           title,
           style: TextStyle(
             color: theme.textTheme.bodyMedium?.color,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
+            fontSize: 13.5,
           ),
         ),
-        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: theme.iconTheme.color),
+        trailing: Icon(Icons.arrow_forward_ios, size: 14, color: theme.iconTheme.color),
         onTap: onTap,
       ),
     );
   }
 
-  Widget _profileHeader({required bool isLoggedIn, required String displayName, required String? email}) {
+  Widget _profileHeader({
+    required bool isLoggedIn,
+    required String displayName,
+    required String? email,
+  }) {
     final theme = Theme.of(context);
     return Container(
-      decoration: _cardDec(context),
-      padding: const EdgeInsets.all(16),
+      decoration: _cardDec(context, white: true),
+      padding: const EdgeInsets.all(12),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 26,
-            backgroundColor: primaryColor.withOpacity(0.15),
-            child: Icon(Icons.person, color: theme.iconTheme.color, size: 28),
+            radius: 22,
+            backgroundColor: primaryColor.withOpacity(0.12),
+            child: Icon(Icons.person, color: theme.iconTheme.color, size: 22),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(displayName,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: theme.textTheme.bodyMedium?.color,
-                    )),
+                Text(
+                  displayName,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: theme.textTheme.bodyMedium?.color,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   isLoggedIn ? (email ?? '') : "Henüz giriş yapmadınız",
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11.5,
                     color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -185,7 +198,7 @@ class ProfileScreenState extends State<ProfileScreen> {
           if (isLoggedIn)
             IconButton(
               tooltip: "Bilgilerini Düzenle",
-              icon: Icon(Icons.edit, size: 20, color: theme.iconTheme.color),
+              icon: Icon(Icons.edit, size: 18, color: theme.iconTheme.color),
               onPressed: () async {
                 final user = await ApiService.fetchUserInfo();
                 final result = await Navigator.push<bool>(
@@ -209,7 +222,7 @@ class ProfileScreenState extends State<ProfileScreen> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return ColoredBox(
             color: Theme.of(context).scaffoldBackgroundColor,
-            child: const Center(child: CircularProgressIndicator()),
+            child: const Center(child: ProfileSkeleton()),
           );
         }
 
@@ -222,7 +235,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               if (userSnapshot.connectionState == ConnectionState.waiting) {
                 return ColoredBox(
                   color: Theme.of(context).scaffoldBackgroundColor,
-                  child: const Center(child: CircularProgressIndicator()),
+                  child: const Center(child: ProfileSkeleton()),
                 );
               }
               if (userSnapshot.hasError || userSnapshot.data == null) {
@@ -256,29 +269,40 @@ class ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
         children: [
           _profileHeader(isLoggedIn: isLoggedIn, displayName: displayName, email: email),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
           if (!isLoggedIn) ...[
             _sectionTitle("Hızlı İşlemler"),
             Row(
               children: [
                 Expanded(
-                  child: _actionTile(Icons.login, 'Giriş Yap',
-                      onTap: () => Navigator.pushNamed(context, '/login'), iconBg: Colors.green.withOpacity(0.12)),
+                  child: _actionTile(
+                    Icons.login,
+                    'Giriş Yap',
+                    onTap: () => Navigator.pushNamed(context, '/login'),
+                    iconBg: Colors.green.withOpacity(0.12),
+                  ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: _actionTile(Icons.person_add, 'Kayıt Ol',
-                      onTap: () => Navigator.pushNamed(context, '/register'), iconBg: Colors.blue.withOpacity(0.12)),
+                  child: _actionTile(
+                    Icons.person_add,
+                    'Kayıt Ol',
+                    onTap: () => Navigator.pushNamed(context, '/register'),
+                    iconBg: Colors.blue.withOpacity(0.12),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
-            _actionTile(Icons.favorite_border, 'İstek Listem',
-                onTap: () => Navigator.pushNamed(context, '/wishlist')),
+            _actionTile(
+              Icons.favorite_border,
+              'İstek Listem',
+              onTap: () => Navigator.pushNamed(context, '/wishlist'),
+            ),
           ],
 
           if (isLoggedIn) ...[
@@ -293,60 +317,103 @@ class ProfileScreenState extends State<ProfileScreen> {
             _actionTile(Icons.list_alt, 'Siparişlerim', onTap: () {
               Navigator.pushNamed(context, '/orders');
             }),
-            _actionTile(Icons.favorite_border, 'İstek Listem',
-                onTap: () => Navigator.pushNamed(context, '/wishlist')),
+            _actionTile(
+              Icons.favorite_border,
+              'İstek Listem',
+              onTap: () => Navigator.pushNamed(context, '/wishlist'),
+            ),
           ],
 
           _sectionTitle("Tercihler"),
-          // currency
+          // Currency (compact, white background)
           Container(
-            decoration: _cardDec(context),
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            child: ListTile(
-              leading: CircleAvatar(
-                radius: 18,
-                backgroundColor: Colors.orange.withOpacity(0.12),
-                child: Icon(Icons.attach_money, color: theme.iconTheme.color),
-              ),
-              title: Text('Para Birimi',
-                  style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontWeight: FontWeight.w600)),
-              trailing: DropdownButton<String>(
-                value: _selectedCurrency,
-                underline: const SizedBox(),
-                items: ['TRY', 'USD'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: (newCurrency) {
-                  if (newCurrency != null) _updateCurrency(newCurrency);
-                },
-              ),
+            decoration: _cardDec(context, white: true),
+            margin: const EdgeInsets.symmetric(vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.orange.withOpacity(0.12),
+                  child: Icon(Icons.attach_money, size: 18, color: theme.iconTheme.color),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Para Birimi',
+                    style: TextStyle(
+                      color: theme.textTheme.bodyMedium?.color,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                ),
+                DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedCurrency,
+                    isDense: true,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyMedium?.color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'TRY', child: Text('TRY')),
+                      DropdownMenuItem(value: 'USD', child: Text('USD')),
+                    ],
+                    onChanged: (c) => c == null ? null : _updateCurrency(c),
+                  ),
+                ),
+              ],
             ),
           ),
 
+          // Dark mode (compact, white background)
           Container(
-            decoration: _cardDec(context),
-            margin: const EdgeInsets.symmetric(vertical: 6),
+            decoration: _cardDec(context, white: true),
+            margin: const EdgeInsets.symmetric(vertical: 5),
             child: SwitchListTile(
+              dense: true,
+              visualDensity: const VisualDensity(vertical: -2, horizontal: -2),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
               secondary: CircleAvatar(
-                radius: 18,
+                radius: 16,
                 backgroundColor: Colors.purple.withOpacity(0.12),
-                child: Icon(Icons.brightness_6, color: theme.iconTheme.color),
+                child: Icon(Icons.brightness_6, size: 18, color: theme.iconTheme.color),
               ),
-              title: Text('Karanlık Mod',
-                  style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontWeight: FontWeight.w600)),
+              title: Text(
+                'Karanlık Mod',
+                style: TextStyle(
+                  color: theme.textTheme.bodyMedium?.color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                ),
+              ),
               value: theme.brightness == Brightness.dark,
-              onChanged: (val) => MyApp.of(context)?.toggleTheme(),
+              onChanged: (_) => MyApp.of(context)?.toggleTheme(),
             ),
           ),
 
           _sectionTitle("Diğer"),
-          _actionTile(Icons.info_outline, 'Hakkımızda', onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => HakkimizdaScreen(onLocaleChange: (_) {})),
-            );
-          }),
+          _actionTile(
+            Icons.info_outline,
+            'Hakkımızda',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => HakkimizdaScreen(onLocaleChange: (_) {}),
+                ),
+              );
+            },
+          ),
           if (isLoggedIn)
-            _actionTile(Icons.logout, 'Çıkış Yap',
-                onTap: _logout, iconBg: Colors.red.withOpacity(0.12)),
+            _actionTile(
+              Icons.logout,
+              'Çıkış Yap',
+              onTap: _logout,
+              iconBg: Colors.red.withOpacity(0.12),
+            ),
         ],
       ),
     );

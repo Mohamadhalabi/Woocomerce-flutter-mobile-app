@@ -65,13 +65,23 @@ class CartScreenState extends State<CartScreen> {
               ? await CartService.fetchWooCart(token!)
               : await CartService.getGuestCart());
 
-      // 2) Instant totals
+      // 2) For guests: ensure no prices leak in
+      if (!isLoggedIn) {
+        for (final it in items) {
+          it.remove('price');
+          it.remove('sale_price');
+          it.remove('regular_price');
+          it['currency_symbol'] = null;
+        }
+      }
+
+      // 3) Instant totals
       setState(() {
         total = _calculateTotal(items);
         cartItems = items;
       });
 
-      // 3) Enrich for logged-in
+      // 4) Enrich for logged-in only
       if (isLoggedIn && items.isNotEmpty) {
         final productIds = items
             .map((i) => int.tryParse(i['id'].toString()))
@@ -104,7 +114,7 @@ class CartScreenState extends State<CartScreen> {
         }
       }
 
-      // 4) Final state
+      // 5) Final state
       setState(() {
         cartItems = items;
         total = _calculateTotal(items);
@@ -135,6 +145,9 @@ class CartScreenState extends State<CartScreen> {
   }
 
   double _calculateTotal(List<Map<String, dynamic>> items) {
+    // Guests should NOT see totals
+    if (!isLoggedIn) return 0.0;
+
     return items.fold(0.0, (sum, item) {
       final price = _asDouble(item['sale_price'] ?? item['price']);
       final rawQty = item['quantity'];
@@ -249,14 +262,12 @@ class CartScreenState extends State<CartScreen> {
       return;
     }
 
-    // 3) Logged-in: clear on WooCommerce in background (fast path + fallback)
-    //    We "await" here but the UI is already empty, so it won’t block the user.
+    // 3) Logged-in: clear on WooCommerce in background
     try {
       await CartService.clearWooCart(token, knownKeys: knownKeys);
       if (!mounted) return;
       AlertService.showTopAlert(context, 'Sepet başarıyla temizlendi', isError: false);
     } catch (e) {
-      // If server-side clear failed, restore previous state so user isn't out-of-sync
       if (!mounted) return;
       setState(() {
         cartItems = previousItems;
@@ -270,7 +281,6 @@ class CartScreenState extends State<CartScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -278,7 +288,7 @@ class CartScreenState extends State<CartScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Sepetim', style: TextStyle(color: Colors.white,fontSize: 20)),
+        title: const Text('Sepetim', style: TextStyle(color: Colors.white, fontSize: 20)),
         backgroundColor: primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
@@ -367,7 +377,7 @@ class CartScreenState extends State<CartScreen> {
             child: Center(
               child: Text(
                 '$quantity',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13,color: primaryColor),
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: primaryColor),
               ),
             ),
           ),
@@ -399,15 +409,11 @@ class CartScreenState extends State<CartScreen> {
     final theme = Theme.of(context);
 
     final currentPrice = _asDouble(item['sale_price'] ?? item['price']);
-    // Try to detect a "regular" price to show strike-through + savings
     double regularPrice = _asDouble(item['regular_price']);
     if (regularPrice == 0 && item['sale_price'] != null) {
-      // Some payloads keep "price" as regular when sale_price exists.
-      // But earlier we overwrite item['price'] with final price for logged-in.
-      // If we can find something like item['price_before_discount'], use it:
       regularPrice = _asDouble(item['price_before_discount']);
     }
-    final hasDiscount = regularPrice > currentPrice && currentPrice > 0;
+    final hasDiscount = isLoggedIn && regularPrice > currentPrice && currentPrice > 0;
 
     final rawQty = item['quantity'];
     final quantity = rawQty is int
@@ -490,19 +496,9 @@ class CartScreenState extends State<CartScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-
-                    // (Optional) shipping info placeholder to mimic screenshot spacing
-                    // Text(
-                    //   'Tahmini Kargoya Teslim: 2 gün',
-                    //   style: TextStyle(
-                    //     fontSize: 12,
-                    //     color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
-                    //   ),
-                    // ),
-
                     const SizedBox(height: 8),
 
-                    // Qty pill aligned left; price block on the right
+                    // Qty pill aligned left; price block (or login prompt) on the right
                     Row(
                       children: [
                         _buildQtyPill(
@@ -512,37 +508,38 @@ class CartScreenState extends State<CartScreen> {
                         ),
                         const Spacer(),
 
-                        // Price block (right-aligned)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            if (hasDiscount) ...[
+                        // Right side: either prices (logged-in) or login prompt (guest)
+                        if (isLoggedIn)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              if (hasDiscount) ...[
+                                Text(
+                                  'Eklediğin Fiyat: $currency${regularPrice.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: primaryColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                              ],
                               Text(
-                                'Eklediğin Fiyat: $currency${regularPrice.toStringAsFixed(2)}',
+                                '$currency${(currentPrice * quantity).toStringAsFixed(2)}',
                                 style: const TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
                                   color: primaryColor,
                                 ),
                               ),
-                              const SizedBox(height: 2),
+                              if (hasDiscount) ...[
+                                const SizedBox(height: 2),
+                                _savingsChip(
+                                  currency: currency,
+                                  savings: (regularPrice - currentPrice) * quantity,
+                                ),
+                              ],
                             ],
-                            Text(
-                              '$currency${(currentPrice * quantity).toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: primaryColor,
-                              ),
-                            ),
-                            if (hasDiscount) ...[
-                              const SizedBox(height: 2),
-                              _savingsChip(
-                                currency: currency,
-                                savings: (regularPrice - currentPrice) * quantity,
-                              ),
-                            ],
-                          ],
-                        ),
+                          )
                       ],
                     ),
                   ],
@@ -578,8 +575,8 @@ class CartScreenState extends State<CartScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.light
-            ? Colors.white // ✅ White for light theme
-            : Theme.of(context).cardColor, // Keep dark theme card color
+            ? Colors.white
+            : Theme.of(context).cardColor,
         boxShadow: [
           BoxShadow(
             color: theme.shadowColor.withOpacity(0.06),
@@ -600,8 +597,8 @@ class CartScreenState extends State<CartScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   color: Theme.of(context).brightness == Brightness.light
-                      ? Colors.white // ✅ White for light theme
-                      : Theme.of(context).cardColor, // Keep dark theme card color
+                      ? Colors.white
+                      : Theme.of(context).cardColor,
                   border: Border.all(color: Colors.black12),
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -634,7 +631,7 @@ class CartScreenState extends State<CartScreen> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
-                    (isLoading || total <= 0) ? Colors.grey : blueColor,
+                    (isLoading || total <= 0 || !isLoggedIn) ? Colors.grey : blueColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),

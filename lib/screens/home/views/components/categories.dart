@@ -154,13 +154,12 @@ class CategoryBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: press,
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(45),
       child: Column(
         children: [
           Container(
             width: 90,
             height: 90,
-            padding: const EdgeInsets.all(12), // was 9 → more padding now
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
@@ -172,8 +171,12 @@ class CategoryBtn extends StatelessWidget {
                 )
               ],
             ),
+            clipBehavior: Clip.hardEdge, // important for circular clipping
             child: image.isNotEmpty
-                ? Image.network(image, fit: BoxFit.contain)
+                ? Image.network(
+              image,
+              fit: BoxFit.cover, // fills the circle
+            )
                 : const Icon(Icons.image_not_supported, color: Colors.grey),
           ),
           const SizedBox(height: 4),
@@ -196,4 +199,5 @@ class CategoryBtn extends StatelessWidget {
     );
   }
 }
+
 

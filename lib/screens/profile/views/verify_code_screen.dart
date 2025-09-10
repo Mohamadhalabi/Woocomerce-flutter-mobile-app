@@ -5,16 +5,21 @@ import '../../../entry_point.dart';
 import '../../../services/api_service.dart';
 import '../../../services/alert_service.dart';
 import '../../../services/cart_service.dart';
-import '../complete_profile_screen.dart';
 
 class VerifyCodeScreen extends StatefulWidget {
   final String phoneNumber;
   final bool isFromRegister;
 
+  /// NEW: pass names from Register screen so we can set them after login
+  final String? firstName;
+  final String? lastName;
+
   const VerifyCodeScreen({
     super.key,
     required this.phoneNumber,
     this.isFromRegister = false,
+    this.firstName,
+    this.lastName,
   });
 
   @override
@@ -42,7 +47,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       canResend = false;
     });
 
-    _timer?.cancel(); // clear old timer
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (secondsRemaining > 0) {
         setState(() => secondsRemaining--);
@@ -75,32 +80,45 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', result['token']);
 
+      // Merge guest cart -> Woo cart
       final guestCart = await CartService.getGuestCart();
       for (var item in guestCart) {
         final productId = item['productId'];
         final rawQty = item['quantity'];
         if (productId == null || rawQty == null) continue;
-
-        int quantity = int.tryParse(rawQty.toString()) ?? 1;
-        await CartService.addToWooCart(result['token'], productId, quantity);
+        final qty = int.tryParse(rawQty.toString()) ?? 1;
+        await CartService.addToWooCart(result['token'], productId, qty);
       }
-
       await CartService.clearGuestCart();
 
-      if (!mounted) return;
+      // If we have first/last name (from registration), update profile now
+      final fn = widget.firstName?.trim() ?? '';
+      final ln = widget.lastName?.trim() ?? '';
+      if (fn.isNotEmpty && ln.isNotEmpty) {
+        try {
+          await ApiService.updateProfileName(
+            token: result['token'],
+            firstName: fn,
+            lastName: ln,
+          );
+        } catch (e) {
+          // non-fatal: keep going even if name update fails
+        }
+      }
 
+      if (!mounted) return;
       AlertService.showTopAlert(context, 'Giriş başarılı', isError: false);
 
+      // ✅ Go straight to app (no more CompleteProfileScreen)
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => CompleteProfileScreen(token: result['token']),
-        ),
+        MaterialPageRoute(builder: (_) => EntryPoint(onLocaleChange: (_) {})),
       );
     } catch (e) {
+      if (!mounted) return;
       AlertService.showTopAlert(context, e.toString(), isError: true);
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -129,12 +147,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            Center(
-              child: Image.asset(
-                'assets/logo/aanahtar-logo.webp',
-                height: 70,
-              ),
-            ),
+            Center(child: Image.asset('assets/logo/aanahtar-logo.webp', height: 70)),
             const SizedBox(height: 30),
             TextField(
               controller: codeController,
@@ -146,10 +159,8 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
             ),
             const SizedBox(height: 10),
             if (!canResend)
-              Text(
-                'Tekrar kod göndermek için ${secondsRemaining}s',
-                style: const TextStyle(color: Colors.grey),
-              ),
+              Text('Tekrar kod göndermek için ${secondsRemaining}s',
+                  style: const TextStyle(color: Colors.grey)),
             if (canResend)
               TextButton(
                 onPressed: resendCode,
@@ -161,9 +172,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
                 minimumSize: const Size.fromHeight(50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
               ),
               child: isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
@@ -175,13 +184,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              offset: Offset(0, -2),
-              blurRadius: 6,
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black12, offset: Offset(0, -2), blurRadius: 6)],
         ),
         child: BottomNavigationBar(
           backgroundColor: Colors.white,

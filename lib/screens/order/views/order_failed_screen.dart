@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import '../../../constants.dart';
 import '../../../entry_point.dart';
 
-class OrderSuccessScreen extends StatelessWidget {
-  final int orderId;
+class OrderFailedScreen extends StatelessWidget {
+  final int? orderId; // can be null if we failed before order creation
 
-  const OrderSuccessScreen({super.key, required this.orderId});
+  const OrderFailedScreen({super.key, this.orderId});
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +14,7 @@ class OrderSuccessScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Sipariş Başarılı', style: TextStyle(color: Colors.white)),
+        title: const Text('Ödeme Başarısız', style: TextStyle(color: Colors.white)),
         backgroundColor: blueColor,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -24,19 +24,20 @@ class OrderSuccessScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.check_circle, color: Colors.green, size: 80),
+              const Icon(Icons.cancel, color: Colors.red, size: 80),
               const SizedBox(height: 20),
               Text(
-                "Siparişiniz başarıyla oluşturuldu!",
+                "Ödemeniz tamamlanamadı.",
                 style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 10),
-              Text(
-                "Sipariş Numaranız: #$orderId",
-                style: theme.textTheme.titleMedium?.copyWith(color: blueColor),
-                textAlign: TextAlign.center,
-              ),
+              if (orderId != null && orderId! > 0)
+                Text(
+                  "Sipariş (taslak) No: #$orderId",
+                  style: theme.textTheme.titleMedium?.copyWith(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
               const SizedBox(height: 30),
               Row(
                 children: [
@@ -49,10 +50,8 @@ class OrderSuccessScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/orders');
-                      },
-                      child: const Text("Siparişe Git"),
+                      onPressed: () => Navigator.pop(context), // back to checkout
+                      child: const Text("Tekrar Dene"),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -65,18 +64,18 @@ class OrderSuccessScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                        onPressed: () {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => EntryPoint(
-                                onLocaleChange: (_) {},
-                                initialIndex: 0, // Home tab
-                              ),
+                      onPressed: () {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EntryPoint(
+                              onLocaleChange: (_) {},
+                              initialIndex: 0, // Home tab
                             ),
-                                (route) => false,
-                          );
-                        },
+                          ),
+                              (route) => false,
+                        );
+                      },
                       child: const Text("Ana Sayfa"),
                     ),
                   ),

@@ -164,12 +164,29 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => fetchResults(isRefresh: true),
-              child: products.isEmpty && isLoading
-                  ? const ProductCardSkelton()
+              child: (products.isEmpty && isLoading)
+              // Initial load: show 4 skeletons (2x2) as the whole body
+                  ? GridView.count(
+                padding: const EdgeInsets.all(12),
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.6,
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  ProductCardSkelton(),
+                  ProductCardSkelton(),
+                  ProductCardSkelton(),
+                  ProductCardSkelton(),
+                ],
+              )
+              // Results (and load-more skeletons)
                   : GridView.builder(
                 controller: _scrollController,
-                itemCount: hasMore ? products.length + 4 : products.length,
                 padding: const EdgeInsets.all(12),
+                // Add 4 extra skeleton cells while loading more
+                itemCount:
+                products.length + ((isLoading && hasMore) ? 4 : 0),
                 gridDelegate:
                 const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
@@ -178,20 +195,11 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                   childAspectRatio: 0.6,
                 ),
                 itemBuilder: (context, index) {
+                  // Extra cells -> skeletons
                   if (index >= products.length) {
-                    return GridView.count(
-                      crossAxisCount: 1,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: 0.6,
-                      children: List.generate(
-                        4,
-                            (_) => const ProductCardSkelton(),
-                      ),
-                    );
+                    return const ProductCardSkelton();
                   }
+
                   final product = products[index];
                   return ProductCard(
                     id: product.id,

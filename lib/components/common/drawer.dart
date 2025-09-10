@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:shop/screens/category/category_products_screen.dart';
-import 'package:http/http.dart' as http;
+// lib/components/common/drawer.dart
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shop/screens/category/category_products_screen.dart';
 
 class CustomDrawer extends StatefulWidget {
   final void Function(int)? onNavigateToIndex;
@@ -32,21 +33,20 @@ class _CustomDrawerState extends State<CustomDrawer> {
   bool loadingBrands = false;
   bool loadingManufacturers = false;
 
-  bool _drawerDataFetched = false;
+  /* ---------- helpers ---------- */
 
-  @override
-  void initState() {
-    super.initState();
-    if (widget.initialData != null) {
-      categories = (widget.initialData!['categories'] as Map<String, dynamic>).values.toList();
-      brands = widget.initialData!['brands'] ?? [];
-      manufacturers = widget.initialData!['manufacturers'] ?? [];
-      _drawerDataFetched = true;
-    } else {
-      final lang = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
-      fetchDrawerData(lang); // Fallback fetch
-      _drawerDataFetched = true;
-    }
+  /// Accepts `List`, `Map`, or `null` and always returns a `List`.
+  List<dynamic> _toList(dynamic v) {
+    if (v == null) return <dynamic>[];
+    if (v is List) return v;
+    if (v is Map) return v.values.toList();
+    return <dynamic>[];
+  }
+
+  /// Safe accessor for count label
+  String _countText(dynamic item) {
+    final c = (item is Map && item['count'] != null) ? item['count'].toString() : '0';
+    return '$c ürün';
   }
 
   String getFilterTypeByTitle(String title) {
@@ -56,24 +56,58 @@ class _CustomDrawerState extends State<CustomDrawer> {
     return "category";
   }
 
-  Future<void> fetchDrawerData(String lang) async {
-    final url = Uri.parse('https://www.aanahtar.com.tr/wp-json/custom/v1/drawer-data?lang=$lang');
-    final response = await http.get(url);
+  @override
+  void initState() {
+    super.initState();
 
-    if (response.statusCode == 200) {
+    // Try preloaded data first
+    if (widget.initialData != null) {
+      final d = widget.initialData!;
+      categories = _toList(d['categories']);
+      brands = _toList(d['brands']);
+      manufacturers = _toList(d['manufacturers']);
+    } else {
+      // Fallback: fetch by current locale
+      final lang = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+      _fetchDrawerData(lang);
+    }
+  }
+
+  Future<void> _fetchDrawerData(String lang) async {
+    setState(() {
+      loadingCategories = true;
+      loadingBrands = true;
+      loadingManufacturers = true;
+    });
+
+    try {
+      final url = Uri.parse(
+          'https://www.aanahtar.com.tr/wp-json/custom/v1/drawer-data?lang=$lang');
+      final response = await http.get(url);
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to fetch drawer data (${response.statusCode})');
+      }
+
       final jsonData = json.decode(response.body);
 
       setState(() {
-        categories = (jsonData['categories'] as Map<String, dynamic>).values.toList();
-        brands = jsonData['brands'] ?? [];
-        manufacturers = jsonData['manufacturers'] ?? [];
+        categories = _toList(jsonData['categories']);
+        brands = _toList(jsonData['brands']);
+        manufacturers = _toList(jsonData['manufacturers']);
 
         loadingCategories = false;
         loadingBrands = false;
         loadingManufacturers = false;
       });
-    } else {
-      throw Exception('Failed to fetch drawer data');
+    } catch (e) {
+      // Fail gracefully
+      setState(() {
+        loadingCategories = false;
+        loadingBrands = false;
+        loadingManufacturers = false;
+      });
+      debugPrint('Drawer data error: $e');
     }
   }
 
@@ -82,18 +116,19 @@ class _CustomDrawerState extends State<CustomDrawer> {
       List<dynamic> items,
       bool isLoading,
       bool isExpanded,
-      Function(bool) onExpand,
+      ValueChanged<bool> onExpand,
       ) {
     final theme = Theme.of(context);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8),
-      child: Container(
+      child: Container
+        (
         decoration: BoxDecoration(
-          color: theme.cardColor, // ✅ Theme-aware background
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(10),
           border: theme.brightness == Brightness.dark
-              ? Border.all(color: Colors.white, width: 1) // ✅ White border in dark mode
+              ? Border.all(color: Colors.white, width: 1)
               : null,
           boxShadow: [
             if (theme.brightness != Brightness.dark)
@@ -115,7 +150,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
-                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8), // ✅ Theme-aware text
+                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
               ),
             ),
             childrenPadding: const EdgeInsets.symmetric(horizontal: 16),
@@ -128,26 +163,28 @@ class _CustomDrawerState extends State<CustomDrawer> {
               else
                 Column(
                   children: List.generate(items.length, (index) {
-                    final item = items[index];
+                    final item = items[index] as Map<String, dynamic>;
                     return Column(
                       children: [
                         ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 0),
+                          contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 0),
                           title: Text(
-                            item['name'],
+                            (item['name'] ?? '').toString(),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: theme.textTheme.bodyMedium?.color, // ✅ Theme-aware
+                              color: theme.textTheme.bodyMedium?.color,
                             ),
                           ),
                           trailing: Text(
-                            '${item['count']} ürün',
+                            _countText(item),
                             style: TextStyle(
                               fontSize: 12,
-                              color: theme.textTheme.bodySmall?.color?.withOpacity(0.6), // ✅ Theme-aware
+                              color: theme.textTheme.bodySmall?.color
+                                  ?.withOpacity(0.6),
                             ),
                           ),
                           onTap: () {
@@ -167,7 +204,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         Divider(
                           height: 1,
                           thickness: 2,
-                          color: theme.dividerColor.withOpacity(0.3), // ✅ Theme-aware
+                          color: theme.dividerColor.withOpacity(0.3),
                         ),
                       ],
                     );
@@ -196,30 +233,27 @@ class _CustomDrawerState extends State<CustomDrawer> {
               height: 48,
             ),
           ),
-          Divider(
-            height: 8,
-            color: theme.dividerColor.withOpacity(0.3), // ✅ Theme-aware
+          Divider(height: 8, color: theme.dividerColor.withOpacity(0.3)),
+          buildExpansion(
+            "KATEGORİLER",
+            categories,
+            loadingCategories,
+            isCategoryExpanded,
+                (val) => setState(() => isCategoryExpanded = val),
           ),
           buildExpansion(
-              "KATEGORİLER",
-              categories,
-              loadingCategories,
-              isCategoryExpanded,
-                  (val) => setState(() => isCategoryExpanded = val)
+            "MARKALAR",
+            brands,
+            loadingBrands,
+            isBrandExpanded,
+                (val) => setState(() => isBrandExpanded = val),
           ),
           buildExpansion(
-              "MARKALAR",
-              brands,
-              loadingBrands,
-              isBrandExpanded,
-                  (val) => setState(() => isBrandExpanded = val)
-          ),
-          buildExpansion(
-              "ÜRETİCİ FİRMALAR",
-              manufacturers,
-              loadingManufacturers,
-              isManufacturerExpanded,
-                  (val) => setState(() => isManufacturerExpanded = val)
+            "ÜRETİCİ FİRMALAR",
+            manufacturers,
+            loadingManufacturers,
+            isManufacturerExpanded,
+                (val) => setState(() => isManufacturerExpanded = val),
           ),
         ],
       ),
