@@ -64,3 +64,6 @@ app.*.map.json
 **/android/**/gradle_build_output.xml
 **/android/**/cmake-build-debug/
 **/android/**/cmake-build-release/
+
+android/app/my-release-key.jks
+android/key.properties

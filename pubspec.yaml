@@ -1,9 +1,9 @@
 name: shop
-description: FlutterShop is a premium E-commerce UI kit that you can use to build various e-commerce apps using Flutter that works on both Android & iOS. This kit contains 100+ nicely crafted minimal screens that cover everything you need for your shop app.
+description: Anadolu Anahtar mobile app (locksmith store app) in Turkey
 
 publish_to: "none"
 
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ">=3.2.0 <4.0.0"
@@ -13,15 +13,12 @@ dependencies:
     sdk: flutter
   image_picker: ^1.0.4
   visibility_detector: ^0.3.2
-  cupertino_icons: ^1.0.2
   flutter_svg: ^2.0.9
   form_field_validator: ^1.1.0
   cached_network_image: ^3.2.0
-  flutter_rating_bar: ^4.0.1
-  flutter_widget_from_html_core: ^0.15.1
   animations: ^2.0.11
   url_launcher: ^6.3.0
-  http: any
+  http: ^0.13.6
   flutter_dotenv: ^5.2.1
   flutter_localizations:
     sdk: flutter
@@ -67,22 +64,11 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/sliders/
-    - assets/Illustration/
     - assets/flags/
     - assets/logo/
-    - assets/screens/
     - assets/splash/
     - .env
-    - assets/locksmith_mapping.json
-
   fonts:
-    - family: Plus Jakarta
-      fonts:
-        - asset: assets/fonts/plus_jakarta/PlusJakartaDisplay-Regular.otf
-        - asset: assets/fonts/plus_jakarta/PlusJakartaDisplay-Medium.otf
-          weight: 500
-        - asset: assets/fonts/plus_jakarta/PlusJakartaDisplay-Bold.otf
-          weight: 700
     - family: Grandis Extended
       fonts:
         - asset: assets/fonts/grandis_extended/GrandisExtended-Regular.ttf

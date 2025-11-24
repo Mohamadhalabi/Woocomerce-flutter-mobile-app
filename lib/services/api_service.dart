@@ -38,6 +38,37 @@ class ApiService {
     return h;
   }
 
+  // helper :
+
+  // Put these helpers somewhere central (e.g., in ApiService)
+
+  static bool _looksLikeJson(String s) {
+    final t = s.trimLeft();
+    return t.startsWith('{') || t.startsWith('[');
+  }
+
+  static Map<String, dynamic> _safeDecodeMap(String body) {
+    if (_looksLikeJson(body)) {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) return decoded;
+    }
+    return {'message': body}; // wrap raw HTML/text so UI can show it
+  }
+
+  static Future<http.Response> _postJson(
+      Uri url, {
+        Map<String, String>? headers,
+        Object? body,
+        Duration timeout = const Duration(seconds: 30),
+      }) {
+    final h = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...?headers,
+    };
+    return http.post(url, headers: h, body: body).timeout(timeout);
+  }
+
   // set Turkish lira default Currency
   static Future<String> getSelectedCurrency() async {
     final prefs = await SharedPreferences.getInstance();
@@ -577,35 +608,37 @@ class ApiService {
   }
 
   static Future<void> sendLoginCode(String phone) async {
-    final response = await http.post(
+    final res = await _postJson(
       Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/request-code'),
-      headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'phone_number': phone}),
     );
 
-    final json = jsonDecode(response.body);
-    if (response.statusCode != 200 || json['success'] != true) {
-      throw Exception(json['message'] ?? 'Kod gönderilemedi');
+    if (res.statusCode == 200) {
+      final data = _safeDecodeMap(res.body);
+      if (data['success'] == true) return;
     }
+
+    // Not 200 or success=false → surface best message possible
+    final err = _safeDecodeMap(res.body);
+    throw Exception(err['error'] ?? err['message'] ?? 'Kod gönderilemedi');
   }
 
   static Future<Map<String, dynamic>> verifyLoginCode({
     required String phone,
     required String code,
   }) async {
-    final response = await http.post(
+    final res = await _postJson(
       Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/verify-code'),
-      headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'phone_number': phone, 'code': code}),
     );
 
-    final json = jsonDecode(response.body);
-
-    if (response.statusCode != 200 || json['token'] == null) {
-      throw Exception(json['message'] ?? 'Doğrulama başarısız');
+    if (res.statusCode == 200 && _looksLikeJson(res.body)) {
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      if (data['token'] != null) return data;
     }
 
-    return json;
+    final err = _safeDecodeMap(res.body);
+    throw Exception(err['error'] ?? err['message'] ?? 'Doğrulama başarısız');
   }
 
   static Future<bool> isLoggedIn() async {

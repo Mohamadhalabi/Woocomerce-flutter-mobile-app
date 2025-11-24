@@ -31,9 +31,9 @@ class SearchForm extends StatelessWidget {
 
   /// Load JSON mapping from assets
   static Future<void> loadLocksmithMapping() async {
-    final String jsonString =
-    await rootBundle.loadString('assets/locksmith_mapping.json');
-    locksmithMap = Map<String, String>.from(json.decode(jsonString));
+    // final String jsonString =
+    // await rootBundle.loadString('assets/locksmith_mapping.json');
+    // locksmithMap = Map<String, String>.from(json.decode(jsonString));
   }
 
   static const List<String> ignoreColors = [
