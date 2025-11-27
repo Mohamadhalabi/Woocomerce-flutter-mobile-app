@@ -41,7 +41,15 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final double finalPrice = salePrice ?? price;
+
+    // ✅ DYNAMIC COLORS for Dark Mode
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade300;
+    final titleColor = isDark ? Colors.white : Colors.black;
+    final categoryColor = isDark ? Colors.grey[400] : Colors.grey[600];
+    final priceColor = isDark ? Colors.white : theme.primaryColor;
 
     return GestureDetector(
       onTap: press,
@@ -49,12 +57,12 @@ class ProductCard extends StatelessWidget {
         width: 150,
         margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white, // always white
+          color: cardColor, // ✅ Switch to Dark Grey in Dark Mode
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300, width: 1), // border all sides
+          border: Border.all(color: borderColor, width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08), // ✅ Stronger shadow in dark mode
               blurRadius: 6,
               offset: const Offset(0, 3),
             ),
@@ -77,8 +85,10 @@ class ProductCard extends StatelessWidget {
                         : ColorFilter.mode(Colors.white.withOpacity(0.6), BlendMode.modulate),
                     child: Container(
                       decoration: BoxDecoration(
+                        // ✅ Image background stays WHITE to handle JPEG product images cleanly
+                        color: Colors.white,
                         border: Border(
-                          bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                          bottom: BorderSide(color: borderColor, width: 1),
                         ),
                       ),
                       child: Padding(
@@ -86,18 +96,19 @@ class ProductCard extends StatelessWidget {
                         child: AspectRatio(
                           aspectRatio: 1,
                           child: Container(
-                            color: Colors.white,
                             alignment: Alignment.center,
+                            // ✅ 1. FORCE LTR to prevent mirroring
                             child: Directionality(
-                              textDirection: TextDirection.ltr, // ✅ force LTR for image
+                              textDirection: TextDirection.ltr,
                               child: Image.network(
                                 image,
                                 fit: BoxFit.contain,
                                 filterQuality: FilterQuality.medium,
-                                matchTextDirection: false, // ✅ prevent auto mirroring
+                                // ✅ 2. Disable auto-mirroring
+                                matchTextDirection: false,
                                 errorBuilder: (context, error, stackTrace) => Icon(
                                   Icons.broken_image,
-                                  color: theme.iconTheme.color,
+                                  color: Colors.grey, // Neutral color for icon
                                 ),
                               ),
                             ),
@@ -113,12 +124,12 @@ class ProductCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
+                          color: Colors.black.withOpacity(0.7),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Text(
                           'STOKTA YOK',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
                         ),
                       ),
                     ),
@@ -127,6 +138,8 @@ class ProductCard extends StatelessWidget {
                   Positioned(top: 8, left: 8, child: _buildBadge('YENİ')),
                 if (dicountpercent != null && isInStock)
                   Positioned(top: 8, left: 8, child: _buildBadge('-$dicountpercent%')),
+
+                // Wishlist Button
                 if (id != null)
                   Selector<WishlistProvider, bool>(
                     selector: (_, provider) => provider.isInWishlist(id!),
@@ -151,15 +164,21 @@ class ProductCard extends StatelessWidget {
                             Provider.of<WishlistProvider>(context, listen: false).toggleWishlist(productData);
                           },
                           child: Container(
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
+                            decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF2C2C2C) : Colors.white, // ✅ Darker circle in dark mode
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                  )
+                                ]
                             ),
-                            padding: const EdgeInsets.all(4),
+                            padding: const EdgeInsets.all(5),
                             child: Icon(
                               isWished ? Icons.favorite : Icons.favorite_border,
                               size: 16,
-                              color: isWished ? Colors.red : theme.iconTheme.color,
+                              color: isWished ? Colors.red : (isDark ? Colors.white : Colors.grey),
                             ),
                           ),
                         ),
@@ -178,17 +197,17 @@ class ProductCard extends StatelessWidget {
                       category,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 10, color: categoryColor), // ✅ Dynamic Grey
                     ),
                     const SizedBox(height: 4),
                     Text(
                       title,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 11,
-                        color: Colors.black,
+                        color: titleColor, // ✅ White in Dark Mode
                         height: 1.5,
                       ),
                     ),
@@ -205,11 +224,15 @@ class ProductCard extends StatelessWidget {
                             }
                             final token = snapshot.data;
                             final isLoggedIn = token != null && !JwtDecoder.isExpired(token);
+
+                            // Guest or Zero Price logic
                             if (!isLoggedIn || finalPrice <= 0) {
                               return const SizedBox.shrink();
                             }
+
                             final bool hasDiscountNow =
                                 salePrice != null && salePrice! > 0 && salePrice! < price;
+
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -218,18 +241,20 @@ class ProductCard extends StatelessWidget {
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
-                                    color: hasDiscountNow ? Colors.red : Theme.of(context).primaryColor,
+                                    // ✅ Red if discount, White if dark mode, Blue if light mode
+                                    color: hasDiscountNow ? Colors.red : priceColor,
                                   ),
                                 ),
                                 if (hasDiscountNow) const SizedBox(height: 2),
                                 if (hasDiscountNow)
                                   Text(
                                     "${currencySymbol ?? '₺'}${price.toStringAsFixed(2)}",
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.grey,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white54 : Colors.grey, // ✅ Visible cross-out in dark mode
                                       decoration: TextDecoration.lineThrough,
+                                      decorationColor: isDark ? Colors.white54 : Colors.grey,
                                     ),
                                   ),
                               ],

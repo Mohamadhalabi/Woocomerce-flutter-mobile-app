@@ -209,11 +209,11 @@ class ProductCardHorizontal extends StatelessWidget {
                                   AlertService.showTopAlert(context, 'Ürün stokta yok', isError: true);
                                   return;
                                 }
-                                if (!loggedIn) {
-                                  AlertService.showTopAlert(
-                                      context, 'Fiyatı görmek ve sepete eklemek için giriş yapın.', isError: true);
-                                  return;
-                                }
+                                // if (!loggedIn) {
+                                //   AlertService.showTopAlert(
+                                //       context, 'Fiyatı görmek ve sepete eklemek için giriş yapın.', isError: true);
+                                //   return;
+                                // }
 
                                 showModalBottomSheet(
                                   context: context,

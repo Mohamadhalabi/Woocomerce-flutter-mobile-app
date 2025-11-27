@@ -7,7 +7,6 @@ import 'package:shop/route/screen_export.dart';
 import 'package:shop/services/api_service.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../../../../constants.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shop/providers/currency_provider.dart';
 
 class FlashSaleProducts extends StatefulWidget {
@@ -40,7 +39,8 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
     setState(() => isVisible = visible);
 
     if (visible && !hasLoaded) {
-      final locale = Localizations.localeOf(context).languageCode;
+      // ✅ FIX: Force Turkish Locale
+      const locale = 'tr';
       final currency = Provider.of<CurrencyProvider>(context, listen: false).selectedCurrency;
       _cacheKey = '$locale|$currency';
 
@@ -64,7 +64,8 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
       _lastRefresh = widget.refreshCounter;
       hasLoaded = false; // allow lazy reload on visibility
       if (isVisible) {
-        final locale = Localizations.localeOf(context).languageCode;
+        // ✅ FIX: Force Turkish Locale
+        const locale = 'tr';
         final currency = Provider.of<CurrencyProvider>(context, listen: false).selectedCurrency;
         fetchProducts(locale, currency);
       }
@@ -99,7 +100,7 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
 
   @override
   Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
+    // Removed: final t = AppLocalizations.of(context)!;
 
     return VisibilityDetector(
       key: const Key('flash-sale-products'),
@@ -113,10 +114,11 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(t.specialOffer, style: Theme.of(context).textTheme.titleSmall),
+                // ✅ FIX: Hardcoded Turkish Title
+                Text("Süper Fırsatlar", style: Theme.of(context).textTheme.titleSmall),
                 TextButton(
                   onPressed: widget.onViewAll,
-                  child: Text(t.viewAll),
+                  child: const Text("Tümünü Gör"), // ✅ FIX: Hardcoded Turkish Button
                 ),
               ],
             ),

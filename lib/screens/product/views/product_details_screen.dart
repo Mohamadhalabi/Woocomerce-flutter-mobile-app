@@ -219,10 +219,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   Widget _roundBack(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return CircleAvatar(
-      backgroundColor: theme.cardColor.withOpacity(0.9),
+      // ✅ Fix: Dark Grey background for button
+      backgroundColor: isDark ? const Color(0xFF2C2C2C) : theme.cardColor.withOpacity(0.9),
       child: IconButton(
-        icon: Icon(Icons.arrow_back, color: theme.iconTheme.color),
+        icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : theme.iconTheme.color),
         onPressed: () => Navigator.pop(context),
       ),
     );
@@ -238,15 +240,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     bool solid = false,
   }) {
     final theme = Theme.of(context);
-    final Color _fg = fg ?? (solid ? Colors.white : theme.colorScheme.primary);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // ✅ Fix: High Contrast colors for chips
+    final Color _fg = fg ?? (solid ? Colors.white : (isDark ? Colors.white : theme.colorScheme.primary));
     final Color _bg = bg ??
         (solid
             ? theme.colorScheme.primary
-            : (theme.brightness == Brightness.light
-            ? Colors.white
-            : theme.cardColor));
+            : (isDark ? const Color(0xFF2C2C2C) : Colors.white)); // Dark grey vs White
     final Color _bd = borderColor ??
-        (solid ? Colors.transparent : theme.colorScheme.primary.withOpacity(0.45));
+        (solid ? Colors.transparent : (isDark ? Colors.white24 : theme.colorScheme.primary.withOpacity(0.45)));
 
     return InkWell(
       onTap: onTap,
@@ -284,9 +287,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   Widget _sectionDivider({double indent = 16, double endIndent = 16}) {
     final theme = Theme.of(context);
-    final base = theme.dividerColor;
-    final color =
-    theme.brightness == Brightness.dark ? base.withOpacity(0.6) : base.withOpacity(0.35);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // ✅ Fix: Lighter divider in dark mode
+    final color = isDark ? Colors.white24 : theme.dividerColor.withOpacity(0.35);
 
     return Padding(
       padding: EdgeInsets.only(left: indent, right: endIndent),
@@ -299,13 +303,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     if (isLoading) return const ProductDetailsSkeleton();
 
     if (product == null) {
       return Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
-        body: Center(child: Text("Product not found.", style: theme.textTheme.bodyMedium)),
+        body: Center(
+            child: Text("Product not found.",
+                style: theme.textTheme.bodyMedium?.copyWith(color: isDark ? Colors.white : Colors.black))),
       );
     }
 
@@ -367,8 +374,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                               children: [
                                 _chip(
                                   label: categoryName,
-                                  fg: primaryColor, // text & chevron = primary
-                                  borderColor: primaryColor, // border = primary
+                                  fg: isDark ? Colors.white : primaryColor, // ✅ Fix text color
+                                  borderColor: isDark ? Colors.white24 : primaryColor,
                                   onTap: () {
                                     Navigator.push(
                                       context,
@@ -401,9 +408,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         borderRadius: BorderRadius.circular(5),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: theme.brightness == Brightness.light
-                                ? Colors.white
-                                : theme.cardColor,
+                            // ✅ Fix: Dark grey container for image area
+                            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.06),
@@ -428,11 +434,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           builder: (context, wishlistProvider, _) {
                             final isInWishlist = wishlistProvider.isInWishlist(widget.productId);
                             return CircleAvatar(
-                              backgroundColor: theme.cardColor.withOpacity(0.9),
+                              // ✅ Fix: Darker circle background
+                              backgroundColor: isDark ? const Color(0xFF2C2C2C) : theme.cardColor.withOpacity(0.9),
                               child: IconButton(
                                 icon: Icon(
                                   isInWishlist ? Icons.favorite : Icons.favorite_border,
-                                  color: isInWishlist ? Colors.red : theme.iconTheme.color,
+                                  color: isInWishlist ? Colors.red : (isDark ? Colors.white : theme.iconTheme.color),
                                 ),
                                 onPressed: () {
                                   final firstImg = images.isNotEmpty ? images.first : '';
@@ -473,15 +480,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         title,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : Colors.black, // ✅ Fix: Pure White Title
                         ),
                       ),
                       const SizedBox(height: 10),
-                      // SKU in primaryColor
+                      // SKU
                       if (sku.isNotEmpty)
                         Text(
                           sku,
                           style: theme.textTheme.titleSmall?.copyWith(
-                            color: primaryColor,
+                            color: isDark ? Colors.white70 : primaryColor, // ✅ Fix: Lighter SKU in dark mode
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -518,11 +526,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: theme.brightness == Brightness.light
-                                      ? Colors.white
-                                      : theme.cardColor,
-                                  border:
-                                  Border.all(color: theme.dividerColor.withOpacity(0.35)),
+                                  // ✅ Fix: Dark grey pill for brands
+                                  color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                                  border: Border.all(color: isDark ? Colors.white24 : theme.dividerColor.withOpacity(0.35)),
                                   borderRadius: BorderRadius.circular(18),
                                 ),
                                 child: Row(
@@ -533,7 +539,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                       bname,
                                       style: theme.textTheme.bodySmall?.copyWith(
                                         fontWeight: FontWeight.w600,
-                                        color: primaryColor,
+                                        color: isDark ? Colors.white : primaryColor, // ✅ Fix: White text
                                       ),
                                     ),
                                   ],
@@ -548,7 +554,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               ),
 
               // PRICE + QTY (only if logged in)
-// ==== PRICE (only when logged in) + QTY & ADD TO CART (always) ====
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -564,13 +569,14 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                 "$currencySymbol${price.toStringAsFixed(2)}",
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   decoration: TextDecoration.lineThrough,
+                                  color: isDark ? Colors.white54 : Colors.grey, // ✅ Fix
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 "$currencySymbol${salePrice!.toStringAsFixed(2)}",
                                 style: theme.textTheme.titleLarge?.copyWith(
-                                  color: primaryColor,
+                                  color: isDark ? Colors.white : primaryColor, // ✅ Fix: White Price
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -580,7 +586,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           Text(
                             "$currencySymbol${price.toStringAsFixed(2)}",
                             style: theme.textTheme.titleLarge?.copyWith(
-                              color: primaryColor,
+                              color: isDark ? Colors.white : primaryColor, // ✅ Fix
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -588,12 +594,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         // Logged-out hint (no numbers)
                         Row(
                           children: [
-                            const Icon(Icons.lock_outline, size: 18),
+                            Icon(Icons.lock_outline, size: 18, color: isDark ? Colors.white70 : Colors.black54),
                             const SizedBox(width: 8),
                             Text(
                               "Fiyatı görmek için giriş yapın",
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
                             ),
                           ],
@@ -608,10 +615,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           // qty
                           Container(
                             decoration: BoxDecoration(
-                              color: theme.brightness == Brightness.light
-                                  ? Colors.white
-                                  : theme.cardColor,
-                              border: Border.all(color: theme.dividerColor.withOpacity(0.8)),
+                              // ✅ Fix: Dark grey Qty box
+                              color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                              border: Border.all(color: isDark ? Colors.white24 : theme.dividerColor.withOpacity(0.8)),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Row(
@@ -619,7 +625,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                 IconButton(
                                   onPressed: () => _updateQuantity(-1),
                                   icon: const Icon(Icons.remove),
-                                  color: primaryColor,
+                                  color: isDark ? Colors.white : primaryColor, // ✅ Fix icon color
                                 ),
                                 SizedBox(
                                   width: 54,
@@ -637,13 +643,14 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                       isDense: true,
                                       border: InputBorder.none,
                                     ),
-                                    style: theme.textTheme.titleMedium,
+                                    // ✅ Fix input text color
+                                    style: theme.textTheme.titleMedium?.copyWith(color: isDark ? Colors.white : Colors.black),
                                   ),
                                 ),
                                 IconButton(
                                   onPressed: () => _updateQuantity(1),
                                   icon: const Icon(Icons.add),
-                                  color: primaryColor,
+                                  color: isDark ? Colors.white : primaryColor, // ✅ Fix icon color
                                 ),
                               ],
                             ),
@@ -676,7 +683,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 ExpandableSection(
                   title: "Özellikler",
                   leadingIcon: Icons.category,
-                  iconColor: primaryColor,
+                  iconColor: isDark ? Colors.white : primaryColor,
                   child: ProductAttributes(
                     attributes:
                     Map<String, List<String>>.from(product?['attributes']),
@@ -686,8 +693,20 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               ExpandableSection(
                 title: "Açıklama",
                 leadingIcon: Icons.description,
-                iconColor: primaryColor,
-                child: Html(data: product?['description'] ?? "<p>Bilgi yok</p>"),
+                iconColor: isDark ? Colors.white : primaryColor,
+                child: Html(
+                  data: product?['description'] ?? "<p>Bilgi yok</p>",
+                  // ✅ FIX: Force HTML text to be white in dark mode
+                  style: {
+                    "body": Style(
+                      color: isDark ? Colors.white : Colors.black,
+                      fontSize: FontSize(15.0),
+                    ),
+                    "p": Style(
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
+                  },
+                ),
               ),
 
               const SliverToBoxAdapter(child: SizedBox(height: 8)),

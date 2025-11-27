@@ -90,6 +90,7 @@ class CartScreenState extends State<CartScreen> {
             .toList();
 
         if (productIds.isNotEmpty) {
+          // Force 'tr' here as requested
           final products = await ApiService.fetchProductsCardByIds(productIds, 'tr');
           final productMap = {for (var p in products) p.id!: p};
 
@@ -99,7 +100,7 @@ class CartScreenState extends State<CartScreen> {
               final p = productMap[pid]!;
               item['image'] = p.image;
               item['title'] = p.title;
-              item['category'] = p.category; // not shown, but kept if needed later
+              item['category'] = p.category;
               item['price'] = p.salePrice ?? p.price;
               item['regular_price'] = p.salePrice != null ? p.price : null;
               item['product_id'] = p.id ?? pid;
@@ -138,14 +139,12 @@ class CartScreenState extends State<CartScreen> {
     if (v is num) return v.toDouble();
     if (v is String) return double.tryParse(v) ?? 0.0;
     if (v is Map<String, dynamic>) {
-      // expect {raw: "..."}
       return double.tryParse(v['raw']?.toString() ?? '') ?? 0.0;
     }
     return 0.0;
   }
 
   double _calculateTotal(List<Map<String, dynamic>> items) {
-    // Guests should NOT see totals
     if (!isLoggedIn) return 0.0;
 
     return items.fold(0.0, (sum, item) {
@@ -239,7 +238,6 @@ class CartScreenState extends State<CartScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
-    // Keep a copy of current items & their keys before we clear UI
     final previousItems = List<Map<String, dynamic>>.from(cartItems);
     final knownKeys = previousItems
         .map((i) => i['key'])
@@ -247,14 +245,12 @@ class CartScreenState extends State<CartScreen> {
         .map((k) => k.toString())
         .toList();
 
-    // 1) Instant UI update — feels snappy
     setState(() {
       cartItems = [];
       total = 0;
       isLoading = false;
     });
 
-    // 2) Persist guest cart instantly
     if (token == null) {
       await CartService.clearGuestCart();
       if (!mounted) return;
@@ -262,7 +258,6 @@ class CartScreenState extends State<CartScreen> {
       return;
     }
 
-    // 3) Logged-in: clear on WooCommerce in background
     try {
       await CartService.clearWooCart(token, knownKeys: knownKeys);
       if (!mounted) return;
@@ -284,7 +279,7 @@ class CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
+    // Explicit white for AppBar title to ensure contrast against primaryColor
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -301,14 +296,21 @@ class CartScreenState extends State<CartScreen> {
       body: isLoading
           ? _buildSkeleton()
           : cartItems.isEmpty
-          ? const Center(child: Text('Sepetiniz boş'))
+          ? Center(
+          child: Text(
+            'Sepetiniz boş',
+            // Ensure empty text is visible in dark mode
+            style: TextStyle(
+              color: theme.brightness == Brightness.dark ? Colors.white : Colors.black,
+            ),
+          ))
           : RefreshIndicator(
         onRefresh: () async => await loadCart(),
         child: ListView.separated(
           itemCount: cartItems.length,
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
           separatorBuilder: (_, __) => Divider(
-            color: Theme.of(context).dividerColor.withOpacity(0.25),
+            color: theme.dividerColor.withOpacity(0.25),
             height: 1,
           ),
           itemBuilder: (context, index) {
@@ -356,12 +358,20 @@ class CartScreenState extends State<CartScreen> {
     required VoidCallback onMinus,
     required VoidCallback onPlus,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // ✅ Fix: Dark background for pill in Dark Mode
+    final bgColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final borderColor = isDark ? Colors.white24 : Colors.black12;
+    final textColor = isDark ? Colors.white : primaryColor;
+
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.black12),
+        color: bgColor,
+        border: Border.all(color: borderColor),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
@@ -370,6 +380,7 @@ class CartScreenState extends State<CartScreen> {
             icon: Icons.remove,
             onTap: quantity <= 1 ? null : onMinus,
             disabled: quantity <= 1,
+            isDark: isDark,
           ),
           const SizedBox(width: 8),
           SizedBox(
@@ -377,18 +388,40 @@ class CartScreenState extends State<CartScreen> {
             child: Center(
               child: Text(
                 '$quantity',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: primaryColor),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: textColor, // ✅ Fix text color
+                ),
               ),
             ),
           ),
           const SizedBox(width: 8),
-          _roundIcon(icon: Icons.add, onTap: onPlus),
+          _roundIcon(icon: Icons.add, onTap: onPlus, isDark: isDark),
         ],
       ),
     );
   }
 
-  Widget _roundIcon({required IconData icon, VoidCallback? onTap, bool disabled = false}) {
+  Widget _roundIcon({
+    required IconData icon,
+    VoidCallback? onTap,
+    bool disabled = false,
+    required bool isDark,
+  }) {
+    // ✅ Fix: Adjust button colors for Dark Mode
+    Color bg = disabled
+        ? (isDark ? Colors.white10 : Colors.grey.shade200)
+        : (isDark ? Colors.white12 : Colors.white);
+
+    Color border = disabled
+        ? (isDark ? Colors.white12 : Colors.grey.shade300)
+        : (isDark ? Colors.white24 : Colors.black12);
+
+    Color iconColor = disabled
+        ? Colors.grey
+        : (isDark ? Colors.white : blueColor);
+
     return InkWell(
       onTap: disabled ? null : onTap,
       borderRadius: BorderRadius.circular(18),
@@ -396,17 +429,18 @@ class CartScreenState extends State<CartScreen> {
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: disabled ? Colors.grey.shade200 : Colors.white,
+          color: bg,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: disabled ? Colors.grey.shade300 : Colors.black12),
+          border: Border.all(color: border),
         ),
-        child: Icon(icon, size: 18, color: disabled ? Colors.grey : blueColor),
+        child: Icon(icon, size: 18, color: iconColor),
       ),
     );
   }
 
   Widget _buildCartItem(BuildContext context, Map<String, dynamic> item, int index) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     final currentPrice = _asDouble(item['sale_price'] ?? item['price']);
     double regularPrice = _asDouble(item['regular_price']);
@@ -458,16 +492,14 @@ class CartScreenState extends State<CartScreen> {
                 height: 86,
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: theme.brightness == Brightness.dark
-                        ? Colors.white24
-                        : Colors.grey.shade300,
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
-                    color: Colors.white,
+                    color: Colors.white, // Keep image bg white for JPEGs
                     child: item['image'] != null && item['image'].toString().isNotEmpty
                         ? Image.network(
                       item['image'],
@@ -490,9 +522,10 @@ class CartScreenState extends State<CartScreen> {
                       item['title'] ?? 'Ürün',
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
+                        color: isDark ? Colors.white : Colors.black87, // ✅ Fix: Pure white
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -516,19 +549,19 @@ class CartScreenState extends State<CartScreen> {
                               if (hasDiscount) ...[
                                 Text(
                                   'Eklediğin Fiyat: $currency${regularPrice.toStringAsFixed(2)}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11,
-                                    color: primaryColor,
+                                    color: isDark ? Colors.white70 : primaryColor, // ✅ Fix
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                               ],
                               Text(
                                 '$currency${(currentPrice * quantity).toStringAsFixed(2)}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
-                                  color: primaryColor,
+                                  color: isDark ? Colors.white : primaryColor, // ✅ Fix
                                 ),
                               ),
                               if (hasDiscount) ...[
@@ -536,6 +569,7 @@ class CartScreenState extends State<CartScreen> {
                                 _savingsChip(
                                   currency: currency,
                                   savings: (regularPrice - currentPrice) * quantity,
+                                  isDark: isDark,
                                 ),
                               ],
                             ],
@@ -552,16 +586,25 @@ class CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _savingsChip({required String currency, required double savings}) {
+  Widget _savingsChip({
+    required String currency,
+    required double savings,
+    required bool isDark,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
+        // ✅ Fix: Dark grey background for chip
+        color: isDark ? const Color(0xFF2C2C2C) : Colors.grey.shade200,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        'Kazancınız: ${currency}${savings.toStringAsFixed(0)}',
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        'Kazancınız: $currency${savings.toStringAsFixed(0)}',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: isDark ? Colors.white : Colors.black, // ✅ Fix: White text
+        ),
       ),
     );
   }
@@ -571,12 +614,15 @@ class CartScreenState extends State<CartScreen> {
         ? (cartItems.first['currency_symbol'] ?? '₺')
         : '₺';
 
+    final isDark = theme.brightness == Brightness.dark;
+
+    // ✅ Fix: Main background
+    final barBg = isDark ? theme.cardColor : Colors.white;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.light
-            ? Colors.white
-            : Theme.of(context).cardColor,
+        color: barBg,
         boxShadow: [
           BoxShadow(
             color: theme.shadowColor.withOpacity(0.06),
@@ -596,26 +642,29 @@ class CartScreenState extends State<CartScreen> {
                 alignment: Alignment.centerLeft,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.light
-                      ? Colors.white
-                      : Theme.of(context).cardColor,
-                  border: Border.all(color: Colors.black12),
+                  // ✅ Fix: Dark grey box
+                  color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                  border: Border.all(color: isDark ? Colors.white24 : Colors.black12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       'Toplam',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : Colors.black, // ✅ Fix
+                      ),
                     ),
                     Text(
                       isLoggedIn ? '$currency${total.toStringAsFixed(2)}' : '-',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        color: primaryColor,
+                        color: isDark ? Colors.white : primaryColor, // ✅ Fix
                       ),
                     ),
                   ],

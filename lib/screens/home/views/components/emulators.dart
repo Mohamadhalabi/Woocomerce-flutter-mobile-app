@@ -7,7 +7,6 @@ import 'package:shop/services/api_service.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../../../../components/product/product_card_horizontal.dart';
 import '../../../../constants.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shop/providers/currency_provider.dart';
 
 class EmulatorProducts extends StatefulWidget {
@@ -40,7 +39,8 @@ class _EmulatorProductsState extends State<EmulatorProducts> {
     setState(() => isVisible = visible);
 
     if (visible && !hasLoaded) {
-      final locale = Localizations.localeOf(context).languageCode;
+      // ✅ FIX: Force Turkish Locale
+      const locale = 'tr';
       final currency = Provider.of<CurrencyProvider>(context, listen: false).selectedCurrency;
       _cacheKey = '$locale|$currency';
 
@@ -64,7 +64,8 @@ class _EmulatorProductsState extends State<EmulatorProducts> {
       _lastRefresh = widget.refreshCounter;
       hasLoaded = false; // allow re-fetch on scroll again
       if (isVisible) {
-        final locale = Localizations.localeOf(context).languageCode;
+        // ✅ FIX: Force Turkish Locale
+        const locale = 'tr';
         final currency = Provider.of<CurrencyProvider>(context, listen: false).selectedCurrency;
         fetchProducts(locale, currency);
       }
@@ -99,7 +100,7 @@ class _EmulatorProductsState extends State<EmulatorProducts> {
 
   @override
   Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
+    // Removed: final t = AppLocalizations.of(context)!;
 
     final groupedProducts = <List<ProductModel>>[];
     for (int i = 0; i < products.length; i += 2) {
@@ -122,7 +123,7 @@ class _EmulatorProductsState extends State<EmulatorProducts> {
                 Text("Emülatörler", style: Theme.of(context).textTheme.titleSmall),
                 TextButton(
                   onPressed: widget.onViewAll,
-                  child: Text(t.viewAll),
+                  child: const Text("Tümünü Gör"), // ✅ FIX: Hardcoded Turkish
                 ),
               ],
             ),

@@ -6,7 +6,6 @@ import 'package:shop/models/product_model.dart';
 import 'package:shop/route/screen_export.dart';
 import 'package:shop/services/api_service.dart';
 import '../../../../constants.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shop/providers/currency_provider.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
@@ -40,7 +39,8 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
     setState(() => isVisible = visible);
 
     if (visible && !hasLoaded) {
-      final locale = Localizations.localeOf(context).languageCode;
+      // ✅ FIX: Force Turkish Locale
+      const locale = 'tr';
       final currency = Provider.of<CurrencyProvider>(context, listen: false).selectedCurrency;
       _cacheKey = '$locale|$currency';
 
@@ -63,7 +63,8 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
       _lastRefresh = widget.refreshCounter;
       hasLoaded = false;
       if (isVisible) {
-        final locale = Localizations.localeOf(context).languageCode;
+        // ✅ FIX: Force Turkish Locale
+        const locale = 'tr';
         final currency = Provider.of<CurrencyProvider>(context, listen: false).selectedCurrency;
         fetchProducts(locale, currency);
       }
@@ -77,6 +78,7 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
     });
 
     try {
+      // This will now always request 'tr' content from your backend
       final response = await ApiService.fetchLatestProducts(locale);
       if (!mounted) return;
 
@@ -98,7 +100,7 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
 
   @override
   Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
+    // Removed: final t = AppLocalizations.of(context)!;
 
     return VisibilityDetector(
       key: const Key('new-arrival-products'),
@@ -112,12 +114,12 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  t.newArrival,
+                  "Yeni Gelenler", // ✅ FIX: Hardcoded Turkish
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 TextButton(
                   onPressed: widget.onViewAll,
-                  child: Text(t.viewAll),
+                  child: const Text("Tümünü Gör"), // ✅ FIX: Hardcoded Turkish
                 ),
               ],
             ),

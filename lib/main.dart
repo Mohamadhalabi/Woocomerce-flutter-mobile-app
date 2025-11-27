@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // Keep this if you use AppLocalizations in other files
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shop/providers/currency_provider.dart';
@@ -9,8 +9,6 @@ import 'package:shop/screens/splash_screen.dart';
 import 'package:shop/services/api_initializer.dart';
 import 'package:shop/theme/app_theme.dart';
 import 'package:shop/route/router.dart' as router;
-
-import "controllers/locale_controller.dart";
 import 'package:shop/screens/search/views/components/search_form.dart';
 
 void main() async {
@@ -19,7 +17,6 @@ void main() async {
   await dotenv.load();
   await initApiClient();
 
-  // ✅ Load locksmith mapping JSON before app starts
   await SearchForm.loadLocksmithMapping();
 
   runApp(
@@ -29,7 +26,7 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) {
             final provider = WishlistProvider();
-            provider.loadWishlist(); // ✅ explicitly called here
+            provider.loadWishlist();
             return provider;
           },
         ),
@@ -42,7 +39,6 @@ void main() async {
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // ✅ Allow ProfileScreen or other widgets to toggle theme
   static _MyAppState? of(BuildContext context) =>
       context.findAncestorStateOfType<_MyAppState>();
 
@@ -51,38 +47,20 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  static void Function(String)? updateLocale;
+  // Removed: static updateLocale function
+  // Removed: _locale variable
 
-  Locale? _locale;
-  ThemeMode _themeMode = ThemeMode.light; // ✅ default theme
+  ThemeMode _themeMode = ThemeMode.light;
 
   @override
   void initState() {
     super.initState();
-    _loadLocale();
+    // Removed: _loadLocale();
+    // Removed: LocaleController assignment
     _loadTheme();
-    LocaleController.updateLocale = _setLocale;
   }
 
-  /// ✅ Load saved language
-  Future<void> _loadLocale() async {
-    final prefs = await SharedPreferences.getInstance();
-    final langCode = prefs.getString('lang_code');
-    if (langCode != null) {
-      setState(() {
-        _locale = Locale(langCode);
-      });
-    }
-  }
-
-  /// ✅ Save language
-  Future<void> _setLocale(String langCode) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('lang_code', langCode);
-    setState(() {
-      _locale = Locale(langCode);
-    });
-  }
+  // Removed: _loadLocale and _setLocale functions
 
   /// ✅ Load saved theme mode
   Future<void> _loadTheme() async {
@@ -105,7 +83,6 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  /// ✅ Toggle between light and dark mode
   void toggleTheme() {
     final newMode =
     _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
@@ -113,18 +90,33 @@ class _MyAppState extends State<MyApp> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      locale: _locale,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
       debugShowCheckedModeBanner: false,
       title: 'Anadolu Anahtar',
 
-      // ✅ Use your existing AppTheme definitions
+      // ✅ FIX 1: Use 'tr' only (standard format), not 'tr_TR'
+      locale: const Locale('tr'),
+
+      // ✅ FIX 2: Use the auto-generated lists.
+      // Even if this list includes English, setting 'locale' above forces Turkish.
+      // This prevents the "Null" error because it ensures the 'tr' delegate is actually loaded.
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+
+      // ✅ FIX 3: Force LTR (Left-to-Right) layout
+      // This fixes the reversed images on RTL devices
+      builder: (context, child) {
+        return Directionality(
+          textDirection: TextDirection.ltr,
+          child: child ?? const SizedBox(), // Add null safety check here just in case
+        );
+      },
+
       theme: AppTheme.lightTheme(context),
-      darkTheme: AppTheme.darkTheme(context), // You'll create this in app_theme.dart
-      themeMode: _themeMode, // ✅ dynamic mode
+      darkTheme: AppTheme.darkTheme(context),
+      themeMode: _themeMode,
 
       onGenerateRoute: router.generateRoute,
       home: const SplashScreen(),

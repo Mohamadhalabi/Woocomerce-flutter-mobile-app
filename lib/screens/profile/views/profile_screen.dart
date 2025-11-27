@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shop/constants.dart';
+import 'package:shop/screens/profile/views/privacy_policy_screen.dart';
+import 'package:shop/screens/profile/views/terms_of_service_screen.dart';
 import '../../../components/skleton/profile/profile_skelton.dart';
 import '../../../services/api_service.dart';
 import '../../../services/alert_service.dart';
@@ -12,7 +14,7 @@ import '../../about/hakkimizda_screen.dart';
 import '../../../entry_point.dart';
 import 'edit_profile_screen.dart';
 import 'address_edit_screen.dart';
-
+import 'faq_screen.dart';
 class ProfileScreen extends StatefulWidget {
   final Function(String) onLocaleChange;
   final Function(int) onTabChange;
@@ -33,9 +35,6 @@ class ProfileScreen extends StatefulWidget {
 
 class ProfileScreenState extends State<ProfileScreen> {
   String _selectedCurrency = 'TRY';
-
-  /// Pure white “input” cards (dropdown & switches) as requested.
-  static const Color _inputCardBg = Colors.white;
 
   @override
   void initState() {
@@ -111,16 +110,28 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// ✅ FIX: Smart Background Color for Dark Mode
   BoxDecoration _cardDec(BuildContext context, {bool white = false}) {
     final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
+    Color backgroundColor;
+
+    if (white) {
+      // High contrast dark grey for dark mode, pure white for light mode
+      backgroundColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    } else {
+      backgroundColor = theme.cardColor;
+    }
+
     return BoxDecoration(
-      color: white ? _inputCardBg : theme.cardColor,
+      color: backgroundColor,
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: theme.dividerColor.withOpacity(0.3)),
     );
   }
 
-  /// Compact list tile (smaller height, denser padding)
+  /// ✅ FIX: High Contrast Text & Icons
   Widget _actionTile(
       IconData icon,
       String title, {
@@ -128,6 +139,13 @@ class ProfileScreenState extends State<ProfileScreen> {
         Color? iconBg,
       }) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Force White text in Dark Mode
+    final textColor = isDark ? Colors.white : theme.textTheme.bodyMedium?.color;
+    final iconColor = isDark ? Colors.white70 : theme.iconTheme.color;
+    final arrowColor = isDark ? Colors.white54 : theme.iconTheme.color;
+
     return Container(
       decoration: _cardDec(context, white: true),
       margin: const EdgeInsets.symmetric(vertical: 5),
@@ -137,29 +155,36 @@ class ProfileScreenState extends State<ProfileScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         leading: CircleAvatar(
           radius: 16,
-          backgroundColor: (iconBg ?? primaryColor.withOpacity(0.1)),
-          child: Icon(icon, size: 18, color: theme.iconTheme.color),
+          backgroundColor: (iconBg ?? primaryColor.withOpacity(isDark ? 0.25 : 0.12)),
+          child: Icon(icon, size: 18, color: iconColor),
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: theme.textTheme.bodyMedium?.color,
+            color: textColor, // ✅ High Contrast
             fontWeight: FontWeight.w600,
             fontSize: 13.5,
           ),
         ),
-        trailing: Icon(Icons.arrow_forward_ios, size: 14, color: theme.iconTheme.color),
+        trailing: Icon(Icons.arrow_forward_ios, size: 14, color: arrowColor),
         onTap: onTap,
       ),
     );
   }
 
+  /// ✅ FIX: Header visibility
   Widget _profileHeader({
     required bool isLoggedIn,
     required String displayName,
     required String? email,
   }) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final nameColor = isDark ? Colors.white : theme.textTheme.bodyMedium?.color;
+    final emailColor = isDark ? Colors.grey[400] : theme.textTheme.bodyMedium?.color?.withOpacity(0.8);
+    final iconColor = isDark ? Colors.white : theme.iconTheme.color;
+
     return Container(
       decoration: _cardDec(context, white: true),
       padding: const EdgeInsets.all(12),
@@ -167,8 +192,8 @@ class ProfileScreenState extends State<ProfileScreen> {
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: primaryColor.withOpacity(0.12),
-            child: Icon(Icons.person, color: theme.iconTheme.color, size: 22),
+            backgroundColor: primaryColor.withOpacity(isDark ? 0.25 : 0.12),
+            child: Icon(Icons.person, color: iconColor, size: 22),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -180,7 +205,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: theme.textTheme.bodyMedium?.color,
+                    color: nameColor, // ✅ High Contrast Name
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -188,7 +213,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                   isLoggedIn ? (email ?? '') : "Henüz giriş yapmadınız",
                   style: TextStyle(
                     fontSize: 11.5,
-                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
+                    color: emailColor, // ✅ Light Grey Email
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -198,7 +223,7 @@ class ProfileScreenState extends State<ProfileScreen> {
           if (isLoggedIn)
             IconButton(
               tooltip: "Bilgilerini Düzenle",
-              icon: Icon(Icons.edit, size: 18, color: theme.iconTheme.color),
+              icon: Icon(Icons.edit, size: 18, color: iconColor),
               onPressed: () async {
                 final user = await ApiService.fetchUserInfo();
                 final result = await Navigator.push<bool>(
@@ -216,12 +241,15 @@ class ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return FutureBuilder<String?>(
       future: _getToken(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return ColoredBox(
-            color: Theme.of(context).scaffoldBackgroundColor,
+            color: theme.scaffoldBackgroundColor,
             child: const Center(child: ProfileSkeleton()),
           );
         }
@@ -234,7 +262,7 @@ class ProfileScreenState extends State<ProfileScreen> {
             builder: (context, userSnapshot) {
               if (userSnapshot.connectionState == ConnectionState.waiting) {
                 return ColoredBox(
-                  color: Theme.of(context).scaffoldBackgroundColor,
+                  color: theme.scaffoldBackgroundColor,
                   child: const Center(child: ProfileSkeleton()),
                 );
               }
@@ -265,6 +293,9 @@ class ProfileScreenState extends State<ProfileScreen> {
         : 'Misafir Kullanıcı';
 
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final primaryTextColor = isDark ? Colors.white : theme.textTheme.bodyMedium?.color;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -325,7 +356,7 @@ class ProfileScreenState extends State<ProfileScreen> {
           ],
 
           _sectionTitle("Tercihler"),
-          // Currency (compact, white background)
+          // Currency
           Container(
             decoration: _cardDec(context, white: true),
             margin: const EdgeInsets.symmetric(vertical: 5),
@@ -334,15 +365,15 @@ class ProfileScreenState extends State<ProfileScreen> {
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: Colors.orange.withOpacity(0.12),
-                  child: Icon(Icons.attach_money, size: 18, color: theme.iconTheme.color),
+                  backgroundColor: Colors.orange.withOpacity(isDark ? 0.25 : 0.12),
+                  child: Icon(Icons.attach_money, size: 18, color: isDark ? Colors.white : theme.iconTheme.color),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Para Birimi',
                     style: TextStyle(
-                      color: theme.textTheme.bodyMedium?.color,
+                      color: primaryTextColor,
                       fontWeight: FontWeight.w700,
                       fontSize: 13.5,
                     ),
@@ -352,8 +383,9 @@ class ProfileScreenState extends State<ProfileScreen> {
                   child: DropdownButton<String>(
                     value: _selectedCurrency,
                     isDense: true,
+                    dropdownColor: theme.cardColor,
                     style: TextStyle(
-                      color: theme.textTheme.bodyMedium?.color,
+                      color: primaryTextColor,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -368,7 +400,7 @@ class ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
 
-          // Dark mode (compact, white background)
+          // Dark mode
           Container(
             decoration: _cardDec(context, white: true),
             margin: const EdgeInsets.symmetric(vertical: 5),
@@ -378,13 +410,13 @@ class ProfileScreenState extends State<ProfileScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
               secondary: CircleAvatar(
                 radius: 16,
-                backgroundColor: Colors.purple.withOpacity(0.12),
-                child: Icon(Icons.brightness_6, size: 18, color: theme.iconTheme.color),
+                backgroundColor: Colors.purple.withOpacity(isDark ? 0.25 : 0.12),
+                child: Icon(Icons.brightness_6, size: 18, color: isDark ? Colors.white : theme.iconTheme.color),
               ),
               title: Text(
                 'Karanlık Mod',
                 style: TextStyle(
-                  color: theme.textTheme.bodyMedium?.color,
+                  color: primaryTextColor,
                   fontWeight: FontWeight.w700,
                   fontSize: 13.5,
                 ),
@@ -407,12 +439,55 @@ class ProfileScreenState extends State<ProfileScreen> {
               );
             },
           ),
+
+          // ✅ Sıkça Sorulan Sorular
+          _actionTile(
+            Icons.help_outline,
+            'Sıkça Sorulan Sorular',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FAQScreen(),
+                ),
+              );
+            },
+          ),
+
+          // ✅ Gizlilik ve Güvenlik
+          _actionTile(
+            Icons.privacy_tip_outlined,
+            'Gizlilik ve Güvenlik',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PrivacyPolicyScreen(),
+                ),
+              );
+            },
+          ),
+
+          // ✅ Kullanıcı Sözleşmesi
+          _actionTile(
+            Icons.description_outlined,
+            'Kullanıcı Sözleşmesi',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TermsOfServiceScreen(),
+                ),
+              );
+            },
+          ),
+
           if (isLoggedIn)
             _actionTile(
               Icons.logout,
               'Çıkış Yap',
               onTap: _logout,
-              iconBg: Colors.red.withOpacity(0.12),
+              iconBg: Colors.red.withOpacity(isDark ? 0.25 : 0.12),
             ),
         ],
       ),
