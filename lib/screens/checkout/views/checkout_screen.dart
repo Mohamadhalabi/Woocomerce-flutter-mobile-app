@@ -60,7 +60,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   double total = 0.0;
 
   // Payment state
-  PaymentMethod _selectedMethod = PaymentMethod.iyzico;
+  PaymentMethod _selectedMethod = PaymentMethod.transfer;
   bool _isPaying = false;
 
   @override
@@ -579,12 +579,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       onChanged: (v) => setState(() => _selectedMethod = v!),
                       title: const Text("Havale / EFT (Banka Transferi)"),
                     ),
-                    RadioListTile<PaymentMethod>(
-                      value: PaymentMethod.iyzico,
-                      groupValue: _selectedMethod,
-                      onChanged: (v) => setState(() => _selectedMethod = v!),
-                      title: const Text("Kart ile Ödeme (iyzico)"),
-                    ),
+                    // RadioListTile<PaymentMethod>(
+                    //   value: PaymentMethod.iyzico,
+                    //   groupValue: _selectedMethod,
+                    //   onChanged: (v) => setState(() => _selectedMethod = v!),
+                    //   title: const Text("Kart ile Ödeme (iyzico)"),
+                    // ),
 
                     if (_selectedMethod == PaymentMethod.iyzico) ...[
                       const SizedBox(height: 12),
