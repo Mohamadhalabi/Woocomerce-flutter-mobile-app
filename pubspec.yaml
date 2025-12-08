@@ -3,7 +3,7 @@ description: Anadolu Anahtar mobile app (locksmith store app) in Turkey
 
 publish_to: "none"
 
-version: 1.0.0+7
+version: 1.0.0+9
 
 environment:
   sdk: ">=3.2.0 <4.0.0"
@@ -53,7 +53,7 @@ flutter_native_splash:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/splash/splash.png" # fallback for older Android & iOS
+  image_path: "assets/splash/logo-white.png" # fallback for older Android & iOS
   adaptive_icon_background: "#2A72B7" # exact blue background
   adaptive_icon_foreground: "assets/splash/logo-white.png"
 

@@ -133,7 +133,7 @@ class _NewArrivalProductsState extends State<NewArrivalProducts> {
             )
           else
             SizedBox(
-              height: 290,
+              height: 300,
               child: Container(
                 color: Theme.of(context).brightness == Brightness.dark
                     ? Theme.of(context).cardColor.withOpacity(0.1)

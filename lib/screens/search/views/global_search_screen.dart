@@ -5,7 +5,6 @@ import 'package:shop/constants.dart';
 import 'package:shop/entry_point.dart';
 import 'package:shop/models/product_model.dart';
 import 'package:shop/route/route_constants.dart';
-import 'package:shop/screens/search/views/components/search_form.dart';
 import 'package:shop/services/api_service.dart';
 import '../../../components/common/app_bar.dart';
 import '../../../components/common/drawer.dart';

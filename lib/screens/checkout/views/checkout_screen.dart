@@ -297,6 +297,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _validateAllAndAlert(BuildContext context) {
     final missing = <String>[];
 
+    final emailVal = emailController.text.trim();
+    // Regex for email validation
+    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+
     setState(() {
       _firstNameInvalid = firstNameController.text.trim().isEmpty;
       _lastNameInvalid  = lastNameController.text.trim().isEmpty;
@@ -304,7 +308,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _postcodeInvalid  = postcodeController.text.trim().isEmpty;
       _districtInvalid  = districtController.text.trim().isEmpty;
       _phoneInvalid     = phoneController.text.trim().isEmpty;
-      _emailInvalid     = emailController.text.trim().isEmpty;
+
+      // Email validation: Check if empty OR if format is wrong
+      _emailInvalid     = emailVal.isEmpty || !emailRegex.hasMatch(emailVal);
+
       _cityInvalid      = selectedCity.isEmpty;
     });
 
@@ -315,7 +322,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (_districtInvalid)  missing.add("Lütfen ilçe/semt bilgisini giriniz.");
     if (_cityInvalid)      missing.add("Lütfen şehir seçiniz.");
     if (_phoneInvalid)     missing.add("Lütfen telefon numarasını giriniz.");
-    if (_emailInvalid)     missing.add("Lütfen e-posta adresini giriniz.");
+
+    // Updated error message for email
+    if (_emailInvalid)     missing.add("Lütfen geçerli bir e-posta adresi giriniz.");
 
     if (missing.isNotEmpty) {
       AlertService.showTopAlert(context, missing.first, isError: true);

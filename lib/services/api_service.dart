@@ -941,24 +941,41 @@ class ApiService {
     int page = 1,
     int perPage = 8,
   }) async {
-    await dotenv.load();
-    final baseUrl = dotenv.env['API_BASE_URL'];
-    final key = dotenv.env['CONSUMER_KEY'];
-    final secret = dotenv.env['CONSUMER_SECRET'];
+    // 1. Get current currency (Required for the custom endpoint)
+    final currency = await getSelectedCurrency();
 
+    // 2. Load keys
+    await dotenv.load();
+    final consumerKey = dotenv.env['CONSUMER_KEY'] ?? '';
+    final consumerSecret = dotenv.env['CONSUMER_SECRET'] ?? '';
+
+    // 3. USE THE CUSTOM 'WOOCS' ENDPOINT
+    // We use 's' parameter because we added $args['s'] in the PHP backend above.
     final url = Uri.parse(
-      '$baseUrl/products?search=${Uri.encodeComponent(search)}'
-          '&page=$page&per_page=$perPage'
-          '&consumer_key=$key&consumer_secret=$secret'
-          '&lang=$locale',
+        'https://www.aanahtar.com.tr/wp-json/woocs/v3/products/$currency'
+            '?s=${Uri.encodeComponent(search)}'
+            '&page=$page'
+            '&per_page=$perPage'
+            '&consumer_key=$consumerKey'
+            '&consumer_secret=$consumerSecret'
+            '&lang=$locale'
     );
 
-    final response = await http.get(url);
+    // 4. Send Request
+    final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cookie': 'woocommerce-currency=$currency',
+        }
+    );
+
     if (response.statusCode == 200) {
       final List jsonData = jsonDecode(response.body);
       return jsonData.map((json) => ProductModel.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to search products');
+      throw Exception('Failed to search products: ${response.statusCode}');
     }
   }
 
