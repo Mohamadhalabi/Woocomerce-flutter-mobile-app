@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // Keep this if you use AppLocalizations in other files
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shop/providers/currency_provider.dart';
@@ -47,22 +47,14 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  // Removed: static updateLocale function
-  // Removed: _locale variable
-
   ThemeMode _themeMode = ThemeMode.light;
 
   @override
   void initState() {
     super.initState();
-    // Removed: _loadLocale();
-    // Removed: LocaleController assignment
     _loadTheme();
   }
 
-  // Removed: _loadLocale and _setLocale functions
-
-  /// ✅ Load saved theme mode
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
     final savedTheme = prefs.getString('theme_mode') ?? 'light';
@@ -71,7 +63,6 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  /// ✅ Save and apply theme mode
   Future<void> _saveTheme(ThemeMode mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -90,27 +81,18 @@ class _MyAppState extends State<MyApp> {
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Anadolu Anahtar',
-
-      // ✅ FIX 1: Use 'tr' only (standard format), not 'tr_TR'
       locale: const Locale('tr'),
-
-      // ✅ FIX 2: Use the auto-generated lists.
-      // Even if this list includes English, setting 'locale' above forces Turkish.
-      // This prevents the "Null" error because it ensures the 'tr' delegate is actually loaded.
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
 
-      // ✅ FIX 3: Force LTR (Left-to-Right) layout
-      // This fixes the reversed images on RTL devices
       builder: (context, child) {
         return Directionality(
           textDirection: TextDirection.ltr,
-          child: child ?? const SizedBox(), // Add null safety check here just in case
+          child: child ?? const SizedBox(),
         );
       },
 
@@ -119,6 +101,8 @@ class _MyAppState extends State<MyApp> {
       themeMode: _themeMode,
 
       onGenerateRoute: router.generateRoute,
+
+      // ✅ REVERTED: Just SplashScreen here. UpgradeAlert moved to EntryPoint.
       home: const SplashScreen(),
     );
   }
