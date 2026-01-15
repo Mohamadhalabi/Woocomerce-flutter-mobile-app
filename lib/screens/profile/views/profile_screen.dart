@@ -11,10 +11,10 @@ import 'package:provider/provider.dart';
 import 'package:shop/providers/currency_provider.dart';
 import '../../../main.dart';
 import '../../about/hakkimizda_screen.dart';
-import '../../../entry_point.dart';
 import 'edit_profile_screen.dart';
 import 'address_edit_screen.dart';
 import 'faq_screen.dart';
+
 class ProfileScreen extends StatefulWidget {
   final Function(String) onLocaleChange;
   final Function(int) onTabChange;
@@ -80,6 +80,7 @@ class ProfileScreenState extends State<ProfileScreen> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
+    await prefs.remove('user_id'); // Ensure user_id is also removed
 
     if (!mounted) return;
 
@@ -92,6 +93,78 @@ class ProfileScreenState extends State<ProfileScreen> {
       'Başarıyla çıkış yapıldı',
       isError: false,
     );
+  }
+
+  // ✅ NEW: Delete Account Logic
+  Future<void> _deleteAccount() async {
+    // 1. Show Confirmation Modal
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Hesabı Sil"),
+          content: const Text(
+            "Hesabınızı kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz ve tüm verileriniz kaybolacaktır.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text("Vazgeç"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text("Hesabımı Sil"),
+            ),
+          ],
+        );
+      },
+    );
+
+    // If user cancelled, stop here
+    if (confirm != true) return;
+
+    // 2. Perform Deletion
+    try {
+      if (!mounted) return;
+
+      // Show loading
+      AlertService.showTopAlert(
+        context,
+        'Hesap siliniyor...',
+        isError: false,
+      );
+
+      // Call the API (Make sure deleteAccount is added to ApiService as discussed)
+      await ApiService.deleteAccount();
+
+      // 3. Clear Local Data & Logout
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear(); // Clears token, user info, cart, etc.
+
+      if (!mounted) return;
+
+      setState(() {
+        widget.initialUserData?.clear();
+      });
+
+      // Navigate to EntryPoint or Login to reset state
+      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+
+      AlertService.showTopAlert(
+        context,
+        'Hesabınız başarıyla silindi.',
+        isError: false,
+      );
+
+    } catch (e) {
+      if (!mounted) return;
+      AlertService.showTopAlert(
+        context,
+        e.toString().replaceAll("Exception: ", ""),
+        isError: true,
+      );
+    }
   }
 
   // ---------- UI helpers ----------
@@ -489,6 +562,31 @@ class ProfileScreenState extends State<ProfileScreen> {
               onTap: _logout,
               iconBg: Colors.red.withOpacity(isDark ? 0.25 : 0.12),
             ),
+
+          // ✅ DELETE ACCOUNT BUTTON (Required for App Store)
+          if (isLoggedIn) ...[
+            const SizedBox(height: 20),
+            Center(
+              child: TextButton.icon(
+                onPressed: _deleteAccount,
+                icon: Icon(Icons.delete_forever, color: Colors.red.withOpacity(0.8), size: 20),
+                label: Text(
+                  "Hesabımı Sil",
+                  style: TextStyle(
+                    color: Colors.red.withOpacity(0.8),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  backgroundColor: Colors.red.withOpacity(0.05),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
         ],
       ),
     );

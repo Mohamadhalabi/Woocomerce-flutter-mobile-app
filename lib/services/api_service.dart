@@ -1283,5 +1283,44 @@ class ApiService {
     return Map<String, dynamic>.from(jsonDecode(res.body));
   }
 
+// =========================
+  // ACCOUNT DELETION
+  // =========================
 
+  static Future<void> deleteAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    if (token == null || token.isEmpty) {
+      throw Exception("Oturum açılmamış.");
+    }
+
+    // Assuming you have this endpoint in your custom-auth WP plugin
+    // If not, see the PHP code provided at the end of this answer.
+    final url = Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/delete-account');
+
+    final response = await http.delete(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success'] != true) {
+        throw Exception(data['message'] ?? 'Hesap silinemedi.');
+      }
+    } else {
+      // Parse error message from server if available
+      String errorMsg = 'Hesap silinirken bir hata oluştu.';
+      try {
+        final body = jsonDecode(response.body);
+        errorMsg = body['message'] ?? errorMsg;
+      } catch (_) {}
+      throw Exception(errorMsg);
+    }
+  }
 }

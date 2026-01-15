@@ -132,7 +132,7 @@ class _FlashSaleProductsState extends State<FlashSaleProducts> {
             )
           else
             SizedBox(
-              height: 310,
+              height: 320,
               child: Container(
                 color: Theme.of(context).brightness == Brightness.dark
                     ? Theme.of(context).cardColor.withOpacity(0.1)

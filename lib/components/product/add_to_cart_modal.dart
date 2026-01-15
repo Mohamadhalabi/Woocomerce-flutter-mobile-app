@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decoder/jwt_decoder.dart'; // ✅ Added this
 import 'package:shop/screens/category/category_products_screen.dart';
 
 import '../../constants.dart';
@@ -50,9 +51,25 @@ class _AddToCartModalState extends State<AddToCartModal> {
 
   Future<void> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      isLoggedIn = prefs.getString('auth_token') != null;
-    });
+    final token = prefs.getString('auth_token');
+
+    // Check if token exists and is valid (not expired)
+    bool valid = false;
+    if (token != null && token.isNotEmpty) {
+      if (!JwtDecoder.isExpired(token)) {
+        valid = true;
+      } else {
+        // Cleanup expired token silently
+        await prefs.remove('auth_token');
+        await prefs.remove('user_id');
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        isLoggedIn = valid;
+      });
+    }
   }
 
   void _updateQuantity(int change) {
@@ -71,24 +88,26 @@ class _AddToCartModalState extends State<AddToCartModal> {
 
   Future<void> _handleAddToCart() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+    String? token = prefs.getString('auth_token');
+
+    // 1. AUTO-LOGOUT CHECK: If token exists but is expired, remove it.
+    if (token != null && JwtDecoder.isExpired(token)) {
+      await prefs.remove('auth_token');
+      await prefs.remove('user_id');
+      token = null;
+      if (mounted) setState(() => isLoggedIn = false);
+    }
 
     try {
       if (token != null) {
+        // --- Attempt to add to Server Cart ---
         await CartService.addToWooCart(token, widget.productId, quantity);
       } else {
-        await CartService.addItemToGuestCart(
-          productId: widget.productId,
-          title: widget.title,
-          image: widget.image,
-          quantity: quantity,
-          price: widget.price,
-          salePrice: widget.salePrice,
-          sku: widget.sku,
-          category: widget.category,
-        );
+        // --- Add to Guest Cart ---
+        await _addToGuestCart();
       }
 
+      // Success
       if (!mounted) return;
       Navigator.pop(context);
       AlertService.showTopAlert(
@@ -98,13 +117,60 @@ class _AddToCartModalState extends State<AddToCartModal> {
         showGoToCart: true,
       );
     } catch (e) {
-      if (!mounted) return;
-      AlertService.showTopAlert(
-        context,
-        'Sepete ekleme hatası: ${e.toString()}',
-        isError: true,
-      );
+      // 2. FAIL-SAFE: If server rejects token (401/403), retry as Guest
+      if (token != null && e.toString().contains('Auth Error')) {
+        debugPrint("Server rejected token. Retrying as Guest...");
+
+        // Clear bad data
+        await prefs.remove('auth_token');
+        await prefs.remove('user_id');
+        if (mounted) setState(() => isLoggedIn = false);
+
+        // Retry immediately as guest
+        try {
+          await _addToGuestCart();
+          if (!mounted) return;
+          Navigator.pop(context);
+          AlertService.showTopAlert(
+            context,
+            'Ürün sepete eklendi (Misafir)',
+            isError: false,
+            showGoToCart: true,
+          );
+          return; // Exit successfully
+        } catch (innerError) {
+          // If guest add also fails
+          if (!mounted) return;
+          AlertService.showTopAlert(
+            context,
+            'Hata: ${innerError.toString()}',
+            isError: true,
+          );
+        }
+      } else {
+        // Genuine Error
+        if (!mounted) return;
+        AlertService.showTopAlert(
+          context,
+          'Sepete ekleme hatası: ${e.toString()}',
+          isError: true,
+        );
+      }
     }
+  }
+
+  // Helper for guest cart logic to avoid code duplication
+  Future<void> _addToGuestCart() async {
+    await CartService.addItemToGuestCart(
+      productId: widget.productId,
+      title: widget.title,
+      image: widget.image,
+      quantity: quantity,
+      price: widget.price,
+      salePrice: widget.salePrice,
+      sku: widget.sku,
+      category: widget.category,
+    );
   }
 
   String _fmt(double v) => v.toStringAsFixed(2);
@@ -244,7 +310,7 @@ class _AddToCartModalState extends State<AddToCartModal> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            // Price above controls
+                            // Price
                             if (isLoggedIn)
                               (hasDiscount
                                   ? Row(
@@ -309,7 +375,7 @@ class _AddToCartModalState extends State<AddToCartModal> {
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                // Button fills the remaining space, same height as stepper
+                                // Button fills the remaining space
                                 Expanded(
                                   child: SizedBox(
                                     height: 44,
@@ -342,7 +408,6 @@ class _AddToCartModalState extends State<AddToCartModal> {
                             ),
                             const SizedBox(height: 25),
                             Divider(color: theme.dividerColor.withOpacity(0.6)),
-                            // Extra spacing at bottom of sheet
                           ],
                         ),
                       ),
@@ -358,8 +423,7 @@ class _AddToCartModalState extends State<AddToCartModal> {
   }
 }
 
-/// A sleeker, segmented stepper with consistent size, rounded corners,
-/// vertical dividers, and a borderless center input.
+// Stepper and Chip widgets remain the same...
 class _QtyStepper extends StatelessWidget {
   const _QtyStepper({
     required this.controller,
@@ -440,7 +504,6 @@ class _QtyStepper extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // minus
           tapBtn(
             icon: Icons.remove_rounded,
             onTap: onMinus,
@@ -452,8 +515,6 @@ class _QtyStepper extends StatelessWidget {
             showLeftBorder: false,
             showRightBorder: true,
           ),
-
-          // input (borderless, centered)
           Expanded(
             child: SizedBox(
               height: 44,
@@ -503,7 +564,6 @@ class _QtyStepper extends StatelessWidget {
               ),
             ),
           ),
-          // plus
           tapBtn(
             icon: Icons.add_rounded,
             onTap: onPlus,
@@ -520,6 +580,7 @@ class _QtyStepper extends StatelessWidget {
     );
   }
 }
+
 class _StockChip extends StatelessWidget {
   const _StockChip({required this.inStock});
   final bool inStock;

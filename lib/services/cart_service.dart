@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart'; // Needed for VoidCallback and debugPrint
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -51,9 +51,20 @@ class CartService {
         'quantity': quantity,
       }),
     );
+
+    // ✅ Explicitly Catch Auth Errors (Expired/Invalid Token)
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      throw Exception('Auth Error: ${response.statusCode}');
+    }
+
     if (response.statusCode != 201) {
       debugPrint('❌ Failed to add to cart: ${response.body}');
-      throw Exception('Failed to add to cart');
+      try {
+        final errBody = jsonDecode(response.body);
+        throw Exception(errBody['message'] ?? 'Failed to add to cart');
+      } catch (_) {
+        throw Exception('Failed to add to cart (Status: ${response.statusCode})');
+      }
     } else {
       debugPrint('✅ Product added to cart successfully.');
     }
@@ -92,7 +103,6 @@ class CartService {
     }
   }
 
-// CartService.dart
   static const String _storeBase = 'https://www.aanahtar.com.tr/wp-json/wc/store';
 
   static Future<void> clearWooCart(String token, {List<String>? knownKeys}) async {
@@ -110,7 +120,6 @@ class CartService {
       if (bulk.statusCode == 200 || bulk.statusCode == 204) {
         return; // done
       }
-      // If the endpoint isn’t supported or returns 4xx/5xx, fall through to fallback.
       debugPrint('Bulk clear not available or failed (${bulk.statusCode}). Falling back…');
     } catch (e) {
       debugPrint('Bulk clear error: $e — falling back to per-item deletes.');
@@ -253,5 +262,4 @@ class CartService {
       onGuestCartUpdated?.call();
     }
   }
-
 }
