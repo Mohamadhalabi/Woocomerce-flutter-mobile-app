@@ -49,7 +49,8 @@ class CartScreenState extends State<CartScreen> {
   }
 
   /// Load cart with instant total + parallel product fetch
-  Future<List<Map<String, dynamic>>> loadCart([List<Map<String, dynamic>>? overrideItems]) async {
+  Future<List<Map<String, dynamic>>> loadCart(
+      [List<Map<String, dynamic>>? overrideItems]) async {
     setState(() {
       isLoading = true;
     });
@@ -91,7 +92,8 @@ class CartScreenState extends State<CartScreen> {
 
         if (productIds.isNotEmpty) {
           // Force 'tr' here as requested
-          final products = await ApiService.fetchProductsCardByIds(productIds, 'tr');
+          final products =
+          await ApiService.fetchProductsCardByIds(productIds, 'tr');
           final productMap = {for (var p in products) p.id!: p};
 
           for (var item in items) {
@@ -254,14 +256,16 @@ class CartScreenState extends State<CartScreen> {
     if (token == null) {
       await CartService.clearGuestCart();
       if (!mounted) return;
-      AlertService.showTopAlert(context, 'Sepet başarıyla temizlendi', isError: false);
+      AlertService.showTopAlert(context, 'Sepet başarıyla temizlendi',
+          isError: false);
       return;
     }
 
     try {
       await CartService.clearWooCart(token, knownKeys: knownKeys);
       if (!mounted) return;
-      AlertService.showTopAlert(context, 'Sepet başarıyla temizlendi', isError: false);
+      AlertService.showTopAlert(context, 'Sepet başarıyla temizlendi',
+          isError: false);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -283,7 +287,8 @@ class CartScreenState extends State<CartScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Sepetim', style: TextStyle(color: Colors.white, fontSize: 20)),
+        title: const Text('Sepetim',
+            style: TextStyle(color: Colors.white, fontSize: 20)),
         backgroundColor: primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
@@ -301,7 +306,9 @@ class CartScreenState extends State<CartScreen> {
             'Sepetiniz boş',
             // Ensure empty text is visible in dark mode
             style: TextStyle(
-              color: theme.brightness == Brightness.dark ? Colors.white : Colors.black,
+              color: theme.brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black,
             ),
           ))
           : RefreshIndicator(
@@ -418,9 +425,8 @@ class CartScreenState extends State<CartScreen> {
         ? (isDark ? Colors.white12 : Colors.grey.shade300)
         : (isDark ? Colors.white24 : Colors.black12);
 
-    Color iconColor = disabled
-        ? Colors.grey
-        : (isDark ? Colors.white : blueColor);
+    Color iconColor =
+    disabled ? Colors.grey : (isDark ? Colors.white : blueColor);
 
     return InkWell(
       onTap: disabled ? null : onTap,
@@ -438,7 +444,8 @@ class CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildCartItem(BuildContext context, Map<String, dynamic> item, int index) {
+  Widget _buildCartItem(
+      BuildContext context, Map<String, dynamic> item, int index) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -447,7 +454,8 @@ class CartScreenState extends State<CartScreen> {
     if (regularPrice == 0 && item['sale_price'] != null) {
       regularPrice = _asDouble(item['price_before_discount']);
     }
-    final hasDiscount = isLoggedIn && regularPrice > currentPrice && currentPrice > 0;
+    final hasDiscount =
+        isLoggedIn && regularPrice > currentPrice && currentPrice > 0;
 
     final rawQty = item['quantity'];
     final quantity = rawQty is int
@@ -500,11 +508,13 @@ class CartScreenState extends State<CartScreen> {
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
                     color: Colors.white, // Keep image bg white for JPEGs
-                    child: item['image'] != null && item['image'].toString().isNotEmpty
+                    child: item['image'] != null &&
+                        item['image'].toString().isNotEmpty
                         ? Image.network(
                       item['image'],
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+                      errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.broken_image),
                     )
                         : const Icon(Icons.image_not_supported),
                   ),
@@ -512,24 +522,45 @@ class CartScreenState extends State<CartScreen> {
               ),
               const SizedBox(width: 12),
 
-              // Title + Qty pill
+              // Title + Trash Icon + Qty pill
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title
-                    Text(
-                      item['title'] ?? 'Ürün',
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: isDark ? Colors.white : Colors.black87, // ✅ Fix: Pure white
-                      ),
+                    // ROW: Title (Expanded) + Trash Icon
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item['title'] ?? 'Ürün',
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: isDark
+                                  ? Colors.white
+                                  : Colors.black87, // ✅ Fix: Pure white
+                            ),
+                          ),
+                        ),
+                        // TRASH ICON BUTTON
+                        InkWell(
+                          onTap: () => _removeItem(index),
+                          customBorder: const CircleBorder(),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 0, 0, 8),
+                            child: Icon(
+                              Icons.delete_outline,
+                              color: Colors.red.withOpacity(0.8),
+                              size: 22,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 6),
-                    const SizedBox(height: 8),
 
                     // Qty pill aligned left; price block (or login prompt) on the right
                     Row(
@@ -551,7 +582,9 @@ class CartScreenState extends State<CartScreen> {
                                   'Eklediğin Fiyat: $currency${regularPrice.toStringAsFixed(2)}',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: isDark ? Colors.white70 : primaryColor, // ✅ Fix
+                                    color: isDark
+                                        ? Colors.white70
+                                        : primaryColor, // ✅ Fix
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -561,14 +594,17 @@ class CartScreenState extends State<CartScreen> {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : primaryColor, // ✅ Fix
+                                  color: isDark
+                                      ? Colors.white
+                                      : primaryColor, // ✅ Fix
                                 ),
                               ),
                               if (hasDiscount) ...[
                                 const SizedBox(height: 2),
                                 _savingsChip(
                                   currency: currency,
-                                  savings: (regularPrice - currentPrice) * quantity,
+                                  savings:
+                                  (regularPrice - currentPrice) * quantity,
                                   isDark: isDark,
                                 ),
                               ],
@@ -644,7 +680,8 @@ class CartScreenState extends State<CartScreen> {
                 decoration: BoxDecoration(
                   // ✅ Fix: Dark grey box
                   color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-                  border: Border.all(color: isDark ? Colors.white24 : Colors.black12),
+                  border:
+                  Border.all(color: isDark ? Colors.white24 : Colors.black12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -679,8 +716,9 @@ class CartScreenState extends State<CartScreen> {
                 height: 48,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                    (isLoading || total <= 0 || !isLoggedIn) ? Colors.grey : blueColor,
+                    backgroundColor: (isLoading || total <= 0 || !isLoggedIn)
+                        ? Colors.grey
+                        : blueColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -691,7 +729,8 @@ class CartScreenState extends State<CartScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => CheckoutScreen(cartItems: cartItems),
+                        builder: (_) =>
+                            CheckoutScreen(cartItems: cartItems),
                       ),
                     );
                   },
