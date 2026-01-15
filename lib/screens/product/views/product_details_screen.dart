@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shop/constants.dart';
+import 'package:shop/constants.dart'; // Ensure fixHtml is here or add it locally if needed
 import 'package:shop/screens/product/views/components/product_attributes.dart';
 import '../../../components/product/related_products.dart';
 import '../../../components/skleton/product/product_details_skeleton.dart';
@@ -17,6 +17,18 @@ import '../../../providers/wishlist_provider.dart';
 import 'components/expandable_section.dart';
 import 'components/product_images.dart';
 import 'package:shop/screens/category/category_products_screen.dart';
+
+// ✅ Optional: If fixHtml is not in constants.dart yet, uncomment this:
+/*
+String fixHtml(String text) {
+  return text
+      .replaceAll('&amp;', '&')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#039;', "'")
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>');
+}
+*/
 
 class ProductDetailsScreen extends StatefulWidget {
   const ProductDetailsScreen({
@@ -105,7 +117,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     if (p['categories'] is List && (p['categories'] as List).isNotEmpty) {
       return Map<String, dynamic>.from(p['categories'][0] as Map);
     }
-    if (p['category'] != null || p['category_id'] != null || p['categoryId'] != null) {
+    if (p['category'] != null ||
+        p['category_id'] != null ||
+        p['categoryId'] != null) {
       return {
         'id': p['category_id'] ?? p['categoryId'],
         'name': p['category'],
@@ -139,7 +153,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     };
 
     final productJson = jsonEncode(productData);
-    recentProducts.removeWhere((item) => (jsonDecode(item)['id'] == widget.productId));
+    recentProducts
+        .removeWhere((item) => (jsonDecode(item)['id'] == widget.productId));
     recentProducts.insert(0, productJson);
     if (recentProducts.length > 10) {
       recentProducts = recentProducts.sublist(0, 10);
@@ -154,12 +169,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     setState(() => isLoading = true);
 
     try {
-      final result = await ApiService.fetchProductById(widget.productId, _currentLocale!);
-      final data = result.toJson(); // requires ProductModel.toJson() to include 'brands'
+      final result =
+      await ApiService.fetchProductById(widget.productId, _currentLocale!);
+      final data =
+      result.toJson(); // requires ProductModel.toJson() to include 'brands'
       setState(() {
         product = data;
         price = (data['price'] as num?)?.toDouble() ?? 0.0;
-        salePrice = data['sale_price'] != null ? (data['sale_price'] as num).toDouble() : null;
+        salePrice = data['sale_price'] != null
+            ? (data['sale_price'] as num).toDouble()
+            : null;
         isInStock = data['stock_status'] == 'instock';
         currencySymbol = data['currency_symbol'] ?? '₺';
         isLoading = false;
@@ -203,7 +222,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       );
     } catch (_) {
       if (!mounted) return;
-      AlertService.showTopAlert(context, 'Sepete ekleme başarısız', isError: true);
+      AlertService.showTopAlert(
+          context, 'Sepete ekleme başarısız', isError: true);
     }
   }
 
@@ -222,9 +242,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     final isDark = theme.brightness == Brightness.dark;
     return CircleAvatar(
       // ✅ Fix: Dark Grey background for button
-      backgroundColor: isDark ? const Color(0xFF2C2C2C) : theme.cardColor.withOpacity(0.9),
+      backgroundColor:
+      isDark ? const Color(0xFF2C2C2C) : theme.cardColor.withOpacity(0.9),
       child: IconButton(
-        icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : theme.iconTheme.color),
+        icon: Icon(Icons.arrow_back,
+            color: isDark ? Colors.white : theme.iconTheme.color),
         onPressed: () => Navigator.pop(context),
       ),
     );
@@ -243,13 +265,20 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     // ✅ Fix: High Contrast colors for chips
-    final Color _fg = fg ?? (solid ? Colors.white : (isDark ? Colors.white : theme.colorScheme.primary));
+    final Color _fg = fg ??
+        (solid
+            ? Colors.white
+            : (isDark ? Colors.white : theme.colorScheme.primary));
     final Color _bg = bg ??
         (solid
             ? theme.colorScheme.primary
-            : (isDark ? const Color(0xFF2C2C2C) : Colors.white)); // Dark grey vs White
+            : (isDark ? const Color(0xFF2C2C2C) : Colors.white));
     final Color _bd = borderColor ??
-        (solid ? Colors.transparent : (isDark ? Colors.white24 : theme.colorScheme.primary.withOpacity(0.45)));
+        (solid
+            ? Colors.transparent
+            : (isDark
+            ? Colors.white24
+            : theme.colorScheme.primary.withOpacity(0.45)));
 
     return InkWell(
       onTap: onTap,
@@ -290,7 +319,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     // ✅ Fix: Lighter divider in dark mode
-    final color = isDark ? Colors.white24 : theme.dividerColor.withOpacity(0.35);
+    final color =
+    isDark ? Colors.white24 : theme.dividerColor.withOpacity(0.35);
 
     return Padding(
       padding: EdgeInsets.only(left: indent, right: endIndent),
@@ -312,20 +342,24 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         backgroundColor: theme.scaffoldBackgroundColor,
         body: Center(
             child: Text("Product not found.",
-                style: theme.textTheme.bodyMedium?.copyWith(color: isDark ? Colors.white : Colors.black))),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color: isDark ? Colors.white : Colors.black))),
       );
     }
 
     // Category chip data (next to back button)
     final cat = _firstCategory(product!);
     final dynamic rawCatId = cat == null ? null : cat['id'];
-    final int? categoryId =
-    rawCatId is int ? rawCatId : (rawCatId == null ? null : int.tryParse(rawCatId.toString()));
+    final int? categoryId = rawCatId is int
+        ? rawCatId
+        : (rawCatId == null ? null : int.tryParse(rawCatId.toString()));
     final String categoryName = (cat?['name']?.toString() ?? '').trim();
 
     // Brands: array of {id, name, slug, logo?}
     final List<Map<String, dynamic>> brands = (product!['brands'] is List)
-        ? (product!['brands'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList()
+        ? (product!['brands'] as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList()
         : <Map<String, dynamic>>[];
 
     final images = _imageUrlsOf(product!);
@@ -365,7 +399,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     children: [
                       _roundBack(context),
                       const SizedBox(width: 6),
-                      if (categoryId != null && categoryId > 0 && categoryName.isNotEmpty)
+                      if (categoryId != null &&
+                          categoryId > 0 &&
+                          categoryName.isNotEmpty)
                         Expanded(
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
@@ -373,16 +409,20 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             child: Row(
                               children: [
                                 _chip(
-                                  label: categoryName,
-                                  fg: isDark ? Colors.white : primaryColor, // ✅ Fix text color
-                                  borderColor: isDark ? Colors.white24 : primaryColor,
+                                  // ✅ APPLY FIX HERE: Use fixHtml() to clean text
+                                  label: fixHtml(categoryName),
+                                  fg: isDark
+                                      ? Colors.white
+                                      : primaryColor, // ✅ Fix text color
+                                  borderColor:
+                                  isDark ? Colors.white24 : primaryColor,
                                   onTap: () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (_) => CategoryProductsScreen(
                                           id: categoryId,
-                                          title: categoryName,
+                                          title: fixHtml(categoryName),
                                           filterType: "category",
                                         ),
                                       ),
@@ -409,7 +449,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         child: Container(
                           decoration: BoxDecoration(
                             // ✅ Fix: Dark grey container for image area
-                            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                            color:
+                            isDark ? const Color(0xFF1E1E1E) : Colors.white,
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.06),
@@ -432,17 +473,27 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         right: 10,
                         child: Consumer<WishlistProvider>(
                           builder: (context, wishlistProvider, _) {
-                            final isInWishlist = wishlistProvider.isInWishlist(widget.productId);
+                            final isInWishlist =
+                            wishlistProvider.isInWishlist(widget.productId);
                             return CircleAvatar(
                               // ✅ Fix: Darker circle background
-                              backgroundColor: isDark ? const Color(0xFF2C2C2C) : theme.cardColor.withOpacity(0.9),
+                              backgroundColor: isDark
+                                  ? const Color(0xFF2C2C2C)
+                                  : theme.cardColor.withOpacity(0.9),
                               child: IconButton(
                                 icon: Icon(
-                                  isInWishlist ? Icons.favorite : Icons.favorite_border,
-                                  color: isInWishlist ? Colors.red : (isDark ? Colors.white : theme.iconTheme.color),
+                                  isInWishlist
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: isInWishlist
+                                      ? Colors.red
+                                      : (isDark
+                                      ? Colors.white
+                                      : theme.iconTheme.color),
                                 ),
                                 onPressed: () {
-                                  final firstImg = images.isNotEmpty ? images.first : '';
+                                  final firstImg =
+                                  images.isNotEmpty ? images.first : '';
                                   final productData = {
                                     'id': widget.productId,
                                     'title': title,
@@ -480,7 +531,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         title,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : Colors.black, // ✅ Fix: Pure White Title
+                          color: isDark
+                              ? Colors.white
+                              : Colors.black, // ✅ Fix: Pure White Title
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -489,7 +542,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         Text(
                           sku,
                           style: theme.textTheme.titleSmall?.copyWith(
-                            color: isDark ? Colors.white70 : primaryColor, // ✅ Fix: Lighter SKU in dark mode
+                            color: isDark
+                                ? Colors.white70
+                                : primaryColor, // ✅ Fix: Lighter SKU in dark mode
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -503,7 +558,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             final dynamic rawBid = b['id'];
                             final int bid = rawBid is int
                                 ? rawBid
-                                : (rawBid == null ? 0 : (int.tryParse(rawBid.toString()) ?? 0));
+                                : (rawBid == null
+                                ? 0
+                                : (int.tryParse(rawBid.toString()) ?? 0));
                             final String bname = b['name']?.toString() ?? '';
                             // final String logo = b['logo']?.toString() ?? '';
 
@@ -524,11 +581,18 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                               },
                               borderRadius: BorderRadius.circular(18),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
                                   // ✅ Fix: Dark grey pill for brands
-                                  color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
-                                  border: Border.all(color: isDark ? Colors.white24 : theme.dividerColor.withOpacity(0.35)),
+                                  color: isDark
+                                      ? const Color(0xFF2C2C2C)
+                                      : Colors.white,
+                                  border: Border.all(
+                                      color: isDark
+                                          ? Colors.white24
+                                          : theme.dividerColor
+                                          .withOpacity(0.35)),
                                   borderRadius: BorderRadius.circular(18),
                                 ),
                                 child: Row(
@@ -537,9 +601,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                     const SizedBox(width: 2),
                                     Text(
                                       bname,
-                                      style: theme.textTheme.bodySmall?.copyWith(
+                                      style:
+                                      theme.textTheme.bodySmall?.copyWith(
                                         fontWeight: FontWeight.w600,
-                                        color: isDark ? Colors.white : primaryColor, // ✅ Fix: White text
+                                        color: isDark
+                                            ? Colors.white
+                                            : primaryColor, // ✅ Fix: White text
                                       ),
                                     ),
                                   ],
@@ -556,7 +623,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               // PRICE + QTY (only if logged in)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -569,14 +637,18 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                 "$currencySymbol${price.toStringAsFixed(2)}",
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   decoration: TextDecoration.lineThrough,
-                                  color: isDark ? Colors.white54 : Colors.grey, // ✅ Fix
+                                  color: isDark
+                                      ? Colors.white54
+                                      : Colors.grey, // ✅ Fix
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 "$currencySymbol${salePrice!.toStringAsFixed(2)}",
                                 style: theme.textTheme.titleLarge?.copyWith(
-                                  color: isDark ? Colors.white : primaryColor, // ✅ Fix: White Price
+                                  color: isDark
+                                      ? Colors.white
+                                      : primaryColor, // ✅ Fix: White Price
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -586,7 +658,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           Text(
                             "$currencySymbol${price.toStringAsFixed(2)}",
                             style: theme.textTheme.titleLarge?.copyWith(
-                              color: isDark ? Colors.white : primaryColor, // ✅ Fix
+                              color: isDark
+                                  ? Colors.white
+                                  : primaryColor, // ✅ Fix
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -594,7 +668,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         // Logged-out hint (no numbers)
                         Row(
                           children: [
-                            Icon(Icons.lock_outline, size: 18, color: isDark ? Colors.white70 : Colors.black54),
+                            Icon(Icons.lock_outline,
+                                size: 18,
+                                color: isDark
+                                    ? Colors.white70
+                                    : Colors.black54),
                             const SizedBox(width: 8),
                             Text(
                               "Fiyatı görmek için giriş yapın",
@@ -616,8 +694,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           Container(
                             decoration: BoxDecoration(
                               // ✅ Fix: Dark grey Qty box
-                              color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
-                              border: Border.all(color: isDark ? Colors.white24 : theme.dividerColor.withOpacity(0.8)),
+                              color: isDark
+                                  ? const Color(0xFF2C2C2C)
+                                  : Colors.white,
+                              border: Border.all(
+                                  color: isDark
+                                      ? Colors.white24
+                                      : theme.dividerColor.withOpacity(0.8)),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Row(
@@ -625,7 +708,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                 IconButton(
                                   onPressed: () => _updateQuantity(-1),
                                   icon: const Icon(Icons.remove),
-                                  color: isDark ? Colors.white : primaryColor, // ✅ Fix icon color
+                                  color: isDark
+                                      ? Colors.white
+                                      : primaryColor, // ✅ Fix icon color
                                 ),
                                 SizedBox(
                                   width: 54,
@@ -644,13 +729,18 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                       border: InputBorder.none,
                                     ),
                                     // ✅ Fix input text color
-                                    style: theme.textTheme.titleMedium?.copyWith(color: isDark ? Colors.white : Colors.black),
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                        color: isDark
+                                            ? Colors.white
+                                            : Colors.black),
                                   ),
                                 ),
                                 IconButton(
                                   onPressed: () => _updateQuantity(1),
                                   icon: const Icon(Icons.add),
-                                  color: isDark ? Colors.white : primaryColor, // ✅ Fix icon color
+                                  color: isDark
+                                      ? Colors.white
+                                      : primaryColor, // ✅ Fix icon color
                                 ),
                               ],
                             ),
@@ -663,7 +753,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                               child: ElevatedButton.icon(
                                 onPressed: isInStock ? _handleAddToCart : null,
                                 icon: const Icon(Icons.shopping_cart),
-                                label: Text(isInStock ? "Sepete Ekle" : "Stokta Yok"),
+                                label: Text(
+                                    isInStock ? "Sepete Ekle" : "Stokta Yok"),
                                 style: ElevatedButton.styleFrom(
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
@@ -710,7 +801,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               ),
 
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
-              SliverToBoxAdapter(child: RelatedProducts(productId: widget.productId)),
+              SliverToBoxAdapter(
+                  child: RelatedProducts(productId: widget.productId)),
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
             ],
           ),
@@ -718,11 +810,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: theme.bottomNavigationBarTheme.backgroundColor ?? theme.cardColor,
+          color: theme.bottomNavigationBarTheme.backgroundColor ??
+              theme.cardColor,
           boxShadow: [
             BoxShadow(
-              color:
-              theme.brightness == Brightness.dark ? Colors.black54 : Colors.black12,
+              color: theme.brightness == Brightness.dark
+                  ? Colors.black54
+                  : Colors.black12,
               offset: const Offset(0, -2),
               blurRadius: 6,
             ),
@@ -750,7 +844,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Anasayfa"),
             BottomNavigationBarItem(icon: Icon(Icons.search), label: "Keşfet"),
             BottomNavigationBarItem(icon: Icon(Icons.store), label: "Mağaza"),
-            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: "Sepet"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.shopping_bag), label: "Sepet"),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
           ],
         ),

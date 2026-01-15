@@ -16,7 +16,14 @@ const productDemoImg5 = "";
 const productDemoImg6 = "";
 
 // End For demo
-
+String fixHtml(String text) {
+  return text
+      .replaceAll('&amp;', '&')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#039;', "'")
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>');
+}
 const grandisExtendedFont = "Poppins";
 
 // Turkish state codes to city names (WooCommerce style)

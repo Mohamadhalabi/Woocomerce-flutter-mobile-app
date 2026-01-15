@@ -42,6 +42,14 @@ class ProductCard extends StatelessWidget {
     final prefs = await SharedPreferences.getInstance();
     return prefs.containsKey('auth_token');
   }
+  String fixHtml(String text) {
+    return text
+        .replaceAll('&amp;', '&')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#039;', "'")
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +197,7 @@ class ProductCard extends StatelessWidget {
                   children: [
                     // Category
                     Text(
-                      category,
+                      fixHtml(category), // ✅ Applied here
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 10, color: categoryColor),

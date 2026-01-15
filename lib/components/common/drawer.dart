@@ -35,6 +35,16 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   /* ---------- helpers ---------- */
 
+  /// ✅ Fix HTML Entities (e.g. &amp; -> &)
+  String _fixHtml(String text) {
+    return text
+        .replaceAll('&amp;', '&')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#039;', "'")
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>');
+  }
+
   /// Accepts `List`, `Map`, or `null` and always returns a `List`.
   List<dynamic> _toList(dynamic v) {
     if (v == null) return <dynamic>[];
@@ -45,7 +55,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   /// Safe accessor for count label
   String _countText(dynamic item) {
-    final c = (item is Map && item['count'] != null) ? item['count'].toString() : '0';
+    final c =
+    (item is Map && item['count'] != null) ? item['count'].toString() : '0';
     return '$c ürün';
   }
 
@@ -68,7 +79,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
       manufacturers = _toList(d['manufacturers']);
     } else {
       // Fallback: fetch by current locale
-      final lang = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+      final lang =
+          WidgetsBinding.instance.platformDispatcher.locale.languageCode;
       _fetchDrawerData(lang);
     }
   }
@@ -122,8 +134,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8),
-      child: Container
-        (
+      child: Container(
         decoration: BoxDecoration(
           color: theme.cardColor,
           borderRadius: BorderRadius.circular(10),
@@ -164,13 +175,17 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 Column(
                   children: List.generate(items.length, (index) {
                     final item = items[index] as Map<String, dynamic>;
+
+                    // ✅ Apply HTML fix here
+                    final String itemName = _fixHtml((item['name'] ?? '').toString());
+
                     return Column(
                       children: [
                         ListTile(
                           contentPadding:
                           const EdgeInsets.symmetric(horizontal: 0),
                           title: Text(
-                            (item['name'] ?? '').toString(),
+                            itemName, // ✅ Use fixed name
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -194,7 +209,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                               MaterialPageRoute(
                                 builder: (_) => CategoryProductsScreen(
                                   id: item['id'],
-                                  title: item['name'],
+                                  title: itemName, // ✅ Pass fixed name to next screen
                                   filterType: getFilterTypeByTitle(title),
                                 ),
                               ),
