@@ -398,7 +398,9 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
       drawer: const CustomDrawer(),
       appBar: CustomSearchAppBar(
         controller: TextEditingController(),
-        onBellTap: () {},
+        onBellTap: () {
+          Navigator.pushNamed(context, notificationsScreenRoute);
+        },
         onSearchTap: () {
           Navigator.pushReplacement(
             context,

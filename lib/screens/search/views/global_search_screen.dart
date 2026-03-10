@@ -109,7 +109,9 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       drawer: const CustomDrawer(),
       appBar: CustomSearchAppBar(
         controller: searchController,
-        onBellTap: () {},
+        onBellTap: () {
+          Navigator.pushNamed(context, notificationsScreenRoute);
+        },
         onSearchTap: () {
           Navigator.pushReplacement(
             context,

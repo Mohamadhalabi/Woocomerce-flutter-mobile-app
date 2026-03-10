@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shop/constants.dart';
+// ✅ ADDED: Essential for navigation to work with your router
+import 'package:shop/route/screen_export.dart';
 import 'app_bar.dart';
 
 class MainScaffold extends StatelessWidget {
@@ -30,7 +32,10 @@ class MainScaffold extends StatelessWidget {
       appBar: showAppBar
           ? CustomSearchAppBar(
         controller: searchController,
-        onBellTap: () {},
+        // ✅ FIXED: This now triggers the navigation to your notification history
+        onBellTap: () {
+          Navigator.pushNamed(context, notificationsScreenRoute);
+        },
         onSearchSubmitted: (value) => debugPrint('Search: $value'),
         onSearchTap: onSearchTap ?? () {},
       )

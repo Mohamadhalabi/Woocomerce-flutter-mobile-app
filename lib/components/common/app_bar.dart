@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../constants.dart';
+import '../../providers/notification_provider.dart';
 
 class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget {
   final TextEditingController controller;
@@ -22,8 +24,10 @@ class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget 
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    // ✅ Listen to the unread count from the provider to rebuild the badge automatically
+    final unreadCount = context.watch<NotificationProvider>().items.where((i) => !i.isRead).length;
+
     return AppBar(
-      // ✅ Use theme colors instead of hardcoded white
       backgroundColor: theme.appBarTheme.backgroundColor,
       foregroundColor: theme.appBarTheme.foregroundColor,
       elevation: 4,
@@ -40,7 +44,6 @@ class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget 
         child: Container(
           height: 42,
           decoration: BoxDecoration(
-            // ✅ Theme‑aware background for search box
             color: theme.brightness == Brightness.dark
                 ? Colors.grey[800]
                 : Colors.white70,
@@ -71,9 +74,44 @@ class CustomSearchAppBar extends StatelessWidget implements PreferredSizeWidget 
         ),
       ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_none, color: primaryColor),
-          onPressed: onBellTap,
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            IconButton(
+              // ✅ UI Tip: Using 'Icons.notifications' when unreadCount > 0 provides visual feedback
+              icon: Icon(
+                unreadCount > 0 ? Icons.notifications : Icons.notifications_none,
+                color: primaryColor,
+              ),
+              onPressed: onBellTap,
+            ),
+            // ✅ Conditional rendering: The badge only takes up space if there are unread items
+            if (unreadCount > 0)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  child: Text(
+                    unreadCount > 9 ? '9+' : '$unreadCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
         ),
       ],
     );

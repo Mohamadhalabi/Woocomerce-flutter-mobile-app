@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "734163705148",
+    "project_id": "app-notifications-3349c",
+    "storage_bucket": "app-notifications-3349c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:734163705148:android:9044580132c2a265139239",
+        "android_client_info": {
+          "package_name": "com.anadolu.anahtar"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCCUqrj05gRqxU1YeDZt2VnKPZb6gPpTLk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

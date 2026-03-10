@@ -8,6 +8,7 @@ import 'package:shop/screens/product/views/components/product_attributes.dart';
 import '../../../components/product/related_products.dart';
 import '../../../components/skleton/product/product_details_skeleton.dart';
 import '../../../entry_point.dart';
+import '../../../route/route_constants.dart';
 import '../../../services/api_service.dart';
 import '../../../services/cart_service.dart';
 import '../../../services/alert_service.dart';
@@ -383,7 +384,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             ),
           );
         },
-        onBellTap: () {},
+        onBellTap: () {
+          Navigator.pushNamed(context, notificationsScreenRoute);
+        },
         onSearchSubmitted: (_) {},
       ),
       body: SafeArea(
