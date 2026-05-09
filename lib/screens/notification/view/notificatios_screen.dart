@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../providers/notification_provider.dart';
+import 'package:shop/route/screen_export.dart'; // ✅ Needed for productDetailsScreenRoute
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // ✅ This connects the screen to your live notification data
     final provider = Provider.of<NotificationProvider>(context);
 
     return Scaffold(
@@ -43,7 +43,18 @@ class NotificationsScreen extends StatelessWidget {
               icon: const Icon(Icons.delete_outline),
               onPressed: () => provider.deleteNotification(item.id),
             ),
-            onTap: () => provider.markAsRead(item.id),
+            onTap: () {
+              provider.markAsRead(item.id);
+
+              // ✅ Check for ID and navigate
+              if (item.productId != null) {
+                Navigator.pushNamed(
+                  context,
+                  productDetailsScreenRoute,
+                  arguments: item.productId,
+                );
+              }
+            },
           );
         },
       ),

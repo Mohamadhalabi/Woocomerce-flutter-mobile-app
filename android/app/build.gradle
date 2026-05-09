@@ -82,7 +82,7 @@ android {
     // ABI splits only for RELEASE; Debug builds produce a universal APK so `flutter run` works
     splits {
         abi {
-            enable isReleaseBuild
+            enable false
             reset()
             include 'armeabi-v7a', 'arm64-v8a'
             universalApk !isReleaseBuild   // true for debug, false for release

@@ -7,6 +7,7 @@ class NotificationItem {
   final String title;
   final String body;
   final DateTime timestamp;
+  final int? productId; // ✅ Added
   bool isRead;
 
   NotificationItem({
@@ -14,17 +15,26 @@ class NotificationItem {
     required this.title,
     required this.body,
     required this.timestamp,
+    this.productId, // ✅ Added
     this.isRead = false,
   });
 
   Map<String, dynamic> toMap() => {
-    'id': id, 'title': title, 'body': body,
-    'timestamp': timestamp.toIso8601String(), 'isRead': isRead,
+    'id': id,
+    'title': title,
+    'body': body,
+    'timestamp': timestamp.toIso8601String(),
+    'productId': productId, // ✅ Added
+    'isRead': isRead,
   };
 
   factory NotificationItem.fromMap(Map<String, dynamic> map) => NotificationItem(
-    id: map['id'], title: map['title'], body: map['body'],
-    timestamp: DateTime.parse(map['timestamp']), isRead: map['isRead'] ?? false,
+    id: map['id'],
+    title: map['title'],
+    body: map['body'],
+    timestamp: DateTime.parse(map['timestamp']),
+    productId: map['productId'], // ✅ Added
+    isRead: map['isRead'] ?? false,
   );
 }
 
@@ -34,9 +44,14 @@ class NotificationProvider with ChangeNotifier {
 
   NotificationProvider() { loadNotifications(); }
 
-  Future<void> addNotification(String title, String body) async {
+  // ✅ Updated to accept optional productId
+  Future<void> addNotification(String title, String body, {int? productId}) async {
     final newItem = NotificationItem(
-      id: DateTime.now().toString(), title: title, body: body, timestamp: DateTime.now(),
+      id: DateTime.now().toString(),
+      title: title,
+      body: body,
+      timestamp: DateTime.now(),
+      productId: productId, // ✅ Passed to model
     );
     _items.insert(0, newItem);
     notifyListeners();
@@ -72,7 +87,7 @@ class NotificationProvider with ChangeNotifier {
       notifyListeners();
     }
   }
-  // Inside NotificationProvider class
+
   void clearAll() {
     _items.clear();
     notifyListeners();

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -9,6 +10,7 @@ import 'package:shop/screens/splash_screen.dart';
 import 'package:shop/services/api_initializer.dart';
 import 'package:shop/theme/app_theme.dart';
 import 'package:shop/route/router.dart' as router;
+import 'package:shop/route/screen_export.dart';
 import 'package:shop/screens/search/views/components/search_form.dart';
 
 // Firebase imports
@@ -22,66 +24,41 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 // Import your Notification Provider
 import 'package:shop/providers/notification_provider.dart';
 
+// --- GLOBAL NAVIGATOR KEY ---
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 // --- SETUP LOCAL NOTIFICATIONS ---
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
-  'high_importance_channel', // id
-  'High Importance Notifications', // title
+  'high_importance_channel',
+  'High Importance Notifications',
   description: 'This channel is used for important notifications.',
   importance: Importance.high,
 );
-// ---------------------------------
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  print("Handling a background message: ${message.messageId}");
+  debugPrint("Handling a background message: ${message.messageId}");
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // --- INITIALIZE LOCAL NOTIFICATIONS FOR FOREGROUND ---
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-      AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(channel);
-
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-
-  const AndroidInitializationSettings initializationSettingsAndroid =
-  AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initializationSettings =
-  InitializationSettings(android: initializationSettingsAndroid);
-
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-
-  await dotenv.load();
-  await initApiClient();
-  await SearchForm.loadLocksmithMapping();
-
-  // --- TEMPORARY DEBUG CODE TO GET TOKEN ---
   try {
-    await FirebaseMessaging.instance.requestPermission();
-    final fcmToken = await FirebaseMessaging.instance.getToken();
-    print("====================================");
-    print("FCM TOKEN: $fcmToken");
-    print("====================================");
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 10));
+
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   } catch (e) {
-    print("Failed to get token: $e");
+    debugPrint("Firebase Init failed: $e");
   }
+
+  // Initialize local notifications BEFORE runApp
+  await _initLocalNotifications();
 
   runApp(
     MultiProvider(
@@ -99,6 +76,45 @@ void main() async {
       child: const MyApp(),
     ),
   );
+
+  // Non-critical background tasks after UI is shown
+  _runBackgroundInitializations();
+}
+
+/// Initialize flutter_local_notifications (must run before app starts)
+Future<void> _initLocalNotifications() async {
+  const AndroidInitializationSettings initializationSettingsAndroid =
+  AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  const DarwinInitializationSettings initializationSettingsIOS =
+  DarwinInitializationSettings(
+    requestAlertPermission: false, // We request manually later
+    requestBadgePermission: false,
+    requestSoundPermission: false,
+  );
+
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+    iOS: initializationSettingsIOS,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+  // Create Android channel
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation
+  <AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+}
+
+Future<void> _runBackgroundInitializations() async {
+  try {
+    await dotenv.load();
+    await initApiClient();
+    await SearchForm.loadLocksmithMapping();
+  } catch (e) {
+    debugPrint("Background Task Error: $e");
+  }
 }
 
 class MyApp extends StatefulWidget {
@@ -118,58 +134,122 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _loadTheme();
-    // ✅ Initialize notification listeners
-    _setupNotificationInteractions();
+    _setupNotifications();
   }
 
-  // ✅ IMPROVED: Handles saving notifications in all app states
-  void _setupNotificationInteractions() {
-    // 1. Handle messages while the app is actively OPEN (Foreground)
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      _processNotification(message);
-    });
+  Future<void> _setupNotifications() async {
+    final messaging = FirebaseMessaging.instance;
 
-    // 2. Handle when the user CLICKS a notification from the tray while app is in background
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      _processNotification(message);
-    });
+    // Step 1 — Request permission (shows iOS popup)
+    final settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+    );
 
-    // 3. Handle "Cold Starts" - when app was closed and opened via a notification
-    FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
-      if (message != null) {
-        _processNotification(message);
-      }
-    });
+    debugPrint('🔔 Permission status: ${settings.authorizationStatus}');
+
+    if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      debugPrint('❌ User denied notification permission');
+      return;
+    }
+
+    // Step 2 — iOS: wait for APNs token (critical!)
+    // APNs token may take a few seconds to arrive on first launch
+    String? apnsToken;
+    for (int i = 0; i < 10; i++) {
+      apnsToken = await messaging.getAPNSToken();
+      if (apnsToken != null) break;
+      debugPrint('⏳ Waiting for APNs token... attempt ${i + 1}');
+      await Future.delayed(const Duration(seconds: 1));
+    }
+
+    if (apnsToken != null) {
+      debugPrint('✅ APNs Token: $apnsToken');
+    } else {
+      debugPrint('❌ APNs token is null after 10 attempts — iOS notifications will NOT work');
+      // Don't return here — FCM might still work on Android
+    }
+
+    // Step 3 — Get FCM token
+    final fcmToken = await messaging.getToken();
+    debugPrint('====================================');
+    debugPrint('FCM TOKEN: $fcmToken');
+    debugPrint('====================================');
+
+    // Step 4 — iOS foreground presentation options
+    await messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // Step 5 — Listen for messages
+    FirebaseMessaging.onMessage.listen(_showLocalNotification);
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageTap);
+
+    // Step 6 — Handle notification that launched the app from terminated state
+    final initialMessage = await messaging.getInitialMessage();
+    if (initialMessage != null) {
+      // Delay to ensure navigator is ready
+      await Future.delayed(const Duration(milliseconds: 500));
+      _handleMessageTap(initialMessage);
+    }
   }
 
-  // ✅ Helper to save to provider and show local banner
-  void _processNotification(RemoteMessage message) {
-    RemoteNotification? notification = message.notification;
-    AndroidNotification? android = message.notification?.android;
+  void _handleMessageTap(RemoteMessage message) {
+    debugPrint('📩 Notification tapped: ${message.data}');
 
-    if (notification != null) {
-      // SAVE TO HISTORY: This ensures it appears in the "Bildirimler" screen
-      Provider.of<NotificationProvider>(context, listen: false)
-          .addNotification(notification.title ?? "", notification.body ?? "");
+    if (message.data['route'] == 'productDetails') {
+      final String? idString = message.data['product_id'];
+      final int? productId = int.tryParse(idString ?? '');
 
-      // SHOW LOCAL BANNER: Only if the app is in the foreground
-      if (android != null) {
-        flutterLocalNotificationsPlugin.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          NotificationDetails(
-            android: AndroidNotificationDetails(
-              channel.id,
-              channel.name,
-              channelDescription: channel.description,
-              icon: '@mipmap/ic_launcher',
-              importance: Importance.high,
-              priority: Priority.high,
-            ),
-          ),
+      if (productId != null) {
+        navigatorKey.currentState?.pushNamed(
+          productDetailsScreenRoute,
+          arguments: productId,
         );
       }
+    }
+  }
+
+  void _showLocalNotification(RemoteMessage message) {
+    debugPrint('📬 Foreground message received: ${message.notification?.title}');
+
+    final RemoteNotification? notification = message.notification;
+    final String? idString = message.data['product_id'];
+    final int? productId = int.tryParse(idString ?? '');
+
+    if (notification != null) {
+      // Add to in-app notification list
+      Provider.of<NotificationProvider>(context, listen: false).addNotification(
+        notification.title ?? "",
+        notification.body ?? "",
+        productId: productId,
+      );
+
+      // Show local notification banner (needed for foreground on both platforms)
+      flutterLocalNotificationsPlugin.show(
+        notification.hashCode,
+        notification.title,
+        notification.body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'high_importance_channel',
+            'High Importance Notifications',
+            channelDescription: 'This channel is used for important notifications.',
+            icon: '@mipmap/ic_launcher',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+      );
     }
   }
 
@@ -184,9 +264,7 @@ class _MyAppState extends State<MyApp> {
   Future<void> _saveTheme(ThemeMode mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-      'theme_mode',
-      mode == ThemeMode.dark ? 'dark' : 'light',
-    );
+        'theme_mode', mode == ThemeMode.dark ? 'dark' : 'light');
     setState(() {
       _themeMode = mode;
     });
@@ -201,25 +279,22 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      title: 'Anadolu Anahtar',
+      title: 'Techno lock keys',
       locale: const Locale('tr'),
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
-
       builder: (context, child) {
         return Directionality(
           textDirection: TextDirection.ltr,
           child: child ?? const SizedBox(),
         );
       },
-
       theme: AppTheme.lightTheme(context),
       darkTheme: AppTheme.darkTheme(context),
       themeMode: _themeMode,
-
       onGenerateRoute: router.generateRoute,
-
       home: const SplashScreen(),
     );
   }
