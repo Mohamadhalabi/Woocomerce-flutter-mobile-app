@@ -8,6 +8,7 @@ import 'package:shop/route/route_constants.dart';
 import 'package:shop/services/api_service.dart';
 import '../../../components/common/app_bar.dart';
 import '../../../components/common/drawer.dart';
+import '../../../components/common/drawer_v2.dart';
 
 class GlobalSearchScreen extends StatefulWidget {
   final String query;
@@ -106,7 +107,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      drawer: const CustomDrawer(),
+      drawer: const CustomDrawerV2(),
       appBar: CustomSearchAppBar(
         controller: searchController,
         onBellTap: () {

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -8,6 +7,7 @@ import 'package:shop/providers/currency_provider.dart';
 import 'package:shop/providers/wishlist_provider.dart';
 import 'package:shop/screens/splash_screen.dart';
 import 'package:shop/services/api_initializer.dart';
+import 'package:shop/services/app_api.dart';
 import 'package:shop/theme/app_theme.dart';
 import 'package:shop/route/router.dart' as router;
 import 'package:shop/route/screen_export.dart';
@@ -46,6 +46,20 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // MUST complete before runApp.
+  //
+  // Every v2 screen reads the `late` repositories initAppApi() creates, so
+  // building the UI first is a race — and the UI wins it, which is what
+  // produced "Field 'homeRepo' has not been initialized". It used to appear to
+  // work only because startup blocked on a network call long enough for this
+  // to finish first.
+  //
+  // The cost is disk reads only: .env, the stored token, the cached customer.
+  // A few milliseconds. The token is VERIFIED in the background inside
+  // initAppApi(), so nothing here waits on the network.
+  await dotenv.load();
+  await initAppApi();
 
   try {
     await Firebase.initializeApp(
@@ -102,15 +116,19 @@ Future<void> _initLocalNotifications() async {
 
   // Create Android channel
   await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation
-  <AndroidFlutterLocalNotificationsPlugin>()
+      .resolvePlatformSpecificImplementation<
+      AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 }
 
+/// Genuinely optional work. Nothing the first screen needs belongs here —
+/// dotenv and initAppApi moved into main() for exactly that reason.
 Future<void> _runBackgroundInitializations() async {
   try {
-    await dotenv.load();
+    // Legacy WooCommerce client. Still used by the screens that haven't been
+    // migrated; remove once nothing calls ApiService.
     await initApiClient();
+
     await SearchForm.loadLocksmithMapping();
   } catch (e) {
     debugPrint("Background Task Error: $e");
@@ -168,7 +186,8 @@ class _MyAppState extends State<MyApp> {
     if (apnsToken != null) {
       debugPrint('✅ APNs Token: $apnsToken');
     } else {
-      debugPrint('❌ APNs token is null after 10 attempts — iOS notifications will NOT work');
+      debugPrint(
+          '❌ APNs token is null after 10 attempts — iOS notifications will NOT work');
       // Don't return here — FCM might still work on Android
     }
 
@@ -202,6 +221,20 @@ class _MyAppState extends State<MyApp> {
     debugPrint('📩 Notification tapped: ${message.data}');
 
     if (message.data['route'] == 'productDetails') {
+      // Products are addressed by SLUG on the new API — a numeric id means
+      // nothing there. Sending `slug` in the payload lets the route open the
+      // v2 screen; the id path below is kept for notifications queued under
+      // the old scheme and can go once none remain.
+      final slug = message.data['slug'];
+
+      if (slug is String && slug.isNotEmpty) {
+        navigatorKey.currentState?.pushNamed(
+          productDetailsScreenRoute,
+          arguments: slug,
+        );
+        return;
+      }
+
       final String? idString = message.data['product_id'];
       final int? productId = int.tryParse(idString ?? '');
 
@@ -215,7 +248,8 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _showLocalNotification(RemoteMessage message) {
-    debugPrint('📬 Foreground message received: ${message.notification?.title}');
+    debugPrint(
+        '📬 Foreground message received: ${message.notification?.title}');
 
     final RemoteNotification? notification = message.notification;
     final String? idString = message.data['product_id'];
@@ -238,7 +272,8 @@ class _MyAppState extends State<MyApp> {
           android: AndroidNotificationDetails(
             'high_importance_channel',
             'High Importance Notifications',
-            channelDescription: 'This channel is used for important notifications.',
+            channelDescription:
+            'This channel is used for important notifications.',
             icon: '@mipmap/ic_launcher',
             importance: Importance.high,
             priority: Priority.high,

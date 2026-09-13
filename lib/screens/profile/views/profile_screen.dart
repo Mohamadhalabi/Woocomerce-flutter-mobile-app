@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shop/constants.dart';
 import 'package:shop/screens/profile/views/privacy_policy_screen.dart';
 import 'package:shop/screens/profile/views/terms_of_service_screen.dart';
-import '../../../components/skleton/profile/profile_skelton.dart';
-import '../../../services/api_service.dart';
 import '../../../services/alert_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shop/providers/currency_provider.dart';
 import '../../../main.dart';
 import '../../about/hakkimizda_screen.dart';
-import 'edit_profile_screen.dart';
-import 'address_edit_screen.dart';
+
+import 'address_edit_screen_v2.dart';
 import 'faq_screen.dart';
+import '../../order/views/orders_screen_v2.dart';
+
+import '../../../models/customer_model.dart';
+import '../../../services/api_client.dart';
+import '../../../services/app_api.dart';
+import '../../../repositories/account_repository.dart';
+import '../../../services/currency_service.dart';
+import '../../../services/taxonomy_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Function(String) onLocaleChange;
@@ -34,36 +38,41 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class ProfileScreenState extends State<ProfileScreen> {
-  String _selectedCurrency = 'TRY';
+  String _selectedCurrency = CurrencyService.current;
+  List<Currency> _currencies = const [];
 
   @override
   void initState() {
     super.initState();
-    _loadCurrency();
+    _loadCurrencies();
   }
 
   void refresh() {
     if (mounted) setState(() {});
   }
 
-  Future<void> _loadCurrency() async {
-    final prefs = await SharedPreferences.getInstance();
+  /// The options come from GET /currencies, so adding a currency in the admin
+  /// makes it appear here with no app release.
+  Future<void> _loadCurrencies() async {
+    final list = await CurrencyService.available();
+    if (!mounted) return;
     setState(() {
-      _selectedCurrency = prefs.getString('selected_currency') ?? 'TRY';
+      _currencies = list;
+      _selectedCurrency = CurrencyService.current;
     });
   }
 
   Future<void> _updateCurrency(String newCurrency) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('selected_currency', newCurrency);
+    // Sets the X-Currency header and clears cached prices. Without this the
+    // choice was only written to SharedPreferences and the API kept returning
+    // the old currency.
+    final changed = await CurrencyService.set(newCurrency);
+    if (!changed || !mounted) return;
 
-    if (!mounted) return;
+    Provider.of<CurrencyProvider>(context, listen: false)
+        .setCurrency(newCurrency);
 
-    Provider.of<CurrencyProvider>(context, listen: false).setCurrency(newCurrency);
-
-    setState(() {
-      _selectedCurrency = newCurrency;
-    });
+    setState(() => _selectedCurrency = newCurrency);
 
     AlertService.showTopAlert(
       context,
@@ -72,15 +81,14 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
-
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-    await prefs.remove('user_id'); // Ensure user_id is also removed
+    // Revokes the token server-side, clears it locally, and drops the cart
+    // token — the server cart now belongs to the customer.
+    await authRepo.logout();
+
+    // Prices and home sections are cached per audience, so the signed-in
+    // copies have to go.
+    await TaxonomyService.onAuthChanged();
 
     if (!mounted) return;
 
@@ -95,9 +103,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ✅ NEW: Delete Account Logic
   Future<void> _deleteAccount() async {
-    // 1. Show Confirmation Modal
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -121,26 +127,17 @@ class ProfileScreenState extends State<ProfileScreen> {
       },
     );
 
-    // If user cancelled, stop here
     if (confirm != true) return;
 
-    // 2. Perform Deletion
     try {
       if (!mounted) return;
 
-      // Show loading
-      AlertService.showTopAlert(
-        context,
-        'Hesap siliniyor...',
-        isError: false,
-      );
+      AlertService.showTopAlert(context, 'Hesap siliniyor...', isError: false);
 
-      // Call the API (Make sure deleteAccount is added to ApiService as discussed)
-      await ApiService.deleteAccount();
-
-      // 3. Clear Local Data & Logout
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear(); // Clears token, user info, cart, etc.
+      // NOTE: DELETE /auth/me doesn't exist on the API yet — this throws a 404
+      // until the backend adds it. Required by the App Store and Play Store.
+      await authRepo.deleteAccount();
+      await TaxonomyService.onAuthChanged();
 
       if (!mounted) return;
 
@@ -148,7 +145,6 @@ class ProfileScreenState extends State<ProfileScreen> {
         widget.initialUserData?.clear();
       });
 
-      // Navigate to EntryPoint or Login to reset state
       Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
 
       AlertService.showTopAlert(
@@ -156,7 +152,9 @@ class ProfileScreenState extends State<ProfileScreen> {
         'Hesabınız başarıyla silindi.',
         isError: false,
       );
-
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      AlertService.showTopAlert(context, e.message, isError: true);
     } catch (e) {
       if (!mounted) return;
       AlertService.showTopAlert(
@@ -183,7 +181,6 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// ✅ FIX: Smart Background Color for Dark Mode
   BoxDecoration _cardDec(BuildContext context, {bool white = false}) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
@@ -191,7 +188,6 @@ class ProfileScreenState extends State<ProfileScreen> {
     Color backgroundColor;
 
     if (white) {
-      // High contrast dark grey for dark mode, pure white for light mode
       backgroundColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
     } else {
       backgroundColor = theme.cardColor;
@@ -204,7 +200,6 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// ✅ FIX: High Contrast Text & Icons
   Widget _actionTile(
       IconData icon,
       String title, {
@@ -214,7 +209,6 @@ class ProfileScreenState extends State<ProfileScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Force White text in Dark Mode
     final textColor = isDark ? Colors.white : theme.textTheme.bodyMedium?.color;
     final iconColor = isDark ? Colors.white70 : theme.iconTheme.color;
     final arrowColor = isDark ? Colors.white54 : theme.iconTheme.color;
@@ -228,13 +222,14 @@ class ProfileScreenState extends State<ProfileScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         leading: CircleAvatar(
           radius: 16,
-          backgroundColor: (iconBg ?? primaryColor.withOpacity(isDark ? 0.25 : 0.12)),
+          backgroundColor:
+          (iconBg ?? primaryColor.withOpacity(isDark ? 0.25 : 0.12)),
           child: Icon(icon, size: 18, color: iconColor),
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: textColor, // ✅ High Contrast
+            color: textColor,
             fontWeight: FontWeight.w600,
             fontSize: 13.5,
           ),
@@ -245,7 +240,6 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// ✅ FIX: Header visibility
   Widget _profileHeader({
     required bool isLoggedIn,
     required String displayName,
@@ -255,7 +249,9 @@ class ProfileScreenState extends State<ProfileScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     final nameColor = isDark ? Colors.white : theme.textTheme.bodyMedium?.color;
-    final emailColor = isDark ? Colors.grey[400] : theme.textTheme.bodyMedium?.color?.withOpacity(0.8);
+    final emailColor = isDark
+        ? Colors.grey[400]
+        : theme.textTheme.bodyMedium?.color?.withOpacity(0.8);
     final iconColor = isDark ? Colors.white : theme.iconTheme.color;
 
     return Container(
@@ -278,7 +274,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: nameColor, // ✅ High Contrast Name
+                    color: nameColor,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -286,26 +282,17 @@ class ProfileScreenState extends State<ProfileScreen> {
                   isLoggedIn ? (email ?? '') : "Henüz giriş yapmadınız",
                   style: TextStyle(
                     fontSize: 11.5,
-                    color: emailColor, // ✅ Light Grey Email
+                    color: emailColor,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          if (isLoggedIn)
-            IconButton(
-              tooltip: "Bilgilerini Düzenle",
-              icon: Icon(Icons.edit, size: 18, color: iconColor),
-              onPressed: () async {
-                final user = await ApiService.fetchUserInfo();
-                final result = await Navigator.push<bool>(
-                  context,
-                  MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)),
-                );
-                if (result == true && mounted) setState(() {});
-              },
-            ),
+
+          // The edit button is hidden until EditProfileScreen is migrated —
+          // it took the WooCommerce user map, and PATCH /auth/me expects a
+          // different shape.
         ],
       ),
     );
@@ -314,69 +301,70 @@ class ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    // Sanctum tokens are opaque strings, not JWTs — there's nothing to decode,
+    // and JwtDecoder threw FormatException on them. AuthRepository already
+    // verified the session against /auth/me at startup and holds the customer.
+    final customer = authRepo.customer;
 
-    return FutureBuilder<String?>(
-      future: _getToken(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return ColoredBox(
-            color: theme.scaffoldBackgroundColor,
-            child: const Center(child: ProfileSkeleton()),
-          );
-        }
-
-        final token = snapshot.data;
-
-        if (token != null && token.isNotEmpty && !JwtDecoder.isExpired(token)) {
-          return FutureBuilder<Map<String, dynamic>>(
-            future: ApiService.fetchUserInfo(),
-            builder: (context, userSnapshot) {
-              if (userSnapshot.connectionState == ConnectionState.waiting) {
-                return ColoredBox(
-                  color: theme.scaffoldBackgroundColor,
-                  child: const Center(child: ProfileSkeleton()),
-                );
-              }
-              if (userSnapshot.hasError || userSnapshot.data == null) {
-                return _buildProfileView(isLoggedIn: false);
-              }
-              return _buildProfileView(
-                isLoggedIn: true,
-                user: userSnapshot.data!,
-              );
-            },
-          );
-        } else {
-          return _buildProfileView(isLoggedIn: false);
-        }
-      },
+    return _buildProfileView(
+      isLoggedIn: customer != null,
+      customer: customer,
     );
   }
 
-  Widget _buildProfileView({required bool isLoggedIn, Map<String, dynamic>? user}) {
-    final name = user?['first_name'] ?? '';
-    final surname = user?['last_name'] ?? '';
-    final email = user?['email'] ?? '';
+  Widget _buildProfileView({
+    required bool isLoggedIn,
+    CustomerModel? customer,
+  }) {
+    final email = customer?.email ?? '';
     final displayName = isLoggedIn
-        ? (name.isNotEmpty || surname.isNotEmpty)
-        ? '$name $surname'.trim()
-        : email
+        ? (customer!.name.trim().isNotEmpty ? customer.name : email)
         : 'Misafir Kullanıcı';
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final primaryTextColor = isDark ? Colors.white : theme.textTheme.bodyMedium?.color;
+    final primaryTextColor =
+    isDark ? Colors.white : theme.textTheme.bodyMedium?.color;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
         children: [
-          _profileHeader(isLoggedIn: isLoggedIn, displayName: displayName, email: email),
+          _profileHeader(
+            isLoggedIn: isLoggedIn,
+            displayName: displayName,
+            email: email,
+          ),
           const SizedBox(height: 8),
+
+          // An approved account can see prices; an unapproved one can't, so
+          // it's worth saying why rather than leaving them confused.
+          if (isLoggedIn && !customer!.isApproved) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.withOpacity(0.4)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.hourglass_top, size: 20, color: Colors.orange),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Hesabınız onay bekliyor. Onaylandıktan sonra '
+                          'fiyatları görebilirsiniz.',
+                      style: TextStyle(fontSize: 12.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           if (!isLoggedIn) ...[
             _sectionTitle("Hızlı İşlemler"),
@@ -386,7 +374,10 @@ class ProfileScreenState extends State<ProfileScreen> {
                   child: _actionTile(
                     Icons.login,
                     'Giriş Yap',
-                    onTap: () => Navigator.pushNamed(context, '/login'),
+                    onTap: () async {
+                      await Navigator.pushNamed(context, '/login');
+                      if (mounted) setState(() {});
+                    },
                     iconBg: Colors.green.withOpacity(0.12),
                   ),
                 ),
@@ -395,7 +386,10 @@ class ProfileScreenState extends State<ProfileScreen> {
                   child: _actionTile(
                     Icons.person_add,
                     'Kayıt Ol',
-                    onTap: () => Navigator.pushNamed(context, '/register'),
+                    onTap: () async {
+                      await Navigator.pushNamed(context, '/register');
+                      if (mounted) setState(() {});
+                    },
                     iconBg: Colors.blue.withOpacity(0.12),
                   ),
                 ),
@@ -414,12 +408,15 @@ class ProfileScreenState extends State<ProfileScreen> {
             _actionTile(Icons.location_on, 'Adresim', onTap: () async {
               final result = await Navigator.push<bool>(
                 context,
-                MaterialPageRoute(builder: (_) => const AddressEditScreen()),
+                MaterialPageRoute(builder: (_) => const AddressEditScreenV2()),
               );
               if (result == true && mounted) setState(() {});
             }),
             _actionTile(Icons.list_alt, 'Siparişlerim', onTap: () {
-              Navigator.pushNamed(context, '/orders');
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const OrdersScreenV2()),
+              );
             }),
             _actionTile(
               Icons.favorite_border,
@@ -429,7 +426,6 @@ class ProfileScreenState extends State<ProfileScreen> {
           ],
 
           _sectionTitle("Tercihler"),
-          // Currency
           Container(
             decoration: _cardDec(context, white: true),
             margin: const EdgeInsets.symmetric(vertical: 5),
@@ -438,8 +434,11 @@ class ProfileScreenState extends State<ProfileScreen> {
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: Colors.orange.withOpacity(isDark ? 0.25 : 0.12),
-                  child: Icon(Icons.attach_money, size: 18, color: isDark ? Colors.white : theme.iconTheme.color),
+                  backgroundColor:
+                  Colors.orange.withOpacity(isDark ? 0.25 : 0.12),
+                  child: Icon(Icons.attach_money,
+                      size: 18,
+                      color: isDark ? Colors.white : theme.iconTheme.color),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -454,7 +453,11 @@ class ProfileScreenState extends State<ProfileScreen> {
                 ),
                 DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
-                    value: _selectedCurrency,
+                    // Null until the list loads — a value that isn't among the
+                    // items makes DropdownButton throw.
+                    value: _currencies.any((c) => c.code == _selectedCurrency)
+                        ? _selectedCurrency
+                        : null,
                     isDense: true,
                     dropdownColor: theme.cardColor,
                     style: TextStyle(
@@ -462,10 +465,12 @@ class ProfileScreenState extends State<ProfileScreen> {
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
-                    items: const [
-                      DropdownMenuItem(value: 'TRY', child: Text('TRY')),
-                      DropdownMenuItem(value: 'USD', child: Text('USD')),
-                    ],
+                    items: _currencies
+                        .map((c) => DropdownMenuItem(
+                      value: c.code,
+                      child: Text('${c.code}  ${c.symbol}'),
+                    ))
+                        .toList(),
                     onChanged: (c) => c == null ? null : _updateCurrency(c),
                   ),
                 ),
@@ -473,18 +478,21 @@ class ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
 
-          // Dark mode
           Container(
             decoration: _cardDec(context, white: true),
             margin: const EdgeInsets.symmetric(vertical: 5),
             child: SwitchListTile(
               dense: true,
               visualDensity: const VisualDensity(vertical: -2, horizontal: -2),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
               secondary: CircleAvatar(
                 radius: 16,
-                backgroundColor: Colors.purple.withOpacity(isDark ? 0.25 : 0.12),
-                child: Icon(Icons.brightness_6, size: 18, color: isDark ? Colors.white : theme.iconTheme.color),
+                backgroundColor:
+                Colors.purple.withOpacity(isDark ? 0.25 : 0.12),
+                child: Icon(Icons.brightness_6,
+                    size: 18,
+                    color: isDark ? Colors.white : theme.iconTheme.color),
               ),
               title: Text(
                 'Karanlık Mod',
@@ -507,27 +515,22 @@ class ProfileScreenState extends State<ProfileScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => HakkimizdaScreen(onLocaleChange: (_) {}),
+                  builder: (context) =>
+                      HakkimizdaScreen(onLocaleChange: (_) {}),
                 ),
               );
             },
           ),
-
-          // ✅ Sıkça Sorulan Sorular
           _actionTile(
             Icons.help_outline,
             'Sıkça Sorulan Sorular',
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const FAQScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const FAQScreen()),
               );
             },
           ),
-
-          // ✅ Gizlilik ve Güvenlik
           _actionTile(
             Icons.privacy_tip_outlined,
             'Gizlilik ve Güvenlik',
@@ -535,13 +538,10 @@ class ProfileScreenState extends State<ProfileScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const PrivacyPolicyScreen(),
-                ),
+                    builder: (context) => const PrivacyPolicyScreen()),
               );
             },
           ),
-
-          // ✅ Kullanıcı Sözleşmesi
           _actionTile(
             Icons.description_outlined,
             'Kullanıcı Sözleşmesi',
@@ -549,8 +549,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const TermsOfServiceScreen(),
-                ),
+                    builder: (context) => const TermsOfServiceScreen()),
               );
             },
           ),
@@ -563,13 +562,13 @@ class ProfileScreenState extends State<ProfileScreen> {
               iconBg: Colors.red.withOpacity(isDark ? 0.25 : 0.12),
             ),
 
-          // ✅ DELETE ACCOUNT BUTTON (Required for App Store)
           if (isLoggedIn) ...[
             const SizedBox(height: 20),
             Center(
               child: TextButton.icon(
                 onPressed: _deleteAccount,
-                icon: Icon(Icons.delete_forever, color: Colors.red.withOpacity(0.8), size: 20),
+                icon: Icon(Icons.delete_forever,
+                    color: Colors.red.withOpacity(0.8), size: 20),
                 label: Text(
                   "Hesabımı Sil",
                   style: TextStyle(
@@ -579,9 +578,11 @@ class ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   backgroundColor: Colors.red.withOpacity(0.05),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ),

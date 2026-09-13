@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:shop/entry_point.dart';
+import 'package:shop/screens/category/category_products_screen_v2.dart';
+import 'package:shop/screens/product/views/product_details_screen_v2.dart';
 
+import '../screens/cart/views/cart_screen_v2.dart';
 import '../screens/category/category_products_screen.dart';
 import '../screens/checkout/views/checkout_screen.dart';
 import '../screens/order/views/order_succesfull_screen.dart';
+import '../screens/profile/views/login_screen_v2.dart';
+import '../screens/profile/views/register_screen_v2.dart';
 import '../screens/wishlist/wishlist_screen.dart';
 import 'screen_export.dart';
 import "package:shop/controllers/locale_controller.dart";
@@ -133,12 +138,30 @@ Route<dynamic> generateRoute(RouteSettings settings) {
     //     builder: (context) => const SetupFaceIdScreen(),
     //   );
     case productDetailsScreenRoute:
-      final productId = settings.arguments as int;
+      final args = settings.arguments;
+
+      // Products are addressed by slug now — the numeric WooCommerce id has no
+      // meaning in the new database, and there's no endpoint to look one up by id.
+      if (args is String && args.isNotEmpty) {
+        return MaterialPageRoute(
+          builder: (_) => ProductDetailsScreenV2(slug: args),
+        );
+      }
+
+      // An int here means a caller wasn't migrated. Failing loudly beats opening
+      // an unrelated product.
       return MaterialPageRoute(
-        builder: (_) => ProductDetailsScreen(
-          productId: productId,
-          onLocaleChange: (_) {}, // ✅ dummy or real function
-          onTabChange: (_) {},     // ✅ dummy or real function
+        builder: (_) => Scaffold(
+          appBar: AppBar(leading: const BackButton()),
+          body: const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Ürün açılamadı.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
         ),
       );
 
@@ -234,11 +257,17 @@ Route<dynamic> generateRoute(RouteSettings settings) {
     //   );
     case '/category-products':
       final args = settings.arguments as Map<String, dynamic>;
+
+      // Slugs, not ids: the API filters by category=, brands[] and
+      // manufacturers[], and a WooCommerce id means nothing in the new database.
+      final type = args['filterType'] as String? ?? 'category';
+      final slug = args['slug'] as String?;
+
       return MaterialPageRoute(
-        builder: (context) => CategoryProductsScreen(
-          id: args['id'],
-          title: args['title'],
-          filterType: args['filterType'], // must be 'category', 'brand', or 'manufacturer'
+        builder: (_) => CategoryProductsScreenV2(
+          categorySlug: type == 'category' ? slug : null,
+          brandSlug: type == 'brand' ? slug : null,
+          title: args['title'] as String? ?? '',
         ),
       );
     case notificationsScreenRoute:
@@ -311,7 +340,7 @@ Route<dynamic> generateRoute(RouteSettings settings) {
       );
     case cartScreenRoute:
       return MaterialPageRoute(
-        builder: (context) => const CartScreen(),
+        builder: (context) => const CartScreenV2(),
       );
     case checkoutScreenRoute:
       final args = settings.arguments as List<Map<String, dynamic>>?;
@@ -319,10 +348,9 @@ Route<dynamic> generateRoute(RouteSettings settings) {
         builder: (context) => CheckoutScreen(cartItems: args ?? []),
       );
     case '/login':
-      return MaterialPageRoute(builder: (context) => const LoginScreen());
-
+      return MaterialPageRoute(builder: (_) => const LoginScreenV2());
     case '/register':
-      return MaterialPageRoute(builder: (context) => const RegisterScreen());
+      return MaterialPageRoute(builder: (_) => const RegisterScreenV2());
 
     case '/order-success':
       final orderId = settings.arguments as int;

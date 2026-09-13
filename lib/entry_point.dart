@@ -1,11 +1,16 @@
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shop/components/common/drawer_v2.dart';
 import 'package:shop/constants.dart';
 import 'package:shop/route/screen_export.dart';
-import 'components/common/drawer.dart';
+import 'package:shop/screens/cart/views/cart_screen_v2.dart';
+import 'package:shop/screens/home/views/home_screen_v2.dart';
 import 'components/common/main_scaffold.dart';
 import 'package:upgrader/upgrader.dart';
+import 'package:shop/screens/discover/views/discover_screen_v2.dart';
+import 'package:shop/screens/store/views/store_screen_v2.dart';
+
 
 class EntryPoint extends StatefulWidget {
   final Function(String) onLocaleChange;
@@ -29,17 +34,22 @@ class _EntryPointState extends State<EntryPoint> {
   late int _currentIndex;
   final TextEditingController _searchController = TextEditingController();
 
-  // ✅ 1. HISTORY STACK: Keeps track of visited tabs
-  // We start with [0] because the app starts on Home.
+  // HISTORY STACK: keeps track of visited tabs. Starts at [0] — Home.
   final List<int> _navigationHistory = [0];
 
   DateTime? currentBackPressTime;
 
-  final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
-  final GlobalKey<DiscoverScreenState> _discoverKey = GlobalKey<DiscoverScreenState>();
-  final GlobalKey<StoreScreenState> _storeKey = GlobalKey<StoreScreenState>();
-  final GlobalKey<CartScreenState> _cartKey = GlobalKey<CartScreenState>();
-  final GlobalKey<ProfileScreenState> _profileKey = GlobalKey<ProfileScreenState>();
+  // NOTE: _homeKey removed — HomeScreenV2 manages its own refresh internally
+  // and doesn't expose a HomeScreenState.
+  final GlobalKey<DiscoverScreenV2State> _discoverKey = GlobalKey<DiscoverScreenV2State>();
+  final GlobalKey<StoreScreenV2State> _storeKey = GlobalKey<StoreScreenV2State>();
+
+  // MIGRATED: CartScreenV2 talks to the Laravel cart. Its state class exposes
+  // the same loadCart() and refreshWithSkeleton() the old one did.
+  final GlobalKey<CartScreenV2State> _cartKey = GlobalKey<CartScreenV2State>();
+
+  final GlobalKey<ProfileScreenState> _profileKey =
+  GlobalKey<ProfileScreenState>();
 
   Widget? _storeScreen;
   Widget? _cartScreen;
@@ -50,7 +60,6 @@ class _EntryPointState extends State<EntryPoint> {
     super.initState();
     _currentIndex = widget.initialIndex;
 
-    // If initial index isn't 0, we update history start
     if (_currentIndex != 0) {
       _navigationHistory.add(_currentIndex);
     }
@@ -69,16 +78,14 @@ class _EntryPointState extends State<EntryPoint> {
         }
         break;
       case 3:
-        _cartScreen = CartScreen(key: _cartKey);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _cartKey.currentState?.loadCart();
-        });
+      // CartScreenV2 loads itself in initState — no post-frame call needed.
+        _cartScreen = CartScreenV2(key: _cartKey);
         break;
       case 4:
         _profileScreen = ProfileScreen(
           key: _profileKey,
           onLocaleChange: widget.onLocaleChange,
-          onTabChange: (newIndex) => _changeTab(newIndex), // Helper method
+          onTabChange: (newIndex) => _changeTab(newIndex),
           searchController: _searchController,
           initialUserData: widget.initialUserData,
         );
@@ -89,7 +96,7 @@ class _EntryPointState extends State<EntryPoint> {
   void _refreshTab(int index) {
     switch (index) {
       case 0:
-        _homeKey.currentState?.refresh();
+      // HomeScreenV2 refreshes itself via pull-to-refresh.
         break;
       case 1:
         _discoverKey.currentState?.refresh();
@@ -106,25 +113,19 @@ class _EntryPointState extends State<EntryPoint> {
     }
   }
 
-  // ✅ Helper method to handle tab switching and history
   void _changeTab(int index) {
-    if (_currentIndex == index) return; // Do nothing if clicking same tab
+    if (_currentIndex == index) return;
 
     setState(() {
       _currentIndex = index;
-      // Add to history
       _navigationHistory.add(index);
 
-      // Initialize screens logic (Copied from your original onTabChange)
       if (index == 2) {
         if (_storeScreen == null) {
-          _storeScreen = StoreScreen(key: _storeKey);
+          _storeScreen = StoreScreenV2(key: _storeKey);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _storeKey.currentState?.loadStoreData();
           });
-        } else if ((_storeScreen as StoreScreen).onSale ||
-            (_storeScreen as StoreScreen).categoryId != null) {
-          _storeKey.currentState?.switchMode(onSale: false, categoryId: null);
         }
       }
 
@@ -132,7 +133,7 @@ class _EntryPointState extends State<EntryPoint> {
         if (_cartKey.currentState != null) {
           _cartKey.currentState!.refreshWithSkeleton();
         } else {
-          _cartScreen = CartScreen(key: _cartKey);
+          _cartScreen = CartScreenV2(key: _cartKey);
         }
       }
 
@@ -153,37 +154,15 @@ class _EntryPointState extends State<EntryPoint> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      HomeScreen(
-        key: _homeKey,
-        initialDrawerData: widget.initialDrawerData,
-        onViewAllNewArrival: () {
-          // Manually change tab using helper
-          _changeTab(2);
-          // Then apply specific logic
-          // Note: _changeTab resets mode, so we might need a slight delay or specific handling here
-          // But for simplicity, we keep your original logic flow manually:
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _storeKey.currentState?.switchMode(onSale: false, categoryId: null);
-          });
-        },
-        onViewAllFlashSale: () {
-          _changeTab(2);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _storeKey.currentState?.switchMode(onSale: true, categoryId: null);
-          });
-        },
-        onViewAllEmulators: () {
-          _changeTab(2);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            const int emulatorCategoryId = 62;
-            _storeKey.currentState?.switchMode(
-              onSale: false,
-              categoryId: emulatorCategoryId,
-            );
-          });
-        },
-      ),
-      DiscoverScreen(key: _discoverKey),
+      // MIGRATED: home reads from the new Laravel API.
+      //
+      // The old "Tümünü Gör" callbacks are gone on purpose — they navigated to
+      // StoreScreen, which is still on WooCommerce, and onViewAllEmulators
+      // passed the Woo category id 62, which doesn't exist in the new
+      // database. They get reconnected (using the slug 'emulatorler') when the
+      // store screen is migrated.
+      const HomeScreenV2(),
+      DiscoverScreenV2(key: _discoverKey),
       _storeScreen ?? const SizedBox(),
       _cartScreen ?? const SizedBox(),
       _profileScreen ?? const SizedBox(),
@@ -195,28 +174,24 @@ class _EntryPointState extends State<EntryPoint> {
       showReleaseNotes: false,
       dialogStyle: UpgradeDialogStyle.cupertino,
       upgrader: Upgrader(languageCode: 'tr'),
-
       child: PopScope(
         canPop: false,
         onPopInvoked: (didPop) {
           if (didPop) return;
 
-          // ✅ HISTORY LOGIC
           if (_navigationHistory.length > 1) {
             setState(() {
-              // 1. Remove current tab from stack
               _navigationHistory.removeLast();
-              // 2. Go to the previous tab (new last item)
               _currentIndex = _navigationHistory.last;
             });
             _refreshTab(_currentIndex);
             return;
           }
 
-          // ✅ EXIT LOGIC (Only runs if history has 1 item, which is Home)
           final now = DateTime.now();
           if (currentBackPressTime == null ||
-              now.difference(currentBackPressTime!) > const Duration(seconds: 2)) {
+              now.difference(currentBackPressTime!) >
+                  const Duration(seconds: 2)) {
             currentBackPressTime = now;
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -244,14 +219,13 @@ class _EntryPointState extends State<EntryPoint> {
             ),
           ),
           currentIndex: _currentIndex,
-          onTabChange: (index) => _changeTab(index), // Use helper
-          onSearchTap: () => _changeTab(1), // Use helper
+          onTabChange: (index) => _changeTab(index),
+          onSearchTap: () => _changeTab(1),
           searchController: _searchController,
           showAppBar: _currentIndex != 1,
-          drawer: CustomDrawer(
-            initialData: widget.initialDrawerData,
+          drawer: CustomDrawerV2(
             onNavigateToIndex: (index) {
-              _changeTab(index); // Use helper
+              _changeTab(index);
               Navigator.pop(context);
             },
           ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shop/screens/home/views/components/categories_v2.dart';
+import '../../../category/category_products_screen_v2.dart';
 import 'offers_carousel.dart';
-import 'categories.dart';
+// import 'categories.dart';
 
 // for testing
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -14,9 +16,19 @@ class OffersCarouselAndCategories extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Categories(initialDrawerData: initialDrawerData),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CategoriesV2(
+            onCategoryTap: (category) => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CategoryProductsScreenV2(
+              categorySlug: category.slug,
+              title: category.name,
+             ),
+            ),
+          ),
+        ),
         const OffersCarousel(),
       ],
     );

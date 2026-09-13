@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:jwt_decoder/jwt_decoder.dart'; // ✅ Added this
-import 'package:shop/screens/category/category_products_screen.dart';
 
 import '../../constants.dart';
 import '../../services/cart_service.dart';
@@ -49,21 +47,19 @@ class _AddToCartModalState extends State<AddToCartModal> {
     _checkLoginStatus();
   }
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   Future<void> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
-    // Check if token exists and is valid (not expired)
-    bool valid = false;
-    if (token != null && token.isNotEmpty) {
-      if (!JwtDecoder.isExpired(token)) {
-        valid = true;
-      } else {
-        // Cleanup expired token silently
-        await prefs.remove('auth_token');
-        await prefs.remove('user_id');
-      }
-    }
+    // Sanctum tokens are opaque, so there's nothing to decode — JwtDecoder
+    // threw FormatException on them. Validity is the server's call now.
+    final bool valid = token != null && token.isNotEmpty;
 
     if (mounted) {
       setState(() {
@@ -90,24 +86,13 @@ class _AddToCartModalState extends State<AddToCartModal> {
     final prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('auth_token');
 
-    // 1. AUTO-LOGOUT CHECK: If token exists but is expired, remove it.
-    if (token != null && JwtDecoder.isExpired(token)) {
-      await prefs.remove('auth_token');
-      await prefs.remove('user_id');
-      token = null;
-      if (mounted) setState(() => isLoggedIn = false);
-    }
-
     try {
       if (token != null) {
-        // --- Attempt to add to Server Cart ---
         await CartService.addToWooCart(token, widget.productId, quantity);
       } else {
-        // --- Add to Guest Cart ---
         await _addToGuestCart();
       }
 
-      // Success
       if (!mounted) return;
       Navigator.pop(context);
       AlertService.showTopAlert(
@@ -117,16 +102,14 @@ class _AddToCartModalState extends State<AddToCartModal> {
         showGoToCart: true,
       );
     } catch (e) {
-      // 2. FAIL-SAFE: If server rejects token (401/403), retry as Guest
+      // FAIL-SAFE: If server rejects token (401/403), retry as Guest
       if (token != null && e.toString().contains('Auth Error')) {
         debugPrint("Server rejected token. Retrying as Guest...");
 
-        // Clear bad data
         await prefs.remove('auth_token');
         await prefs.remove('user_id');
         if (mounted) setState(() => isLoggedIn = false);
 
-        // Retry immediately as guest
         try {
           await _addToGuestCart();
           if (!mounted) return;
@@ -137,9 +120,8 @@ class _AddToCartModalState extends State<AddToCartModal> {
             isError: false,
             showGoToCart: true,
           );
-          return; // Exit successfully
+          return;
         } catch (innerError) {
-          // If guest add also fails
           if (!mounted) return;
           AlertService.showTopAlert(
             context,
@@ -148,7 +130,6 @@ class _AddToCartModalState extends State<AddToCartModal> {
           );
         }
       } else {
-        // Genuine Error
         if (!mounted) return;
         AlertService.showTopAlert(
           context,
@@ -159,7 +140,6 @@ class _AddToCartModalState extends State<AddToCartModal> {
     }
   }
 
-  // Helper for guest cart logic to avoid code duplication
   Future<void> _addToGuestCart() async {
     await CartService.addItemToGuestCart(
       productId: widget.productId,
@@ -178,13 +158,16 @@ class _AddToCartModalState extends State<AddToCartModal> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasDiscount = widget.salePrice != null && (widget.salePrice! < widget.price);
+    final hasDiscount =
+        widget.salePrice != null && (widget.salePrice! < widget.price);
     final finalPrice = hasDiscount ? widget.salePrice! : widget.price;
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       child: Material(
-        color: theme.brightness == Brightness.light ? Colors.white : theme.scaffoldBackgroundColor,
+        color: theme.brightness == Brightness.light
+            ? Colors.white
+            : theme.scaffoldBackgroundColor,
         child: SafeArea(
           top: false,
           child: LayoutBuilder(
@@ -213,7 +196,8 @@ class _AddToCartModalState extends State<AddToCartModal> {
                           ),
                           IconButton(
                             tooltip: 'Kapat',
-                            icon: Icon(Icons.close, color: theme.iconTheme.color),
+                            icon:
+                            Icon(Icons.close, color: theme.iconTheme.color),
                             onPressed: () => Navigator.of(context).pop(),
                           )
                         ],
@@ -236,7 +220,9 @@ class _AddToCartModalState extends State<AddToCartModal> {
                                     ? Colors.white
                                     : theme.cardColor,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                                border: Border.all(
+                                    color:
+                                    theme.dividerColor.withOpacity(0.2)),
                               ),
                               padding: const EdgeInsets.all(8),
                               child: Center(
@@ -247,37 +233,26 @@ class _AddToCartModalState extends State<AddToCartModal> {
                                     widget.image,
                                     fit: BoxFit.contain,
                                     errorBuilder: (context, err, stack) =>
-                                        Icon(Icons.broken_image, size: 40, color: theme.iconTheme.color),
+                                        Icon(Icons.broken_image,
+                                            size: 40,
+                                            color: theme.iconTheme.color),
                                   ),
                                 ),
                               ),
                             ),
                             const SizedBox(height: 12),
 
-                            // Category
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => CategoryProductsScreen(
-                                      id: widget.categoryId,
-                                      title: widget.category,
-                                      filterType: "category",
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: Text(
-                                widget.category,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 14,
-                                  color: blueColor,
-                                  decoration: TextDecoration.underline,
-                                ),
+                            // Category label. Not tappable: navigating from
+                            // here pulled the category screen into this file,
+                            // and the sheet is reached FROM that screen anyway.
+                            Text(
+                              widget.category,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                                color: theme.textTheme.bodySmall?.color,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -310,11 +285,13 @@ class _AddToCartModalState extends State<AddToCartModal> {
                               ],
                             ),
                             const SizedBox(height: 12),
+
                             // Price
                             if (isLoggedIn)
                               (hasDiscount
                                   ? Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
+                                crossAxisAlignment:
+                                CrossAxisAlignment.center,
                                 children: [
                                   Text(
                                     '${widget.currencySymbol}${_fmt(finalPrice)}',
@@ -329,8 +306,11 @@ class _AddToCartModalState extends State<AddToCartModal> {
                                     '${widget.currencySymbol}${_fmt(widget.price)}',
                                     style: TextStyle(
                                       fontSize: 14,
-                                      color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
-                                      decoration: TextDecoration.lineThrough,
+                                      color: theme.textTheme.bodySmall
+                                          ?.color
+                                          ?.withOpacity(0.7),
+                                      decoration:
+                                      TextDecoration.lineThrough,
                                     ),
                                   ),
                                 ],
@@ -351,10 +331,10 @@ class _AddToCartModalState extends State<AddToCartModal> {
                                 ),
                               ),
                             const SizedBox(height: 12),
-                            // --- Quantity + Sepete Ekle in the SAME ROW ---
+
+                            // Quantity + Sepete Ekle
                             Row(
                               children: [
-                                // Stepper expands on the left
                                 Expanded(
                                   child: _QtyStepper(
                                     controller: _controller,
@@ -367,37 +347,49 @@ class _AddToCartModalState extends State<AddToCartModal> {
                                         final clamped = parsed.clamp(1, 999);
                                         setState(() => quantity = clamped);
                                         _controller.text = clamped.toString();
-                                        _controller.selection = TextSelection.fromPosition(
-                                          TextPosition(offset: _controller.text.length),
-                                        );
+                                        _controller.selection =
+                                            TextSelection.fromPosition(
+                                              TextPosition(
+                                                  offset: _controller.text.length),
+                                            );
                                       }
                                     },
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                // Button fills the remaining space
                                 Expanded(
                                   child: SizedBox(
                                     height: 44,
                                     child: ElevatedButton(
-                                      onPressed: widget.isInStock ? _handleAddToCart : null,
+                                      onPressed: widget.isInStock
+                                          ? _handleAddToCart
+                                          : null,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: blueColor,
-                                        disabledBackgroundColor: theme.disabledColor,
+                                        disabledBackgroundColor:
+                                        theme.disabledColor,
                                         foregroundColor: Colors.white,
                                         elevation: 0,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius:
+                                          BorderRadius.circular(12),
                                         ),
                                       ),
                                       child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                        MainAxisAlignment.center,
                                         children: [
-                                          const Icon(Icons.shopping_cart_outlined, size: 18, color: Colors.white),
+                                          const Icon(
+                                              Icons.shopping_cart_outlined,
+                                              size: 18,
+                                              color: Colors.white),
                                           const SizedBox(width: 6),
                                           Text(
-                                            widget.isInStock ? 'SEPETE EKLE' : 'STOKTA YOK',
-                                            style: const TextStyle(fontWeight: FontWeight.w700),
+                                            widget.isInStock
+                                                ? 'SEPETE EKLE'
+                                                : 'STOKTA YOK',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w700),
                                           ),
                                         ],
                                       ),
@@ -423,7 +415,6 @@ class _AddToCartModalState extends State<AddToCartModal> {
   }
 }
 
-// Stepper and Chip widgets remain the same...
 class _QtyStepper extends StatelessWidget {
   const _QtyStepper({
     required this.controller,
@@ -442,7 +433,8 @@ class _QtyStepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bg = theme.brightness == Brightness.light ? Colors.white : theme.cardColor;
+    final bg =
+    theme.brightness == Brightness.light ? Colors.white : theme.cardColor;
     final border = theme.dividerColor.withOpacity(0.35);
     final isMin = value <= 1;
     final isMax = value >= 999;
@@ -459,7 +451,8 @@ class _QtyStepper extends StatelessWidget {
           color: bg,
           border: Border(
             left: showLeftBorder ? BorderSide(color: border) : BorderSide.none,
-            right: showRightBorder ? BorderSide(color: border) : BorderSide.none,
+            right:
+            showRightBorder ? BorderSide(color: border) : BorderSide.none,
           ),
         ),
         child: child,

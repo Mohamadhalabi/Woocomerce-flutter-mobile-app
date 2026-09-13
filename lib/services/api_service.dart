@@ -8,6 +8,23 @@ import '../models/category_model.dart';
 import 'cart_service.dart';
 
 class ApiService {
+  // ===========================================================================
+  // MIGRATION SWITCH
+  //
+  // While true, every WooCommerce call throws instead of hitting the old API.
+  // Screens that still depend on it fail loudly and the message names the
+  // method — which is how you find what's left to migrate.
+  //
+  // Set to false to turn the old API back on.
+  // ===========================================================================
+  static const bool _disabled = true;
+
+  static void _blocked(String method) {
+    if (_disabled) {
+      throw Exception('ESKI API KAPALI: ApiService.$method');
+    }
+  }
+
   static const _base = 'https://www.aanahtar.com.tr';
   static const String _wooBase = 'https://www.aanahtar.com.tr/wp-json/wc/v3';
   static const String _ck = 'ck_d38f6fc0daee9ae7436acb92dda9864e64611fb8';
@@ -38,10 +55,6 @@ class ApiService {
     return h;
   }
 
-  // helper :
-
-  // Put these helpers somewhere central (e.g., in ApiService)
-
   static bool _looksLikeJson(String s) {
     final t = s.trimLeft();
     return t.startsWith('{') || t.startsWith('[');
@@ -69,7 +82,7 @@ class ApiService {
     return http.post(url, headers: h, body: body).timeout(timeout);
   }
 
-  // set Turkish lira default Currency
+  // Local only — no network, so it stays available.
   static Future<String> getSelectedCurrency() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('selected_currency') ?? 'TRY';
@@ -80,6 +93,7 @@ class ApiService {
   // =========================
 
   static Future<List<CategoryModel>> fetchCategories(String locale) async {
+    _blocked('fetchCategories');
     await dotenv.load();
 
     final baseUrl = dotenv.env['API_BASE_URL'];
@@ -87,8 +101,7 @@ class ApiService {
     final consumerSecret = dotenv.env['CONSUMER_SECRET'];
 
     final url = Uri.parse(
-        '$baseUrl/products/categories?consumer_key=$consumerKey&consumer_secret=$consumerSecret&per_page=100'
-    );
+        '$baseUrl/products/categories?consumer_key=$consumerKey&consumer_secret=$consumerSecret&per_page=100');
 
     final response = await http.get(url);
 
@@ -101,6 +114,7 @@ class ApiService {
   }
 
   static Future<List<ProductModel>> fetchLatestProducts(String locale) async {
+    _blocked('fetchLatestProducts');
     final currency = await getSelectedCurrency();
     try {
       await dotenv.load();
@@ -133,6 +147,7 @@ class ApiService {
   }
 
   static Future<List<ProductModel>> fetchEmulatorProducts(String locale) async {
+    _blocked('fetchEmulatorProducts');
     final currency = await getSelectedCurrency();
     try {
       await dotenv.load();
@@ -167,6 +182,7 @@ class ApiService {
   }
 
   static Future<List<Map<String, String>>> fetchSliders(String locale) async {
+    _blocked('fetchSliders');
     try {
       await dotenv.load();
       String apiBaseUrl = dotenv.env['API_BASE_URL'] ?? '';
@@ -207,6 +223,7 @@ class ApiService {
   }
 
   static Future<List<ProductModel>> fetchFlashSaleProducts(String locale) async {
+    _blocked('fetchFlashSaleProducts');
     final currency = await getSelectedCurrency();
 
     await dotenv.load();
@@ -214,7 +231,8 @@ class ApiService {
     String consumerKey = dotenv.env['CONSUMER_KEY'] ?? '';
     String consumerSecret = dotenv.env['CONSUMER_SECRET'] ?? '';
 
-    final url = Uri.parse('$apiBaseUrl/$currency?on_sale=true&per_page=12&consumer_key=$consumerKey&consumer_secret=$consumerSecret');
+    final url = Uri.parse(
+        '$apiBaseUrl/$currency?on_sale=true&per_page=12&consumer_key=$consumerKey&consumer_secret=$consumerSecret');
 
     final response = await http.get(
       url,
@@ -235,6 +253,7 @@ class ApiService {
   }
 
   static Future<List<ProductModel>> fetchBundleProducts(String locale) async {
+    _blocked('fetchBundleProducts');
     try {
       await dotenv.load();
       String apiBaseUrl = dotenv.env['API_BASE_URL'] ?? '';
@@ -274,6 +293,7 @@ class ApiService {
 
   // product details
   static Future<ProductModel> fetchProductById(int id, String locale) async {
+    _blocked('fetchProductById');
     final currency = await getSelectedCurrency();
     await dotenv.load();
     final baseUrl = dotenv.env['API_BASE_URL_PRODUCTS']!;
@@ -294,9 +314,6 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-
-      print("TSSSSS");
-      print(data);
       return ProductModel.fromJson(data);
     } else {
       throw Exception('Failed to load product: ${response.statusCode}');
@@ -305,6 +322,7 @@ class ApiService {
 
   // fetch card product by id
   static Future<ProductModel> fetchProductCardById(int id, String locale) async {
+    _blocked('fetchProductCardById');
     final currency = await getSelectedCurrency();
     await dotenv.load();
 
@@ -335,6 +353,7 @@ class ApiService {
 
   static Future<List<ProductModel>> fetchProductsCardByIds(
       List<int> ids, String locale) async {
+    _blocked('fetchProductsCardByIds');
     if (ids.isEmpty) return [];
 
     final currency = await getSelectedCurrency();
@@ -376,6 +395,7 @@ class ApiService {
     required String phone,
     String? password,
   }) async {
+    _blocked('updateUserProfile');
     await dotenv.load();
 
     final baseUrl = dotenv.env['API_BASE_URL']!;
@@ -423,6 +443,7 @@ class ApiService {
     required String state,
     required String postcode,
   }) async {
+    _blocked('updateUserAddress');
     await dotenv.load();
 
     final baseUrl = dotenv.env['API_BASE_URL']!;
@@ -434,22 +455,23 @@ class ApiService {
 
     if (token == null) throw Exception('Not authenticated');
 
-    // 1️⃣ Get the current user data so we don't wipe it
     final currentUser = await ApiService.fetchUserInfo();
 
     final url = Uri.parse(
       "$baseUrl/customers/me?consumer_key=$consumerKey&consumer_secret=$consumerSecret",
     );
 
-    // 2️⃣ Merge the new address fields with existing info
     final body = {
       "first_name": currentUser['first_name'] ?? "",
       "last_name": currentUser['last_name'] ?? "",
       "email": currentUser['email'] ?? "",
       "phone": currentUser['phone'] ?? "222",
       "billing": {
-        "first_name": currentUser['billing']?['first_name'] ?? currentUser['first_name'] ?? "",
-        "last_name": currentUser['billing']?['last_name'] ?? currentUser['last_name'] ?? "",
+        "first_name": currentUser['billing']?['first_name'] ??
+            currentUser['first_name'] ??
+            "",
+        "last_name":
+        currentUser['billing']?['last_name'] ?? currentUser['last_name'] ?? "",
         "email": currentUser['billing']?['email'] ?? currentUser['email'] ?? "",
         "billing_phone": currentUser['billing']?['phone'] ?? "",
         "address_1": address1,
@@ -459,8 +481,12 @@ class ApiService {
         "country": currentUser['billing']?['country'] ?? "TR",
       },
       "shipping": {
-        "first_name": currentUser['shipping']?['first_name'] ?? currentUser['first_name'] ?? "",
-        "last_name": currentUser['shipping']?['last_name'] ?? currentUser['last_name'] ?? "",
+        "first_name": currentUser['shipping']?['first_name'] ??
+            currentUser['first_name'] ??
+            "",
+        "last_name": currentUser['shipping']?['last_name'] ??
+            currentUser['last_name'] ??
+            "",
         "address_1": address1,
         "city": city,
         "state": state,
@@ -469,7 +495,6 @@ class ApiService {
       }
     };
 
-    // 3️⃣ Send the full payload so Woo doesn't wipe fields
     final response = await http.post(
       url,
       headers: {
@@ -488,7 +513,9 @@ class ApiService {
   // RELATED PRODUCTS
   // =========================
 
-  static Future<List<ProductModel>> fetchRelatedProductsWoo(String locale, int productId) async {
+  static Future<List<ProductModel>> fetchRelatedProductsWoo(
+      String locale, int productId) async {
+    _blocked('fetchRelatedProductsWoo');
     final currency = await getSelectedCurrency();
     await dotenv.load();
     final baseUrl = dotenv.env['API_BASE_URL_PRODUCTS']!;
@@ -513,10 +540,12 @@ class ApiService {
 
       final decoded = json.decode(productRes.body);
       final Map<String, dynamic> productJson =
-      (decoded is List && decoded.isNotEmpty) ? Map<String, dynamic>.from(decoded.first)
+      (decoded is List && decoded.isNotEmpty)
+          ? Map<String, dynamic>.from(decoded.first)
           : Map<String, dynamic>.from(decoded as Map);
 
-      final List<dynamic> relatedIdsDyn = productJson['related_ids'] is List ? productJson['related_ids'] : const [];
+      final List<dynamic> relatedIdsDyn =
+      productJson['related_ids'] is List ? productJson['related_ids'] : const [];
       final List<int> relatedIds = relatedIdsDyn
           .map((e) => e is int ? e : int.tryParse('$e'))
           .whereType<int>()
@@ -541,7 +570,9 @@ class ApiService {
 
       final relatedJson = json.decode(relatedRes.body);
       final List list = relatedJson is List ? relatedJson : [];
-      return list.map((p) => ProductModel.fromJson(Map<String, dynamic>.from(p))).toList();
+      return list
+          .map((p) => ProductModel.fromJson(Map<String, dynamic>.from(p)))
+          .toList();
     } catch (e) {
       throw Exception("Woo Related Error: $e");
     }
@@ -555,7 +586,9 @@ class ApiService {
     required String username,
     required String password,
   }) async {
-    final url = Uri.parse('https://www.aanahtar.com.tr/wp-json/jwt-auth/v1/token');
+    _blocked('loginUserWithEmail');
+    final url =
+    Uri.parse('https://www.aanahtar.com.tr/wp-json/jwt-auth/v1/token');
     final response = await http.post(
       url,
       headers: {
@@ -580,7 +613,7 @@ class ApiService {
     try {
       final data = jsonDecode(response.body);
       final code = (data['code'] ?? '').toString();
-      final msg  = (data['message'] ?? '').toString();
+      final msg = (data['message'] ?? '').toString();
       final mapped = _mapJwtError(code, msg);
       throw Exception(mapped);
     } catch (_) {
@@ -608,8 +641,10 @@ class ApiService {
   }
 
   static Future<void> sendLoginCode(String phone) async {
+    _blocked('sendLoginCode');
     final res = await _postJson(
-      Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/request-code'),
+      Uri.parse(
+          'https://www.aanahtar.com.tr/wp-json/custom-auth/v1/request-code'),
       body: jsonEncode({'phone_number': phone}),
     );
 
@@ -618,7 +653,6 @@ class ApiService {
       if (data['success'] == true) return;
     }
 
-    // Not 200 or success=false → surface best message possible
     final err = _safeDecodeMap(res.body);
     throw Exception(err['error'] ?? err['message'] ?? 'Kod gönderilemedi');
   }
@@ -627,8 +661,10 @@ class ApiService {
     required String phone,
     required String code,
   }) async {
+    _blocked('verifyLoginCode');
     final res = await _postJson(
-      Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/verify-code'),
+      Uri.parse(
+          'https://www.aanahtar.com.tr/wp-json/custom-auth/v1/verify-code'),
       body: jsonEncode({'phone_number': phone, 'code': code}),
     );
 
@@ -641,6 +677,7 @@ class ApiService {
     throw Exception(err['error'] ?? err['message'] ?? 'Doğrulama başarısız');
   }
 
+  // Local only — reads SharedPreferences, no network.
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
@@ -648,6 +685,7 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> fetchUserInfo() async {
+    _blocked('fetchUserInfo');
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
@@ -677,6 +715,7 @@ class ApiService {
   // =========================
 
   static Future<Map<String, dynamic>> fetchUserBilling() async {
+    _blocked('fetchUserBilling');
     await dotenv.load();
 
     final prefs = await SharedPreferences.getInstance();
@@ -714,6 +753,7 @@ class ApiService {
   }
 
   static Future<List<Map<String, dynamic>>> fetchUserOrders() async {
+    _blocked('fetchUserOrders');
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
@@ -737,8 +777,7 @@ class ApiService {
     final userId = userData['id'];
 
     final ordersUrl = Uri.parse(
-        'https://www.aanahtar.com.tr/wp-json/wc/v3/orders?customer=$userId&status=any&currency=TRY'
-    );
+        'https://www.aanahtar.com.tr/wp-json/wc/v3/orders?customer=$userId&status=any&currency=TRY');
 
     final ordersResponse = await http.get(
       ordersUrl,
@@ -764,6 +803,7 @@ class ApiService {
     String? password,
     required String phone,
   }) async {
+    _blocked('registerUser');
     final response = await http.post(
       Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/register'),
       headers: {'Content-Type': 'application/json'},
@@ -787,6 +827,7 @@ class ApiService {
     String? firstName,
     String? lastName,
   }) async {
+    _blocked('registerWithPhone');
     final res = await http.post(
       Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/register'),
       headers: {'Content-Type': 'application/json'},
@@ -795,12 +836,14 @@ class ApiService {
         'password': password,
         if (email != null && email.isNotEmpty) 'email': email,
         if (firstName != null && firstName.isNotEmpty) 'first_name': firstName,
-        if (lastName  != null && lastName.isNotEmpty)  'last_name':  lastName,
+        if (lastName != null && lastName.isNotEmpty) 'last_name': lastName,
       }),
     );
 
     Map<String, dynamic>? jsonBody;
-    try { jsonBody = jsonDecode(res.body) as Map<String, dynamic>; } catch (_) {}
+    try {
+      jsonBody = jsonDecode(res.body) as Map<String, dynamic>;
+    } catch (_) {}
 
     final ok = res.statusCode == 200 && (jsonBody?['success'] == true);
     if (!ok) {
@@ -808,15 +851,17 @@ class ApiService {
       throw Exception(msg);
     }
 
-    // Send code
     final codeRes = await http.post(
-      Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/request-code'),
+      Uri.parse(
+          'https://www.aanahtar.com.tr/wp-json/custom-auth/v1/request-code'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'phone_number': phone}),
     );
 
     Map<String, dynamic>? codeJson;
-    try { codeJson = jsonDecode(codeRes.body) as Map<String, dynamic>; } catch (_) {}
+    try {
+      codeJson = jsonDecode(codeRes.body) as Map<String, dynamic>;
+    } catch (_) {}
 
     final codeOk = codeRes.statusCode == 200 && (codeJson?['success'] == true);
     if (!codeOk) {
@@ -830,8 +875,10 @@ class ApiService {
     required String firstName,
     required String lastName,
   }) async {
+    _blocked('updateProfileName');
     final response = await http.post(
-      Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/update-profile'),
+      Uri.parse(
+          'https://www.aanahtar.com.tr/wp-json/custom-auth/v1/update-profile'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -854,8 +901,9 @@ class ApiService {
 
   static Future<Map<String, List<String>>> fetchFiltersForEntry({
     required int id,
-    required String filterType, // 'category', 'brand', or 'manufacturer'
+    required String filterType,
   }) async {
+    _blocked('fetchFiltersForEntry');
     final url = Uri.parse(
       'https://www.aanahtar.com.tr/wp-json/custom/v1/attributes-for-filter?filterType=$filterType&id=$id',
     );
@@ -889,6 +937,7 @@ class ApiService {
     String sort = 'new_to_old',
     bool onSale = false,
   }) async {
+    _blocked('fetchFilteredProducts');
     final currency = await getSelectedCurrency();
 
     String orderBy = 'date';
@@ -910,8 +959,7 @@ class ApiService {
 
     final filtersJson = jsonEncode(selectedFilters);
 
-    String url =
-        'https://www.aanahtar.com.tr/wp-json/woocs/v3/products/$currency'
+    String url = 'https://www.aanahtar.com.tr/wp-json/woocs/v3/products/$currency'
         '?${filterType.toLowerCase()}=$id'
         '&page=$page'
         '&per_page=$perPage'
@@ -941,16 +989,13 @@ class ApiService {
     int page = 1,
     int perPage = 8,
   }) async {
-    // 1. Get current currency (Required for the custom endpoint)
+    _blocked('fetchProductsBySearch');
     final currency = await getSelectedCurrency();
 
-    // 2. Load keys
     await dotenv.load();
     final consumerKey = dotenv.env['CONSUMER_KEY'] ?? '';
     final consumerSecret = dotenv.env['CONSUMER_SECRET'] ?? '';
 
-    // 3. USE THE CUSTOM 'WOOCS' ENDPOINT
-    // We use 's' parameter because we added $args['s'] in the PHP backend above.
     final url = Uri.parse(
         'https://www.aanahtar.com.tr/wp-json/woocs/v3/products/$currency'
             '?s=${Uri.encodeComponent(search)}'
@@ -958,18 +1003,13 @@ class ApiService {
             '&per_page=$perPage'
             '&consumer_key=$consumerKey'
             '&consumer_secret=$consumerSecret'
-            '&lang=$locale'
-    );
+            '&lang=$locale');
 
-    // 4. Send Request
-    final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cookie': 'woocommerce-currency=$currency',
-        }
-    );
+    final response = await http.get(url, headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Cookie': 'woocommerce-currency=$currency',
+    });
 
     if (response.statusCode == 200) {
       final List jsonData = jsonDecode(response.body);
@@ -980,10 +1020,12 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> fetchDrawerData(String lang) async {
+    _blocked('fetchDrawerData');
     await dotenv.load();
     final baseUrl = dotenv.env['API_BASE_URL'];
 
-    final response = await http.get(Uri.parse('$baseUrl/custom/v1/drawer-data?lang=$lang'));
+    final response =
+    await http.get(Uri.parse('$baseUrl/custom/v1/drawer-data?lang=$lang'));
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -993,6 +1035,7 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> fetchOrderDetails(int orderId) async {
+    _blocked('fetchOrderDetails');
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
@@ -1000,7 +1043,8 @@ class ApiService {
       throw Exception("Kullanıcı girişi yapılmamış.");
     }
 
-    final url = Uri.parse("https://www.aanahtar.com.tr/wp-json/wc/v3/orders/$orderId");
+    final url =
+    Uri.parse("https://www.aanahtar.com.tr/wp-json/wc/v3/orders/$orderId");
 
     final response = await http.get(
       url,
@@ -1021,12 +1065,12 @@ class ApiService {
   // ORDERS (CREATE): TRANSFER + IYZICO
   // =========================
 
-  /// Legacy createOrder (BACS) — kept for backward compatibility
   static Future<Map<String, dynamic>> createOrder({
     required Map<String, dynamic> billing,
     required Map<String, dynamic> shipping,
     required List<Map<String, dynamic>> cartItems,
   }) async {
+    _blocked('createOrder');
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('user_id');
     final baseUrl = "https://www.aanahtar.com.tr/wp-json/wc/v3";
@@ -1087,12 +1131,12 @@ class ApiService {
     return jsonMap as Map<String, dynamic>;
   }
 
-  /// New BACS creator (used by your updated UI)
   static Future<Map<String, dynamic>> createOrderBacs({
     required Map<String, dynamic> billing,
     required Map<String, dynamic> shipping,
     required List<Map<String, dynamic>> cartItems,
   }) async {
+    _blocked('createOrderBacs');
     return _createWooOrder(
       billing: billing,
       shipping: shipping,
@@ -1104,12 +1148,12 @@ class ApiService {
     );
   }
 
-  /// NEW: Create a Woo order for iyzico (pending, not paid yet)
   static Future<Map<String, dynamic>> createOrderIyzicoPending({
     required Map<String, dynamic> billing,
     required Map<String, dynamic> shipping,
     required List<Map<String, dynamic>> cartItems,
   }) async {
+    _blocked('createOrderIyzicoPending');
     return _createWooOrder(
       billing: billing,
       shipping: shipping,
@@ -1117,12 +1161,11 @@ class ApiService {
       paymentMethod: 'iyzico',
       paymentTitle: 'Kredi/Banka Kartı (iyzico)',
       setPaid: false,
-      clearCartOnSuccess: false, // wait for payment callback
+      clearCartOnSuccess: false,
       status: 'pending',
     );
   }
 
-  /// Shared Woo order creator
   static Future<Map<String, dynamic>> _createWooOrder({
     required Map<String, dynamic> billing,
     required Map<String, dynamic> shipping,
@@ -1133,6 +1176,7 @@ class ApiService {
     required bool clearCartOnSuccess,
     String status = 'pending',
   }) async {
+    _blocked('_createWooOrder');
     await dotenv.load();
     const baseUrl = "https://www.aanahtar.com.tr/wp-json/wc/v3";
     final consumerKey = dotenv.env['CONSUMER_KEY']!;
@@ -1162,7 +1206,8 @@ class ApiService {
     };
 
     final res = await http.post(
-      Uri.parse("$baseUrl/orders?consumer_key=$consumerKey&consumer_secret=$consumerSecret"),
+      Uri.parse(
+          "$baseUrl/orders?consumer_key=$consumerKey&consumer_secret=$consumerSecret"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode(body),
     );
@@ -1183,19 +1228,9 @@ class ApiService {
   }
 
   // =========================
-  // IYZICO (via your WordPress backend)
+  // IYZICO (via the WordPress backend)
   // =========================
-  //
-  // Your WP plugin must expose:
-  // POST /wp-json/mobile-iyzico/v1/init
-  //   body: { order_id?, billing, shipping, cart, total, currency }
-  //   returns: { orderId, token, htmlContent }
-  //
-  // GET  /wp-json/mobile-iyzico/v1/status?orderId=...
-  //   returns: { orderId, paid: true/false, status: 'pending|paid|failed' }
 
-  /// Ask WP to initialize iyzico Checkout Form.
-  /// If you already created a Woo order (recommended), pass it via `existingOrderId`.
   static Future<Map<String, dynamic>> initIyzicoCheckout({
     required Map<String, dynamic> billing,
     required Map<String, dynamic> shipping,
@@ -1205,6 +1240,7 @@ class ApiService {
     int? existingOrderId,
     String deepLinkScheme = 'myapp',
   }) async {
+    _blocked('initIyzicoCheckout');
     final url = Uri.parse('$_base/wp-json/mobile-iyzico/v1/init');
 
     final body = {
@@ -1220,7 +1256,10 @@ class ApiService {
 
     final res = await http.post(
       url,
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
       body: jsonEncode(body),
     );
 
@@ -1230,21 +1269,17 @@ class ApiService {
     return Map<String, dynamic>.from(jsonDecode(res.body));
   }
 
-  /// Poll final status after the WebView flow finishes (or deep link fires).
-  /// Direct card charge (Option 2)
-// --- REPLACE THIS FUNCTION IN api_service.dart ---
-
-  // --- Direct card charge (uses your WP plugin /pay-card)
   static Future<Map<String, dynamic>> payIyzicoCard({
     required Map<String, dynamic> billing,
     required List<Map<String, dynamic>> cartItems,
     required double total,
-    required Map<String, dynamic> card,     // holder, number, expMonth, expYear, cvc
+    required Map<String, dynamic> card,
     String currency = 'TRY',
     bool use3ds = true,
     String? orderId,
-    int? customerId, // <-- NEW
+    int? customerId,
   }) async {
+    _blocked('payIyzicoCard');
     final url = Uri.parse('$_base/wp-json/mobile-iyzico/v1/pay-card');
 
     final body = {
@@ -1257,12 +1292,15 @@ class ApiService {
       'currency': currency,
       'use3ds': use3ds,
       'card': card,
-      if (customerId != null) 'customer_id': customerId, // <-- pass to WP
+      if (customerId != null) 'customer_id': customerId,
     };
 
     final res = await http.post(
       url,
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
       body: jsonEncode(body),
     );
 
@@ -1272,10 +1310,11 @@ class ApiService {
     return Map<String, dynamic>.from(jsonDecode(res.body));
   }
 
-
-// --- Poll final status after 3DS finishes
-  static Future<Map<String, dynamic>> getIyzicoStatus({required String orderId}) async {
-    final url = Uri.parse('$_base/wp-json/mobile-iyzico/v1/status?orderId=$orderId');
+  static Future<Map<String, dynamic>> getIyzicoStatus(
+      {required String orderId}) async {
+    _blocked('getIyzicoStatus');
+    final url =
+    Uri.parse('$_base/wp-json/mobile-iyzico/v1/status?orderId=$orderId');
     final res = await http.get(url, headers: {'Accept': 'application/json'});
     if (res.statusCode != 200) {
       throw Exception('iyzico status failed: ${res.body}');
@@ -1283,11 +1322,12 @@ class ApiService {
     return Map<String, dynamic>.from(jsonDecode(res.body));
   }
 
-// =========================
+  // =========================
   // ACCOUNT DELETION
   // =========================
 
   static Future<void> deleteAccount() async {
+    _blocked('deleteAccount');
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
@@ -1295,9 +1335,8 @@ class ApiService {
       throw Exception("Oturum açılmamış.");
     }
 
-    // Assuming you have this endpoint in your custom-auth WP plugin
-    // If not, see the PHP code provided at the end of this answer.
-    final url = Uri.parse('https://www.aanahtar.com.tr/wp-json/custom-auth/v1/delete-account');
+    final url = Uri.parse(
+        'https://www.aanahtar.com.tr/wp-json/custom-auth/v1/delete-account');
 
     final response = await http.delete(
       url,
@@ -1314,7 +1353,6 @@ class ApiService {
         throw Exception(data['message'] ?? 'Hesap silinemedi.');
       }
     } else {
-      // Parse error message from server if available
       String errorMsg = 'Hesap silinirken bir hata oluştu.';
       try {
         final body = jsonDecode(response.body);
