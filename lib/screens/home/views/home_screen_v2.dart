@@ -6,6 +6,9 @@
 // One request on open: /home carries the slider, banners and Yeni Gelenler.
 // Fırsatlar and Emülatörler fetch themselves when they scroll into view, since
 // most sessions never reach them.
+//
+// The slider is the app's own tall one (admin key "mobile-hero") when it has
+// slides, and the website's wide one otherwise.
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +27,7 @@ import '../../category/category_products_screen_v2.dart';
 import '../../product/views/product_details_screen_v2.dart';
 import 'components/categories_v2.dart';
 import 'components/lazy_product_row.dart';
+import 'components/mobile_hero_carousel.dart';
 import 'components/offers_carousel_v2.dart';
 
 class HomeScreenV2 extends StatefulWidget {
@@ -123,6 +127,8 @@ class _HomeScreenV2State extends State<HomeScreenV2>
   /// Links are authored for the website, so they arrive as full URLs or paths
   /// rather than as a type + slug. The path segment is what identifies the
   /// destination: /urun/… is a product, /kategori/… or /magaza/… a category.
+  /// /product-category/… (the format the admin sliders use) falls through to
+  /// the bare-slug case at the bottom, which also opens a category.
   void _openSlide(HomeSlide slide) {
     final link = slide.link?.trim();
     if (link == null || link.isEmpty) return;
@@ -232,11 +238,22 @@ class _HomeScreenV2State extends State<HomeScreenV2>
                 // product rows refreshing.
                 CategoriesV2(onCategoryTap: _openCategory),
 
-                OffersCarouselV2(
-                  slides: _home?.hero ?? const [],
-                  isLoading: _loading,
-                  onSlideTap: _openSlide,
-                ),
+                // The app's own tall slider when the admin has slides for
+                // it; otherwise the website slider, so the home screen is
+                // never empty while mobile slides are being added.
+                if (!_loading && (_home?.mobileHero.isNotEmpty ?? false))
+                  MobileHeroCarousel(
+                    slides: _home!.mobileHero,
+                    onSlideTap: _openSlide,
+                    // 1 = 1080x1080 images. Use 4 / 5 for 1080x1350.
+                    aspectRatio: 2 / 1,
+                  )
+                else
+                  OffersCarouselV2(
+                    slides: _home?.hero ?? const [],
+                    isLoading: _loading,
+                    onSlideTap: _openSlide,
+                  ),
 
                 if (_loading)
                   _skeleton()
@@ -395,7 +412,7 @@ class _HomeScreenV2State extends State<HomeScreenV2>
         SizedBox(
           // Matches the 4-line title cards. Raising maxLines without raising
           // this is what causes the overflow stripes.
-          height: 292,
+          height: 320,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 8),

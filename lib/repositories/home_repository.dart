@@ -27,13 +27,20 @@ class HomeSlide {
 }
 
 class HomeData {
+  /// The website's wide slider (admin key "hero").
   final List<HomeSlide> hero;
+
+  /// The app's own tall slider (admin key "mobile-hero"). Empty until slides
+  /// are added in the admin; the home screen falls back to [hero] meanwhile.
+  final List<HomeSlide> mobileHero;
+
   final List<HomeSlide> promos;
   final List<HomeSlide> banners;
   final List<ProductModel> newProducts;
 
   const HomeData({
     required this.hero,
+    this.mobileHero = const [],
     required this.promos,
     required this.banners,
     required this.newProducts,
@@ -48,6 +55,7 @@ class HomeData {
 
     return HomeData(
       hero: slides('hero'),
+      mobileHero: slides('mobile_hero'),
       promos: slides('promos'),
       banners: slides('banners'),
       // Note: a bare array here, NOT wrapped in `data`.

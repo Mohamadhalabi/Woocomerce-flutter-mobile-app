@@ -12,6 +12,7 @@
 // Every endpoint returns the full cart, so there's no need to refetch after a
 // mutation.
 
+import '../models/catalog_product.dart';
 import '../services/api_client.dart';
 
 class CartItem {
@@ -49,7 +50,7 @@ class CartItem {
         productId: (json['product_id'] as num?)?.toInt() ?? 0,
         name: json['name']?.toString() ?? '',
         slug: json['slug']?.toString(),
-        image: json['image']?.toString(),
+        image: resolveImageUrl(json['image']),
         quantity: (json['quantity'] as num?)?.toInt() ?? 0,
         unitPrice: (json['unit_price'] as num?)?.toDouble(),
         lineTotal: (json['line_total'] as num?)?.toDouble(),

@@ -27,7 +27,7 @@ class LazyProductRow extends StatefulWidget {
     required this.query,
     required this.cacheKey,
     this.onViewAll,
-    this.height = 310,
+    this.height = 320,
   });
 
   final String title;

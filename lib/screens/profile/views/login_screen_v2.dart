@@ -1,6 +1,7 @@
 // lib/screens/profile/views/login_screen_v2.dart
 //
-// Email + password against the new Sanctum endpoint.
+// Email + password against the new Sanctum endpoint, plus a button to the
+// SMS-code sign-in (PhoneLoginScreenV2).
 //
 // Differences from the JWT version:
 //   - the token is opaque, so there's no client-side expiry check
@@ -18,6 +19,7 @@ import '../../../services/api_client.dart';
 import '../../../services/app_api.dart';
 import '../../../services/taxonomy_service.dart';
 import 'forgot_password_screen_v2.dart';
+import 'phone_login_screen_v2.dart';
 import 'register_screen_v2.dart';
 
 class LoginScreenV2 extends StatefulWidget {
@@ -173,7 +175,7 @@ class _LoginScreenV2State extends State<LoginScreenV2> {
                 ),
               ),
               validator: (v) =>
-                  (v ?? '').isEmpty ? 'Parola zorunludur' : null,
+              (v ?? '').isEmpty ? 'Parola zorunludur' : null,
               onFieldSubmitted: (_) => _login(),
             ),
             const SizedBox(height: 12),
@@ -204,19 +206,40 @@ class _LoginScreenV2State extends State<LoginScreenV2> {
               ),
               child: _isLoading
                   ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
                   : const Text('E-posta ile giriş yap'),
             ),
 
-            // Phone sign-in is intentionally absent: the Laravel API has no
-            // phone/OTP endpoints yet. Restore this button once
-            // /auth/phone/request-code and /auth/phone/verify-code exist.
+            // SMS-code sign-in: /auth/phone/request-code + verify-code.
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _isLoading
+                  ? null
+                  : () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PhoneLoginScreenV2(),
+                ),
+              ),
+              icon: Icon(Icons.sms_outlined, color: primaryColor),
+              label: Text(
+                'Telefon ile giriş yap',
+                style: TextStyle(color: primaryColor),
+              ),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                side: BorderSide(color: primaryColor),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+              ),
+            ),
 
             const SizedBox(height: 20),
             const Divider(),

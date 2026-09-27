@@ -8,6 +8,8 @@
 //   - the "Fiyat için giriş yapın" prompt is gone; when prices are hidden the
 //     price area is simply blank
 //   - add-to-cart reports the chosen quantity to the parent
+//   - the title uses as many lines as fit (up to 4), so a long title is cut
+//     with "…" instead of pushing the price and cart button off the card
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -44,6 +46,11 @@ class CatalogProductCard extends StatefulWidget {
 class _CatalogProductCardState extends State<CatalogProductCard> {
   int _quantity = 1;
   bool _busy = false;
+
+  /// Title text metrics, shared by the style and the fit calculation.
+  static const double _titleFontSize = 11;
+  static const double _titleLineHeight = 1.65;
+  static const int _titleMaxLines = 4;
 
   ProductModel get product => widget.product;
 
@@ -104,24 +111,43 @@ class _CatalogProductCardState extends State<CatalogProductCard> {
                         style: TextStyle(fontSize: 10, color: categoryColor),
                       ),
                     const SizedBox(height: 2),
-                    Text(
-                      product.title,
-                      // 4 lines before truncating: product names here start
-                      // with a code and carry the vehicle, so cutting at two
-                      // often hid the part that identifies it.
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                        color: titleColor,
-                        // Line spacing. At 4 lines of 11px the text reads as a
-                        // block otherwise — these titles are long and start
-                        // with a part code, so the eye needs the separation.
-                        height: 1.65,
+
+                    // Takes whatever height is left between the category and
+                    // the price. Up to 4 lines: product names here start with
+                    // a code and carry the vehicle, so cutting at two often
+                    // hid the part that identifies it. But only as many as
+                    // actually fit — in the wider grid cards the image is
+                    // taller, and a fixed 4 lines pushed the price and cart
+                    // button off the bottom ("BOTTOM OVERFLOWED").
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, box) {
+                          final lineHeight = MediaQuery.textScalerOf(context)
+                              .scale(_titleFontSize) *
+                              _titleLineHeight;
+                          final lines = (box.maxHeight / lineHeight)
+                              .floor()
+                              .clamp(1, _titleMaxLines);
+
+                          return Text(
+                            product.title,
+                            maxLines: lines,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: _titleFontSize,
+                              color: titleColor,
+                              // Line spacing. At 4 lines of 11px the text
+                              // reads as a block otherwise — these titles are
+                              // long and start with a part code, so the eye
+                              // needs the separation.
+                              height: _titleLineHeight,
+                            ),
+                          );
+                        },
                       ),
                     ),
-                    const Spacer(),
+
                     if (product.priceVisible && product.price != null)
                       _price(theme, isDark),
                     const SizedBox(height: 4),

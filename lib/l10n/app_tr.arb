@@ -1,0 +1,20 @@
+{
+  "@@locale": "tr",
+  "helloWorld": "Merhaba Dünya!",
+  "@helloWorld": {
+    "description": "The conventional newborn programmer greeting"
+  },
+  "bestSeller": "Çok Satanlar",
+  "drawerHeader": "Menü",
+  "language": "Dil",
+  "english": "İngilizce",
+  "arabic": "Arapça",
+  "spanish": "İspanyolca",
+  "newArrival": "Yeni Ürünler",
+  "viewAll": "Tümünü Gör",
+  "specialOffer": "İndirimli Ürünler",
+  "freeShipping": "Ücretsiz Kargo",
+  "bundleProducts": "Paket Ürünler",
+  "reviews": "Yorumlar",
+  "productInfo": "Ürün Bilgisi"
+}

@@ -717,7 +717,7 @@ class _CategoryProductsScreenV2State extends State<CategoryProductsScreenV2> {
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
           // Taller than the old 0.60 to fit the quantity stepper.
-          childAspectRatio: 0.60,
+          childAspectRatio: 0.55,
         ),
         itemBuilder: (context, index) {
           if (index >= _products.length) return const ProductCardSkelton();

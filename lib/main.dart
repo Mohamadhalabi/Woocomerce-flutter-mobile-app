@@ -16,6 +16,7 @@ import 'package:shop/screens/search/views/components/search_form.dart';
 // Firebase imports
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'components/update_gate.dart';
 import 'firebase_options.dart';
 
 // Local Notifications Import
@@ -318,12 +319,12 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       title: 'Techno lock keys',
       locale: const Locale('tr'),
-      supportedLocales: AppLocalizations.supportedLocales,
+      supportedLocales: const [Locale('tr')],
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       builder: (context, child) {
         return Directionality(
           textDirection: TextDirection.ltr,
-          child: child ?? const SizedBox(),
+          child: UpdateGate(child: child ?? const SizedBox()),
         );
       },
       theme: AppTheme.lightTheme(context),

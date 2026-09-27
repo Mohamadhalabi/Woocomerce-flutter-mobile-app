@@ -309,7 +309,7 @@ class DiscoverScreenV2State extends State<DiscoverScreenV2> {
               crossAxisCount: 2,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 0.60,
+              childAspectRatio: 0.55,
             ),
             itemBuilder: (context, index) {
               if (index >= _results.length) return const ProductCardSkelton();
@@ -404,7 +404,7 @@ class DiscoverScreenV2State extends State<DiscoverScreenV2> {
           ),
           const SizedBox(height: 8),
           SizedBox(
-            height: 292,
+            height: 320,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: _recent.length,
@@ -445,7 +445,7 @@ class DiscoverScreenV2State extends State<DiscoverScreenV2> {
         crossAxisCount: 2,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 0.60,
+        childAspectRatio: 0.55,
       ),
       itemBuilder: (_, __) => const ProductCardSkelton(),
     );
